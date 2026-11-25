@@ -1,4 +1,7 @@
-export type SessionType = 'salle' | 'maison' | 'exterieur' | 'repos'
+import type { Equipment } from './workout/catalog'
+import type { Fatigue, Focus } from './workout/generator'
+
+export type SessionType ='salle' | 'maison' | 'exterieur' | 'repos'
 
 export type ClimbStyle = 'bloc' | 'voie'
 
@@ -21,8 +24,17 @@ export interface Session {
   createdAt: string
 }
 
+export interface HomePrefs {
+  minutes: number
+  fatigue: Fatigue
+  focus: Focus
+}
+
 export interface Settings {
   weeklyGoal: number
+  /** Matériel disponible à la maison (vide = poids du corps) */
+  equipment: Equipment[]
+  home: HomePrefs
 }
 
 export const SESSION_TYPES: { id: SessionType; label: string; emoji: string; color: string }[] = [

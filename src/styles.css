@@ -558,6 +558,288 @@ input[type='range'] {
   gap: 8px;
 }
 
+/* ---------- Séances maison ---------- */
+.small-text {
+  font-size: 0.85rem;
+  margin: 4px 0 10px;
+}
+
+.setup {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.seg.wide {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.seg.wide button {
+  padding: 8px 4px;
+  font-size: 0.9rem;
+}
+
+.focus-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.focus-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 2.5px solid var(--line);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.focus-btn span {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.focus-btn.on {
+  background: var(--c-maison);
+  color: #fff;
+  box-shadow: 0 3px 0 var(--line);
+}
+
+.focus-btn.on span {
+  color: #eafff1;
+}
+
+.focus-btn:disabled {
+  opacity: 0.4;
+}
+
+.pill {
+  background: #fff3c4;
+  border: 2px solid var(--line);
+  border-radius: 999px;
+  padding: 2px 10px;
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.plan-group {
+  margin-top: 12px;
+}
+
+.plan-phase {
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.plan-list {
+  margin: 4px 0 0;
+  padding-left: 22px;
+}
+
+.plan-list li {
+  padding: 4px 0;
+}
+
+.plan-list li > span:first-child {
+  font-weight: 700;
+  margin-right: 6px;
+}
+
+.plan-list .muted {
+  font-size: 0.85rem;
+}
+
+.plan-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.plan-actions .btn {
+  flex: 1;
+}
+
+/* ---------- Lecteur guidé ---------- */
+.player {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  padding: calc(env(safe-area-inset-top) + 12px) 20px calc(env(safe-area-inset-bottom) + 20px);
+  background: #fff3c4;
+  transition: background 0.3s;
+}
+
+.player.work {
+  background: #d6f5e1;
+}
+
+.player.rest {
+  background: #dcebff;
+}
+
+.player.finished {
+  background: linear-gradient(160deg, #ffe08a, #ffb547);
+}
+
+.player-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.player-progress {
+  flex: 1;
+  height: 12px;
+  border: 2.5px solid var(--line);
+  border-radius: 999px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.player-progress div {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s;
+}
+
+.player-count {
+  font-weight: 800;
+  font-size: 0.9rem;
+}
+
+.player-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 10px;
+}
+
+.player-kind {
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.player-title {
+  font-size: 1.8rem;
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.player-cue {
+  max-width: 340px;
+  font-size: 1rem;
+  line-height: 1.45;
+  margin: 6px 0 0;
+}
+
+.ring {
+  position: relative;
+  width: min(62vw, 240px);
+  aspect-ratio: 1;
+}
+
+.ring svg {
+  width: 100%;
+  height: 100%;
+}
+
+.ring-bg {
+  fill: #fff;
+  stroke: var(--line);
+  stroke-width: 6;
+}
+
+.ring-fg {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 12;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 0.2s linear;
+}
+
+.player.work .ring-fg {
+  stroke: var(--good);
+}
+
+.player.rest .ring-fg {
+  stroke: var(--c-exterieur);
+}
+
+.ring-text,
+.reps {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ring-text {
+  position: absolute;
+  inset: 0;
+}
+
+.ring-text b,
+.reps b {
+  font-size: 4rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.reps {
+  width: min(62vw, 240px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: #fff;
+  border: 6px solid var(--line);
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+}
+
+.round.big {
+  width: 56px;
+  height: 56px;
+  font-size: 1.2rem;
+}
+
+.btn.huge {
+  padding: 16px 28px;
+  font-size: 1.2rem;
+  min-width: 170px;
+  border-radius: 18px;
+}
+
+.trophy {
+  font-size: 4.5rem;
+}
+
+.finished-rpe {
+  width: 100%;
+  max-width: 320px;
+  text-align: left;
+  margin-top: 10px;
+}
+
 /* ---------- Bientôt ---------- */
 .soon {
   text-align: center;

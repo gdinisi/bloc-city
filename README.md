@@ -25,7 +25,7 @@ Ouvrir l'adresse dans **Safari** → bouton Partager → **Sur l'écran d'accuei
 ## Avancement du MVP
 
 - [x] Étape 1 : calendrier, saisie des séances (type, durée, ressenti, cotations), objectif hebdo, série hebdo
-- [ ] Étape 2 : séances maison guidées, adaptées au matériel de chacun
+- [x] Étape 2 : séances maison guidées (15/30/45 min, forme, objectif), adaptées au matériel de chacun, minuteur avec bips, validation automatique
 - [ ] Étape 3 : ville isométrique et packs de bâtiments
 - [ ] Étape 4 : comptes Supabase, amis et classement
 

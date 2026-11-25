@@ -12,7 +12,10 @@ interface Data {
   settings: Settings
 }
 
-const DEFAULT: Data = { sessions: [], settings: { weeklyGoal: 3 } }
+const DEFAULT: Data = {
+  sessions: [],
+  settings: { weeklyGoal: 3, equipment: [], home: { minutes: 30, fatigue: 'normal', focus: 'complet' } },
+}
 
 const load = (): Data => {
   try {
@@ -21,7 +24,11 @@ const load = (): Data => {
     const parsed = JSON.parse(raw) as Partial<Data>
     return {
       sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      settings: { ...DEFAULT.settings, ...parsed.settings },
+      settings: {
+        ...DEFAULT.settings,
+        ...parsed.settings,
+        home: { ...DEFAULT.settings.home, ...parsed.settings?.home },
+      },
     }
   } catch {
     return DEFAULT
@@ -62,5 +69,9 @@ export function useAppData() {
     setData((d) => ({ ...d, settings: { ...d.settings, weeklyGoal: Math.min(7, Math.max(1, weeklyGoal)) } }))
   }, [])
 
-  return { ...data, upsertSession, deleteSession, setWeeklyGoal }
+  const updateSettings = useCallback((patch: Partial<Settings>) => {
+    setData((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
+  }, [])
+
+  return { ...data, upsertSession, deleteSession, setWeeklyGoal, updateSettings }
 }

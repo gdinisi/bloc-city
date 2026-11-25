@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAppData } from './lib/store'
 import { CalendarScreen } from './screens/CalendarScreen'
 import { ComingSoon } from './screens/ComingSoon'
+import { HomeWorkoutScreen } from './screens/HomeWorkoutScreen'
 
 type Tab = 'calendrier' | 'seances' | 'ville' | 'classement'
 
@@ -34,15 +35,7 @@ export default function App() {
           />
         )}
         {tab === 'seances' && (
-          <ComingSoon
-            emoji="💪"
-            title="Séances maison"
-            lines={[
-              'Choisis ton temps (15, 30 ou 45 min) et ta fatigue',
-              'Séances adaptées au matériel que tu as (ou sans matériel)',
-              'Minuteur guidé, la séance se valide toute seule',
-            ]}
-          />
+          <HomeWorkoutScreen settings={data.settings} onSettings={data.updateSettings} onSave={data.upsertSession} />
         )}
         {tab === 'ville' && (
           <ComingSoon
