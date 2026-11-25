@@ -21,11 +21,15 @@ import { BuildingThumb, GroundTile } from './iso'
 import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
+import { QuestsMini } from './QuestsPanel'
+import type { Session } from '../types'
 
 
 interface Props {
   city: CityState
   onCity: (fn: (c: CityState) => CityState) => void
+  sessions: Session[]
+  weeklyGoal: number
 }
 
 type Mode =
@@ -50,7 +54,7 @@ export const formatWait = (ms: number) => {
   return h > 0 ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${m} min`
 }
 
-export function CityScreen({ city, onCity }: Props) {
+export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const [mode, setMode] = useState<Mode>({ type: 'idle' })
   const [selected, setSelected] = useState<string | null>(null)
   const [opening, setOpening] = useState<Pack[] | null>(null)
@@ -167,6 +171,8 @@ export function CityScreen({ city, onCity }: Props) {
           </span>
         </button>
       </div>
+
+      <QuestsMini sessions={sessions} weeklyGoal={weeklyGoal} city={city} onCity={onCity} />
 
       <section className="card city-card">
         <div className="city-tools">

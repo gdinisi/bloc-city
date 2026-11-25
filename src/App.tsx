@@ -68,7 +68,7 @@ export default function App() {
 
       <main>
         {tab === 'accueil' && (
-          <HomeScreen sessions={data.sessions} settings={data.settings} city={data.city} onCity={data.updateCity} onSave={data.upsertSession} onSettings={data.updateSettings} pseudo={me.profile?.pseudo ?? null} onGo={go} />
+          <HomeScreen sessions={data.sessions} settings={data.settings} onSave={data.upsertSession} onSettings={data.updateSettings} pseudo={me.profile?.pseudo ?? null} onGo={go} />
         )}
         {tab === 'calendrier' && (
           <CalendarScreen
@@ -83,7 +83,7 @@ export default function App() {
           <HomeWorkoutScreen sessions={data.sessions} settings={data.settings} onSettings={data.updateSettings} onSave={data.upsertSession} />
         )}
         {tab === 'stats' && <StatsScreen sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} />}
-        {tab === 'ville' && <CityScreen city={data.city} onCity={data.updateCity} />}
+        {tab === 'ville' && <CityScreen city={data.city} onCity={data.updateCity} sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} />}
         {tab === 'amis' && (
           <FriendsScreen
             userId={auth.userId}
@@ -103,7 +103,7 @@ export default function App() {
 
       <nav className="tabbar">
         {TABS.map((t) => {
-          const badge = t.id === 'ville' ? cityBadge : t.id === 'accueil' ? questBadge : 0
+          const badge = t.id === 'ville' ? cityBadge + questBadge : 0
           return (
             <button key={t.id} type="button" className={`${tab === t.id ? 'on' : ''} ${t.id === 'accueil' ? 'center' : ''}`} onClick={() => go(t.id)}>
               <span className="tab-emoji">
