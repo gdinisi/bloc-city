@@ -275,6 +275,7 @@ function useClock(active: boolean) {
 /** Durée d'un cycle (ms), pour les captures de contrôle */
 export function animCycle(id: string) {
   if (SCENES[id]) return SCENES[id].period * (id === 'poignet-flex' || id === 'avant-bras' ? 2 : 1)
+
   return ANIMS[id] ? cycleLength(ANIMS[id]) : 1000
 }
 

@@ -143,113 +143,108 @@ function towelScene(t: number) {
   )
 }
 
-/* ---------- Étirement des avant-bras : gros plan, la main se plie et l'autre main la ramène vers soi ---------- */
+/* ---------- Étirement des avant-bras : gros plan de la main seule ---------- */
+const HELPER = '#f0bf92' // l'autre main, un ton plus foncé pour la distinguer
 function forearmScene(t: number) {
-  const period = 3600
-  const palmUp = t % (period * 2) < period
+  const period = 3200
+  const fingersBack = t % (period * 2) < period // 1er temps : doigts vers l'arrière ; 2e : poignet vers le bas
   const s = pingPong(t, period, 0.22)
-  const wrist: Pt = [118, 70]
-  const a = lerp(0, 68, s) // la main se plie vers le bas
-  // points de la main (repère non tourné), puis rotation autour du poignet
+  const W: Pt = [86, 84] // poignet
+  const a = (fingersBack ? -1 : 1) * 62 * s
   const rot = (p: Pt): Pt => {
     const r = rad(a)
-    const dx = p[0] - wrist[0]
-    const dy = p[1] - wrist[1]
-    return [wrist[0] + dx * Math.cos(r) - dy * Math.sin(r), wrist[1] + dx * Math.sin(r) + dy * Math.cos(r)]
+    const dx = p[0] - W[0]
+    const dy = p[1] - W[1]
+    return [W[0] + dx * Math.cos(r) - dy * Math.sin(r), W[1] + dx * Math.sin(r) + dy * Math.cos(r)]
   }
-  const gripC = rot([160, 70]) // l'autre main tient le milieu des doigts
-  const nailSide = palmUp ? 9 : -9 // l'ongle est du côté opposé à la paume
+  // l'autre main appuie du côté opposé au mouvement
+  const helperY = fingersBack ? 98 : 58
   return (
     <g>
-      <rect x={0} y={0} width={200} height={150} fill="#fff4e4" />
-      <g transform="translate(-14 10) scale(1.12)">
-      {/* zone étirée : le dessus de l'avant-bras s'illumine */}
-      <ellipse cx={86} cy={58} rx={34} ry={6} fill="#ff6b9a" opacity={0.15 + 0.45 * s} />
-      {/* manche */}
-      <rect x={-10} y={52} width={66} height={36} rx={14} fill={SHIRT} />
-      <rect x={46} y={52} width={12} height={36} rx={5} fill="#e8772f" />
-      {/* avant-bras, légèrement effilé vers le poignet */}
-      <path d={`M54 58 L${wrist[0]} 61 L${wrist[0]} 79 L54 84 Z`} fill={SKIN} stroke={INK} strokeWidth={2.5} strokeLinejoin="round" />
-      {/* main qui se plie au poignet */}
-      <g transform={`rotate(${a} ${wrist[0]} ${wrist[1]})`}>
-        {/* paume */}
-        <rect x={wrist[0] - 4} y={59} width={30} height={22} rx={9} fill={SKIN} stroke={INK} strokeWidth={2.5} />
-        {/* pouce, côté paume */}
-        <rect x={wrist[0] + 6} y={palmUp ? 52 : 76} width={18} height={9} rx={4.5} fill={SKIN} stroke={INK} strokeWidth={2.2} />
+      {/* zone étirée sur l'avant-bras */}
+      <rect x={18} y={fingersBack ? 92 : 66} width={66} height={10} rx={5} fill="#ff6b9a" opacity={0.15 + 0.55 * s} />
+      {/* avant-bras, simple */}
+      <rect x={14} y={72} width={76} height={24} rx={11} fill={SKIN} stroke={INK} strokeWidth={2.5} />
+      <g transform={`rotate(${a} ${W[0]} ${W[1]})`}>
+        {/* paume (côté paume plus clair, en bas) */}
+        <rect x={W[0] - 4} y={71} width={36} height={26} rx={11} fill={SKIN} stroke={INK} strokeWidth={2.5} />
+        <rect x={W[0] + 2} y={90} width={24} height={4} rx={2} fill="#ffeedd" />
         {/* doigts */}
-        <rect x={wrist[0] + 22} y={61} width={30} height={18} rx={8} fill={SKIN} stroke={INK} strokeWidth={2.5} />
-        {[0, 1].map((i) => ln([wrist[0] + 30 + i * 9, 63], [wrist[0] + 30 + i * 9, 77], SKIN_DARK, 1.5))}
-        {/* ongle */}
-        <rect x={wrist[0] + 43} y={70 + nailSide / 1.6 - 3} width={7} height={6} rx={2.5} fill="#fff1e6" stroke={SKIN_DARK} strokeWidth={1.2} />
-        {/* face de la paume, plus claire */}
-        <rect x={wrist[0]} y={palmUp ? 61 : 74} width={22} height={5} rx={2.5} fill="#ffe9d6" />
+        <rect x={W[0] + 28} y={74} width={36} height={20} rx={10} fill={SKIN} stroke={INK} strokeWidth={2.5} />
+        {ln([W[0] + 40, 76], [W[0] + 40, 92], SKIN_DARK, 1.6)}
+        {ln([W[0] + 51, 76], [W[0] + 51, 92], SKIN_DARK, 1.6)}
+        {/* pouce */}
+        <rect x={W[0] + 8} y={66} width={20} height={10} rx={5} fill={SKIN} stroke={INK} strokeWidth={2.2} />
+        {/* l'autre main : paume posée sur les doigts */}
+        <rect x={W[0] + 30} y={helperY - 7} width={34} height={14} rx={7} fill={HELPER} stroke={INK} strokeWidth={2.2} />
+        {[W[0] + 41, W[0] + 52].map((x) => ln([x, helperY - 5], [x, helperY + 5], '#d9a272', 1.5))}
       </g>
-      {/* l'autre main : vient d'en bas (du corps), enveloppe les doigts et tire vers soi */}
-      <path d={`M${gripC[0] - 40} 140 Q${gripC[0] - 34} ${gripC[1] + 40} ${gripC[0] - 6} ${gripC[1] + 12}`} stroke={SHIRT} strokeWidth={17} fill="none" strokeLinecap="round" />
-      <path d={`M${gripC[0] - 24} ${gripC[1] + 34} Q${gripC[0] - 14} ${gripC[1] + 22} ${gripC[0] - 4} ${gripC[1] + 10}`} stroke={SKIN} strokeWidth={12} fill="none" strokeLinecap="round" />
-      <g transform={`rotate(${a} ${gripC[0]} ${gripC[1]})`}>
-        <rect x={gripC[0] - 9} y={gripC[1] - 13} width={18} height={26} rx={8} fill={SKIN} stroke={INK} strokeWidth={2.5} />
-        {[-6, -1, 4].map((dy) => ln([gripC[0] + 2, gripC[1] + dy], [gripC[0] + 8, gripC[1] + dy], SKIN_DARK, 1.5))}
-      </g>
-      {s > 0.08 && <CurvedArrow a={rot([176, 50])} b={rot([170, 96])} c={rot([190, 74])} />}
-      </g>
-      <Badge text={palmUp ? 'Paume vers le haut : ramène les doigts vers toi' : 'Paume vers le bas : ramène le dos de la main'} />
+      {s > 0.08 &&
+        (fingersBack ? (
+          <CurvedArrow a={rot([158, 106])} b={rot([160, 70])} c={rot([172, 90])} />
+        ) : (
+          <CurvedArrow a={rot([158, 62])} b={rot([160, 98])} c={rot([172, 78])} />
+        ))}
+      <Badge text={fingersBack ? 'Pousse les doigts vers l\'arrière' : 'Puis plie le poignet vers le bas'} />
     </g>
   )
 }
 
-/* ---------- Étirement des pectoraux : vue de face, dans l'encadrement d'une porte ---------- */
+/* ---------- Étirement des pectoraux : de profil, en 2 temps, + vignette de face ---------- */
 function pecScene(t: number) {
-  const s = pingPong(t, 3800, 0.25)
-  const k = lerp(1, 1.16, s) // en avançant, la personne se rapproche (elle paraît plus grande)
-  const sc = (p: Pt): Pt => [100 + (p[0] - 100) * k, FLOOR + (p[1] - FLOOR) * k]
-  const shoulderY = 66
-  const shL = sc([84, shoulderY])
-  const shR = sc([116, shoulderY])
-  // coudes et avant-bras restent collés aux montants de la porte
-  const elL: Pt = [58, shoulderY]
-  const elR: Pt = [142, shoulderY]
-  const hdL: Pt = [58, shoulderY - 30]
-  const hdR: Pt = [142, shoulderY - 30]
+  const s = pingPong(t, 4200, 0.25)
+  const hx = lerp(94, 116, s) // la hanche avance d'un pas
+  const neck: Pt = [hx + lerp(2, 9, s), 56]
+  const head: Pt = [neck[0] + 4, neck[1] - 13]
+  const hip: Pt = [hx, 96]
+  const backFoot: Pt = [92, 140]
+  const frontFoot: Pt = [lerp(98, 128, s), 140]
+  const knee = (f: Pt): Pt => [(hip[0] + f[0]) / 2 + 3, (hip[1] + f[1]) / 2]
+  // avant-bras collé contre le cadre : coude et main ne bougent pas
+  const elbow: Pt = [84, 58]
+  const hand: Pt = [84, 28]
   return (
     <g>
-      {/* mur et ouverture de la porte */}
-      <rect x={0} y={0} width={200} height={FLOOR} fill="#f3e7d3" />
-      <rect x={54} y={14} width={92} height={FLOOR - 14} fill="#d9c7ab" />
-      <rect x={46} y={8} width={108} height={8} rx={2} fill={PROP_DARK} />
-      <rect x={46} y={8} width={8} height={FLOOR - 8} rx={2} fill={PROP_DARK} />
-      <rect x={146} y={8} width={8} height={FLOOR - 8} rx={2} fill={PROP_DARK} />
       {ln([0, FLOOR + 2], [200, FLOOR + 2], FLOORC, 4)}
-      {/* corps (mis à l'échelle autour des pieds) */}
-      <g transform={`translate(100 ${FLOOR}) scale(${k}) translate(-100 ${-FLOOR})`}>
-        {ln([94, 104], [92, FLOOR - 2], INK, 8)}
-        {ln([106, 104], [108, FLOOR - 2], INK, 8)}
-        <path d={`M84 ${shoulderY} L116 ${shoulderY} L110 106 L90 106 Z`} fill={SHIRT} stroke={SHIRT} strokeWidth={6} strokeLinejoin="round" />
-        {/* zone étirée : la poitrine */}
-        <ellipse cx={100} cy={76} rx={13} ry={6} fill="#ff6b9a" opacity={0.1 + 0.55 * s} />
-        {ln([100, shoulderY], [100, 56], SKIN, 6)}
-        <circle cx={100} cy={48} r={10} fill={SKIN} stroke={INK} strokeWidth={3} />
-        <circle cx={96.5} cy={48} r={1.6} fill={INK} />
-        <circle cx={103.5} cy={48} r={1.6} fill={INK} />
+      {/* cadre de porte vu de côté */}
+      <rect x={72} y={14} width={10} height={FLOOR - 14} rx={2} fill={PROP_DARK} />
+      <text x={77} y={10} textAnchor="middle" fontSize={8.5} fontWeight={800} fill="#a58a6a">
+        cadre
+      </text>
+      {/* jambe arrière, bras relâché (côté éloigné, en gris) */}
+      <polyline points={`${hip[0]},${hip[1]} ${knee(backFoot)[0]},${knee(backFoot)[1]} ${backFoot[0]},${backFoot[1]}`} stroke="#8e95b5" strokeWidth={8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {ln(neck, [neck[0] + 4, neck[1] + 36], '#8e95b5', 7)}
+      {/* torse et zone étirée */}
+      {ln(hip, neck, SHIRT, 13)}
+      <ellipse cx={neck[0] + 6} cy={neck[1] + 12} rx={7} ry={11} fill="#ff6b9a" opacity={0.1 + 0.65 * s} />
+      {/* jambe avant */}
+      <polyline points={`${hip[0]},${hip[1]} ${knee(frontFoot)[0]},${knee(frontFoot)[1]} ${frontFoot[0]},${frontFoot[1]}`} stroke={INK} strokeWidth={8} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      {/* tête */}
+      {ln(neck, head, SKIN, 6)}
+      <circle cx={head[0]} cy={head[1]} r={9} fill={SKIN} stroke={INK} strokeWidth={3} />
+      <circle cx={head[0] + 4.5} cy={head[1] - 1} r={1.8} fill={INK} />
+      {/* bras contre le cadre : épaule -> coude -> main */}
+      <polyline points={`${neck[0]},${neck[1]} ${elbow[0]},${elbow[1]} ${hand[0]},${hand[1]}`} stroke={INK} strokeWidth={7} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx={hand[0]} cy={hand[1]} r={4.5} fill={SKIN} stroke={INK} strokeWidth={2} />
+      {s < 0.6 && <CurvedArrow a={[hx + 2, 128]} b={[hx + 30, 128]} c={[hx + 16, 120]} />}
+
+      {/* vignette : la position des bras vue de face */}
+      <g>
+        <rect x={140} y={6} width={56} height={62} rx={8} fill="#fff" stroke={INK} strokeWidth={2} />
+        <rect x={146} y={14} width={4} height={50} fill={PROP_DARK} />
+        <rect x={186} y={14} width={4} height={50} fill={PROP_DARK} />
+        <rect x={146} y={12} width={44} height={4} fill={PROP_DARK} />
+        <polyline points="162,37 151,37 151,22" stroke={INK} strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <polyline points="174,37 185,37 185,22" stroke={INK} strokeWidth={3} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x={161} y={35} width={14} height={16} rx={3} fill={SHIRT} />
+        <circle cx={168} cy={29} r={5} fill={SKIN} stroke={INK} strokeWidth={1.5} />
+        {ln([165, 51], [164, 62], INK, 3)}
+        {ln([171, 51], [172, 62], INK, 3)}
+        <text x={168} y={66} textAnchor="middle" fontSize={6.5} fontWeight={800} fill="#7a7d94">
+          de face
+        </text>
       </g>
-      {/* bras en W : épaule -> coude contre le montant -> main en haut */}
-      {[
-        [shL, elL, hdL],
-        [shR, elR, hdR],
-      ].map(([sh, el, hd], i) => (
-        <g key={i}>
-          <polyline
-            points={`${sh[0]},${sh[1]} ${el[0]},${el[1]} ${hd[0]},${hd[1]}`}
-            stroke={INK}
-            strokeWidth={7}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-          <circle cx={hd[0]} cy={hd[1]} r={4.5} fill={SKIN} stroke={INK} strokeWidth={2} />
-        </g>
-      ))}
-      <Badge text={s < 0.5 ? 'Avant-bras contre le cadre, coudes à hauteur d\'épaules' : 'Avance d\'un pas : la poitrine s\'étire'} />
+      <Badge text={s < 0.5 ? '1. Avant-bras contre le cadre, coude à hauteur d\'épaule' : '2. Avance d\'un pas : la poitrine s\'étire'} />
     </g>
   )
 }
@@ -287,7 +282,7 @@ function wiperScene(t: number) {
 export const SCENES: Record<string, Scene> = {
   'ext-doigts': { period: 2400, render: fingersScene, caption: 'Gros plan : élastique autour du bout des doigts' },
   'poignet-flex': { period: 3000, render: towelScene, caption: 'Vu de face : serviette roulée tenue à deux mains devant toi' },
-  'avant-bras': { period: 3600, render: forearmScene, caption: 'Gros plan, vu de côté : bras tendu devant toi · en rose : la zone étirée' },
-  'pec-porte': { period: 3800, render: pecScene, caption: 'Vu de face, dans l\'encadrement d\'une porte · en rose : la zone étirée' },
+  'avant-bras': { period: 3200, render: forearmScene, caption: 'Gros plan de la main, bras tendu devant toi · l\'autre main (plus foncée) appuie · en rose : la zone étirée' },
+  'pec-porte': { period: 4200, render: pecScene, caption: 'De profil (en haut à droite : la position vue de face) · en rose : la zone étirée' },
   'essuie-glace': { period: 4400, render: wiperScene, caption: 'Vu depuis les pieds : épaules et bras collés au sol' },
 }
