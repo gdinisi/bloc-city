@@ -75,7 +75,7 @@ export const ANIMS: Record<string, Anim> = {
   planche: { frames: still(FOREARM_PLANK, { spine: 2 }), dur: 1500, props: ['mat'] },
   'planche-lat': {
     front: true,
-    frames: still({ torso: -16, head: -20, arm: [92, 92], arm2: [-90, -90], leg: [164, 164], leg2: [166, 166] }, { spine: -3 }),
+    frames: still({ torso: -18, head: -20, arm: [-90, -90], arm2: [95, 95], leg: [162, 162], leg2: [162, 162] }, { torso: -16, leg: [164, 164], leg2: [164, 164] }),
     fix: 'foot',
     dur: 1500,
     caption: 'Vu de face',

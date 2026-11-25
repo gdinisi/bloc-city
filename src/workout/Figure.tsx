@@ -101,12 +101,61 @@ function Body({ j, spine, front }: { j: Joints; spine: number; front?: boolean }
       {line(j.elbow2, j.hand2, far, 7)}
       {line(j.hip, j.knee2, far, 8)}
       {line(j.knee2, j.foot2, far, 8)}
-      <path d={spinePath(j, spine)} stroke={SHIRT} strokeWidth={front ? 15 : 12} strokeLinecap="round" fill="none" />
+      <path d={spinePath(j, spine)} stroke={SHIRT} strokeWidth={12} strokeLinecap="round" fill="none" />
       {line(j.hip, j.knee, INK, 8)}
       {line(j.knee, j.foot, INK, 8)}
       <circle cx={j.head[0]} cy={j.head[1]} r={HEAD_R} fill={SKIN} stroke={INK} strokeWidth={3} />
       {line(j.neck, j.elbow, INK, 7)}
       {line(j.elbow, j.hand, INK, 7)}
+    </g>
+  )
+}
+
+/**
+ * Vue de face : on écarte les épaules et les hanches perpendiculairement au torse,
+ * pour qu'on voie clairement les deux bras et les deux jambes de part et d'autre du corps.
+ */
+const SHOULDER = 10
+const HIP = 6
+
+function FrontBody({ j }: { j: Joints }) {
+  const ux = j.neck[0] - j.hip[0]
+  const uy = j.neck[1] - j.hip[1]
+  const len = Math.hypot(ux, uy) || 1
+  // perpendiculaire au torse (vers la droite quand le torse est vertical)
+  const px = -uy / len
+  const py = ux / len
+  const off = (p: Pt, k: number): Pt => [p[0] + px * k, p[1] + py * k]
+
+  const shL = off(j.neck, -SHOULDER)
+  const shR = off(j.neck, SHOULDER)
+  const hipL = off(j.hip, -HIP)
+  const hipR = off(j.hip, HIP)
+  const arm = [shL, off(j.elbow, -SHOULDER), off(j.hand, -SHOULDER)]
+  const arm2 = [shR, off(j.elbow2, SHOULDER), off(j.hand2, SHOULDER)]
+  const leg = [hipL, off(j.knee, -HIP), off(j.foot, -HIP)]
+  const leg2 = [hipR, off(j.knee2, HIP), off(j.foot2, HIP)]
+  const chain = (pts: Pt[], w: number) => (
+    <polyline
+      points={pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')}
+      stroke={INK}
+      strokeWidth={w}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      fill="none"
+    />
+  )
+  const torso = [shL, shR, hipR, hipL].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')
+
+  return (
+    <g>
+      {chain(leg, 8)}
+      {chain(leg2, 8)}
+      <polygon points={torso} fill={SHIRT} stroke={SHIRT} strokeWidth={8} strokeLinejoin="round" />
+      {line(j.neck, j.head, SKIN, 6)}
+      <circle cx={j.head[0]} cy={j.head[1]} r={HEAD_R} fill={SKIN} stroke={INK} strokeWidth={3} />
+      {chain(arm, 7)}
+      {chain(arm2, 7)}
     </g>
   )
 }
@@ -141,7 +190,7 @@ export function ExerciseFigure({ id, size = 'normal', frame }: { id: string; siz
       <svg viewBox="0 0 200 150" role="img" aria-label="Démonstration de l'exercice">
         {line([10, FLOOR_Y + 2], [190, FLOOR_Y + 2], '#d9cdb5', 4)}
         <Props anim={anim} first={first} j={j} />
-        <Body j={j} spine={pose.spine ?? 0} front={anim.front} />
+        {anim.front ? <FrontBody j={j} /> : <Body j={j} spine={pose.spine ?? 0} front={anim.front} />}
       </svg>
       {anim.caption && <figcaption>{anim.caption}</figcaption>}
     </figure>

@@ -3,6 +3,7 @@ import type { Session, Settings } from '../types'
 import { EQUIPMENT } from '../workout/catalog'
 import type { Equipment, Exercise } from '../workout/catalog'
 import { ExerciseSheet } from '../workout/ExerciseSheet'
+import { ExerciseLibrary } from '../workout/ExerciseLibrary'
 import type { Phase, Plan } from '../workout/generator'
 import { DURATIONS, FATIGUES, FOCUSES, availableFocuses, formatPrescription, generatePlan } from '../workout/generator'
 import { unlockAudio } from '../workout/sound'
@@ -25,6 +26,7 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
   const [seed, setSeed] = useState(() => Date.now() % 100000)
   const [playing, setPlaying] = useState<Plan | null>(null)
   const [info, setInfo] = useState<Exercise | null>(null)
+  const [library, setLibrary] = useState(false)
 
   const focuses = availableFocuses(equipment)
   const focus = focuses.some((f) => f.id === home.focus) ? home.focus : 'complet'
@@ -48,6 +50,15 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
 
   return (
     <div className="screen">
+      <button type="button" className="card library-link" onClick={() => setLibrary(true)}>
+        <span className="library-link-emoji">📚</span>
+        <span>
+          <b>Fiches exercices</b>
+          <span className="muted">Tous les exercices expliqués, avec animation</span>
+        </span>
+        <span className="library-link-arrow">›</span>
+      </button>
+
       <section className="card">
         <h2>Ton matériel</h2>
         <p className="muted small-text">Les séances s'adaptent à ce que tu as. Rien de coché = poids du corps.</p>
@@ -148,6 +159,8 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
       </section>
 
       {info && <ExerciseSheet ex={info} onClose={() => setInfo(null)} />}
+
+      {library && <ExerciseLibrary equipment={equipment} onClose={() => setLibrary(false)} />}
 
       {playing && (
         <Player
