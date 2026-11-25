@@ -10,6 +10,7 @@ import * as THREE from 'three'
 
 export type TexId =
   | 'grass'
+  | 'cliff'
   | 'meadow'
   | 'soil'
   | 'grassSide'
@@ -32,6 +33,7 @@ export type TexId =
 /** Répétitions de la texture par unité de longueur (taille d'une case = 1) */
 export const DENSITY: Record<TexId, number> = {
   grass: 1,
+  cliff: 1,
   meadow: 1,
   soil: 1,
   grassSide: 1,
@@ -202,6 +204,29 @@ function pebbles(ctx: CanvasRenderingContext2D, r: () => number, count: number, 
 }
 
 const DECO: Partial<Record<TexId, Deco>> = {
+  cliff: (ctx, r) => {
+    // pierres prises dans la terre
+    pebbles(ctx, r, 55, ['#8f877c', '#a39b8f', '#766e64', '#b3aa9c'], 2.5, 7)
+    pebbles(ctx, r, 30, ['#6f4b2e', '#5c3d24'], 1.5, 3.5)
+    // racines qui pendent depuis le haut
+    ctx.lineCap = 'round'
+    for (let i = 0; i < 9; i++) {
+      let x = r() * N
+      let y = r() * N * 0.4
+      ctx.strokeStyle = pick(r, ['rgba(70,45,25,0.8)', 'rgba(95,65,38,0.7)'])
+      ctx.lineWidth = 1 + r() * 1.4
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      for (let k = 0; k < 10; k++) {
+        x += (r() - 0.5) * 6
+        y += 3 + r() * 6
+        ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+    // mousse par plaques
+    dots(ctx, r, 120, ['rgba(92,140,60,0.55)', 'rgba(120,165,75,0.5)'], 1, 2.6)
+  },
   grass: (ctx, r) => {
     dots(ctx, r, 70, ['#7a5a3a', '#8b6a45'], 0.5, 1)
     grassBlades(ctx, r, 1500)
@@ -421,6 +446,28 @@ function painter(id: TexId): Paint {
           return y < limit ? mix([84, 148, 56], [120, 184, 80], n(x, y)) : dirt.color(x, y)
         },
         height: (x, y) => (y < N * (0.42 + edge(x, 0) * 0.22) ? 0.7 + n(x, y) * 0.3 : dirt.height(x, y)),
+      }
+    }
+    case 'cliff': {
+      // strates de terre et de roche, légèrement ondulées
+      const n = fbm(61)
+      const warp = makeNoise(5, 62)
+      return {
+        color: (x, y) => {
+          const yy = y + warp(x, y) * 40
+          const band = Math.floor((yy / N) * 5 + 10) % 5
+          const v = n(x, y)
+          const layers: [RGB, RGB][] = [
+            [[118, 80, 50], [150, 106, 68]],
+            [[132, 122, 110], [168, 158, 144]],
+            [[104, 70, 44], [136, 94, 60]],
+            [[150, 112, 74], [178, 138, 96]],
+            [[112, 104, 96], [146, 136, 124]],
+          ]
+          const [a, b] = layers[band]
+          return mix(a, b, v)
+        },
+        height: (x, y) => n(x, y) * 0.6 + (Math.floor(((y + warp(x, y) * 40) / N) * 5 + 10) % 5 === 1 ? 0.3 : 0),
       }
     }
     case 'dirt': {

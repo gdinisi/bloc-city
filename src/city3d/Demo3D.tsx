@@ -23,6 +23,9 @@ function demoCity(): CityState {
   // colline à l'ouest, plateau au sud
   for (let x = 0; x < 3; x++) for (let y = 9; y < 16; y++) elevation[`${x},${y}`] = y < 11 ? 2 : 3
   for (let x = 4; x < 7; x++) for (let y = 12; y < 16; y++) elevation[`${x},${y}`] = 1
+  // bassins perchés : l'eau tombe en cascade dans la mer et dans la rivière
+  ;['0,15', '1,15'].forEach((k) => (ground[k] = 'eau'))
+  ;['6,14', '6,15'].forEach((k) => (ground[k] = 'eau'))
 
   const P = (id: string, x: number, y: number, flip = false) => ({ uid: `${id}${x}${y}`, id, x, y, flip })
   return {

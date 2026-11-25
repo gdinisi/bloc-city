@@ -8,6 +8,7 @@ import { gridOf } from '../city/economy'
 import { buildingById, sizeOf } from '../city/buildings'
 import { buildMesh, disposeMaterials, mat, setNight, setTextures } from './buildings3d'
 import type { TexId } from './textures'
+import { addTerrainDetails } from './terrainDetails'
 import { disposeTextures, worldUV } from './textures'
 import { occupiedTiles } from '../city/economy'
 import { createMountains } from './mountains'
@@ -284,14 +285,20 @@ export default function City3D({ city, onClose }: Props) {
 
     // ---------- île : une colonne par case ----------
     setTextures(pretty)
-    const side = mat(pretty ? '#ffffff' : '#8a5a35', { tex: 'dirt', bump: 1.2 })
+    const side = mat(pretty ? '#ffffff' : '#8a5a35', { tex: 'cliff', bump: 1.3 })
     const lipSide = mat('#ffffff', { tex: 'grassSide', bump: 1 })
     const geos: THREE.BufferGeometry[] = []
     const tufts: THREE.Matrix4[] = []
     const occupied = occupiedTiles(city)
     const groundAt = (x: number, y: number) => (x < 0 || y < 0 || x >= G || y >= G ? null : (city.ground[`${x},${y}`] ?? 'herbe'))
+    /** niveau de l'eau : la mer, ou un bassin surélevé si la case d'eau a du relief */
+    const surfOf = (x: number, y: number) => {
+      const e = city.elevation[`${x},${y}`] ?? 0
+      return groundAt(x, y) === 'eau' && e > 0 ? BASE + e * STEP - 0.1 : WATER_Y
+    }
     const topOf = (x: number, y: number) => {
       const gid = groundAt(x, y)
+      if (gid === 'eau' && surfOf(x, y) > WATER_Y) return surfOf(x, y) - 0.22
       if (gid === 'eau' || gid === 'pont') return WATER_Y - 0.45
       return BASE + (city.elevation[`${x},${y}`] ?? 0) * STEP
     }
@@ -403,6 +410,9 @@ export default function City3D({ city, onClose }: Props) {
       scene.add(tuftMesh)
     }
 
+    // ---------- bords de l'île, falaises, bassins et cascades ----------
+    const details = addTerrainDetails({ scene, G, waterY: WATER_Y, pretty, night: light === 'nuit', groundAt, topOf, surfOf, occupied, X, Z, waterNormals })
+
     // ---------- bâtiments ----------
     const pickables: THREE.Object3D[] = []
     for (const p of city.placed) {
@@ -507,6 +517,7 @@ export default function City3D({ city, onClose }: Props) {
       const dt = Math.min(clock.getDelta(), 0.1)
       water.material.uniforms['time'].value += dt * 0.6
       if (lighthouseBeam) lighthouseBeam.rotation.y += dt * 0.7
+      details.update(dt)
       controls.update()
       renderer.render(scene, camera)
       frames++
@@ -538,6 +549,7 @@ export default function City3D({ city, onClose }: Props) {
       disposeMaterials()
       disposeTextures()
       tuftMesh?.dispose()
+      details.dispose()
       renderer.dispose()
       el.removeChild(renderer.domElement)
     }
