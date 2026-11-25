@@ -5082,3 +5082,7 @@ img.photo-mobilite.card {
 .workout-hero img.photo-mobilite {
   object-position: 45% 96%;
 }
+
+.workout-hero img.photo-haut {
+  object-position: 60% 74%;
+}
