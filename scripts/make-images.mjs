@@ -12,4 +12,6 @@ await sharp(SRC).extract({ left: 0, top: 120, width: 736, height: 900 }).resize(
 await sharp(SRC).extract({ left: 300, top: 450, width: 436, height: 330 }).resize(600).webp({ quality: 78 }).toFile('public/img/face.webp')
 // Bandeau de l'accueil : panorama des Dolomites au coucher du soleil (assets/home-source.webp)
 await sharp('assets/home-source.webp').resize(1200).webp({ quality: 80 }).toFile('public/img/home-banner.webp')
+// Séance « Complet » : grimpeur au sommet sous la lune (assets/focus-complet-source.png)
+await sharp('assets/focus-complet-source.png').resize(700).webp({ quality: 80 }).toFile('public/img/focus-complet.webp')
 console.log('images ok')

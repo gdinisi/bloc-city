@@ -4990,3 +4990,35 @@ body {
 .reco-card {
   height: 178px;
 }
+
+/* --- photo de séance (remplace l'illustration) --- */
+img.focus-photo {
+  object-fit: cover;
+  object-position: 42% 48%;
+}
+
+.workout-hero img.focus-photo {
+  object-position: 42% 42%;
+}
+
+.workout-hero::after,
+.reco-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.reco-card:has(img.focus-photo)::after,
+.workout-hero:has(img.focus-photo)::after {
+  background: linear-gradient(180deg, rgba(13, 14, 16, 0) 45%, rgba(13, 14, 16, 0.75) 100%);
+}
+
+.reco-card > *:not(.mountain-art),
+.workout-hero-body {
+  z-index: 1;
+}
+
+.workout-hero img.focus-photo {
+  object-position: 42% 62%;
+}

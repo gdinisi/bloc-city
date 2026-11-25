@@ -9,9 +9,8 @@ import { DURATIONS, FATIGUES, FOCUSES, availableFocuses, formatPrescription, gen
 import { unlockAudio } from '../workout/sound'
 import { Player } from '../workout/Player'
 import { LEVEL_MAX, computeLevel, levelLabel } from '../workout/level'
-import { MountainArt } from '../ui/MountainArt'
+import { FocusArt } from '../ui/FocusArt'
 import { Icon } from '../ui/Icon'
-import { FOCUS_ART } from './HomeScreen'
 
 interface Props {
   sessions: Session[]
@@ -58,7 +57,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
   return (
     <div className="screen">
       <section className="workout-hero">
-        <MountainArt variant={FOCUS_ART[focus]} seed={seed % 9} />
+        <FocusArt focus={focus} seed={seed % 9} />
         <div className="workout-hero-body">
           <span className="reco-tag static">
             <Icon name="bolt" size={13} stroke={2} />
@@ -128,7 +127,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
                   className={`focus-btn ${focus === f.id ? 'on' : ''}`}
                   onClick={() => setHome({ focus: f.id })}
                 >
-                  <MountainArt variant={FOCUS_ART[f.id]} seed={3} className="focus-art" />
+                  <FocusArt focus={f.id} seed={3} className="focus-art" />
                   <b>{f.label}</b>
                   <span>{enabled ? f.hint : 'Poutre ou élastique requis'}</span>
                 </button>

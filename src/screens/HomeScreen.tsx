@@ -11,8 +11,7 @@ import type { Focus } from '../workout/generator'
 import { SessionForm } from '../components/SessionForm'
 import { recentBlocLevels } from '../lib/stats'
 import { Icon } from '../ui/Icon'
-import { MountainArt } from '../ui/MountainArt'
-import type { ArtVariant } from '../ui/MountainArt'
+import { FocusArt } from '../ui/FocusArt'
 import { Ring } from '../ui/Ring'
 
 export type TabId = 'calendrier' | 'seances' | 'accueil' | 'ville' | 'stats' | 'amis'
@@ -26,14 +25,7 @@ interface Props {
   onGo: (tab: TabId) => void
 }
 
-/** Illustration associée à chaque type de séance maison */
-export const FOCUS_ART: Record<Focus, ArtVariant> = {
-  complet: 'peak',
-  gainage: 'ridge',
-  haut: 'wall',
-  doigts: 'boulder',
-  mobilite: 'dawn',
-}
+export { FOCUS_ART } from '../ui/FocusArt'
 
 const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 
@@ -158,7 +150,7 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
         <div className="reco-scroll">
           {focuses.map((f, i) => (
             <button key={f.id} type="button" className="reco-card" onClick={() => startFocus(f.id)}>
-              <MountainArt variant={FOCUS_ART[f.id]} seed={i + 3} />
+              <FocusArt focus={f.id} seed={i + 3} />
               <span className="reco-body">
                 <b>{f.label}</b>
                 <small>{f.hint}</small>
