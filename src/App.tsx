@@ -37,7 +37,7 @@ export default function App() {
           />
         )}
         {tab === 'seances' && (
-          <HomeWorkoutScreen settings={data.settings} onSettings={data.updateSettings} onSave={data.upsertSession} />
+          <HomeWorkoutScreen sessions={data.sessions} settings={data.settings} onSettings={data.updateSettings} onSave={data.upsertSession} />
         )}
         {tab === 'stats' && <StatsScreen sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} />}
         {tab === 'ville' && (

@@ -5,6 +5,7 @@ import { newId } from '../lib/store'
 import type { Plan } from './generator'
 import { FOCUSES, buildSteps } from './generator'
 import { beep, buzz } from './sound'
+import { sessionDelta } from './level'
 import { ExerciseFigure, hasAnim } from './Figure'
 import { ExerciseSheet } from './ExerciseSheet'
 
@@ -66,6 +67,7 @@ export function Player({ plan, onSave, onClose }: Props) {
       note: `Séance guidée ${focusLabel.toLowerCase()} : ${plan.items.filter((i) => i.phase === 'principal').map((i) => i.ex.name).join(', ')}`,
       climbs: [],
       createdAt: new Date().toISOString(),
+      guided: { level: plan.level, completion: Math.min(1, elapsed.current / plan.estimated) },
     }
     onSave(session) // validée automatiquement
     setDone(session)
@@ -246,8 +248,22 @@ export function Player({ plan, onSave, onClose }: Props) {
   )
 }
 
+const RPE_HINTS: Record<number, string> = {
+  1: 'Très facile', 2: 'Facile', 3: 'Tranquille', 4: 'Modéré', 5: 'Correct',
+  6: 'Soutenu', 7: 'Dur mais bien', 8: 'Très dur', 9: 'Presque à bloc', 10: 'À bloc',
+}
+
 function Finished({ session, onSave, onClose }: { session: Session; onSave: (s: Session) => void; onClose: () => void }) {
   const [rpe, setRpe] = useState(session.rpe)
+  const delta = sessionDelta(rpe, session.guided?.completion ?? 1)
+  const next =
+    delta >= 0.7
+      ? { icon: '⬆️', text: 'Trop facile : la prochaine séance sera nettement plus physique.' }
+      : delta > 0
+        ? { icon: '↗️', text: 'Bon dosage : la prochaine montera légèrement en intensité.' }
+        : delta > -0.5
+          ? { icon: '➡️', text: 'Bien chargé : on garde ce niveau la prochaine fois.' }
+          : { icon: '⬇️', text: 'Trop dur : la prochaine sera plus douce, avec plus de repos.' }
   return (
     <div className="player finished">
       <div className="player-body">
@@ -260,10 +276,13 @@ function Finished({ session, onSave, onClose }: { session: Session; onSave: (s: 
         </p>
         <label className="field finished-rpe">
           <span>
-            Ressenti : <b>{rpe}/10</b>
+            Comment c'était ? <b>{rpe}/10</b> · {RPE_HINTS[rpe]}
           </span>
           <input type="range" min={1} max={10} value={rpe} onChange={(e) => setRpe(Number(e.target.value))} />
         </label>
+        <p className="next-level">
+          <span>{next.icon}</span> {next.text}
+        </p>
       </div>
       <div className="player-controls">
         <button

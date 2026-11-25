@@ -63,6 +63,8 @@ export function SessionForm({ date, existing, onSave, onDelete, onClose, blocLev
       note: note.trim(),
       climbs: canClimb ? climbs : [],
       createdAt: existing?.createdAt ?? new Date().toISOString(),
+      // une séance guidée modifiée à la main garde ses infos de niveau
+      ...(existing?.guided ? { guided: existing.guided } : {}),
     })
   }
 

@@ -8,8 +8,10 @@ import type { Phase, Plan } from '../workout/generator'
 import { DURATIONS, FATIGUES, FOCUSES, availableFocuses, formatPrescription, generatePlan } from '../workout/generator'
 import { unlockAudio } from '../workout/sound'
 import { Player } from '../workout/Player'
+import { LEVEL_MAX, computeLevel, levelLabel } from '../workout/level'
 
 interface Props {
+  sessions: Session[]
   settings: Settings
   onSettings: (patch: Partial<Settings>) => void
   onSave: (s: Session) => void
@@ -21,19 +23,21 @@ const PHASE_LABEL: Record<Phase, string> = {
   retour: 'Retour au calme',
 }
 
-export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
+export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Props) {
   const { equipment, home } = settings
   const [seed, setSeed] = useState(() => Date.now() % 100000)
   const [playing, setPlaying] = useState<Plan | null>(null)
   const [info, setInfo] = useState<Exercise | null>(null)
   const [library, setLibrary] = useState(false)
+  const [why, setWhy] = useState(false)
 
   const focuses = availableFocuses(equipment)
   const focus = focuses.some((f) => f.id === home.focus) ? home.focus : 'complet'
+  const lvl = useMemo(() => computeLevel(sessions, home.fatigue), [sessions, home.fatigue])
 
   const plan = useMemo(
-    () => generatePlan({ minutes: home.minutes, fatigue: home.fatigue, focus, equipment, seed }),
-    [home.minutes, home.fatigue, focus, equipment, seed],
+    () => generatePlan({ minutes: home.minutes, fatigue: home.fatigue, focus, equipment, seed, level: lvl.today }),
+    [home.minutes, home.fatigue, focus, equipment, seed, lvl.today],
   )
 
   const toggleEquipment = (id: Equipment) =>
@@ -119,6 +123,27 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
           <h2>Ta séance</h2>
           <span className="pill">≈ {Math.round(plan.estimated / 60)} min</span>
         </div>
+        <button type="button" className="level-card" onClick={() => setWhy((w) => !w)} aria-expanded={why}>
+          <span className="level-top">
+            <span>
+              Niveau <b>{lvl.today}</b>/{LEVEL_MAX} · {levelLabel(lvl.today)}
+            </span>
+            <span className="muted">{why ? 'Masquer' : 'Pourquoi ?'}</span>
+          </span>
+          <span className="level-bar" aria-hidden="true">
+            {Array.from({ length: LEVEL_MAX }, (_, i) => (
+              <i key={i} className={i < lvl.today ? 'on' : ''} />
+            ))}
+          </span>
+          {why && (
+            <span className="level-why">
+              {lvl.reasons.map((r) => (
+                <span key={r}>• {r}</span>
+              ))}
+              <span>• Le niveau règle le choix des exercices, le nombre de séries, les répétitions et la durée des pauses.</span>
+            </span>
+          )}
+        </button>
         {groups.map((g) => (
           <div key={g.phase} className="plan-group">
             <div className="plan-phase">{PHASE_LABEL[g.phase]}</div>

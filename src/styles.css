@@ -990,6 +990,71 @@ input[type='range'] {
   color: var(--ink);
 }
 
+/* ---------- Niveau adaptatif ---------- */
+.level-card {
+  width: 100%;
+  margin-top: 10px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: #f3f1ff;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 12px;
+}
+
+.level-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.95rem;
+}
+
+.level-top b {
+  font-size: 1.2rem;
+}
+
+.level-top .muted {
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+
+.level-bar {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 2px;
+}
+
+.level-bar i {
+  height: 8px;
+  border-radius: 4px;
+  background: #ddd9f5;
+}
+
+.level-bar i.on {
+  background: var(--accent-2);
+}
+
+.level-why {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.next-level {
+  max-width: 320px;
+  margin: 4px 0 0;
+  background: rgba(255, 255, 255, 0.75);
+  border-radius: 12px;
+  padding: 8px 12px;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
 /* ---------- Statistiques ---------- */
 .stats-head {
   display: flex;

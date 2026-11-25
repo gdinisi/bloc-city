@@ -1,5 +1,6 @@
 import type { Category, Equipment, Exercise } from './catalog'
 import { EXERCISES } from './catalog'
+import { levelParams } from './level'
 
 export type Fatigue = 'fatigue' | 'normal' | 'frais'
 export type Focus = 'complet' | 'gainage' | 'haut' | 'doigts' | 'mobilite'
@@ -25,6 +26,12 @@ export interface PlanItem {
   ex: Exercise
   sets: number
   phase: Phase
+  /** Effort par série, ajusté au niveau : durée (s)… */
+  work?: number
+  /** …ou répétitions */
+  reps?: number
+  /** Repos entre les séries (s), ajusté au niveau */
+  rest: number
   /** Récupération avant l'exercice suivant (secondes) */
   restAfter: number
 }
@@ -35,6 +42,8 @@ export interface Plan {
   estimated: number
   focus: Focus
   fatigue: Fatigue
+  /** Niveau appliqué (1 à 10) */
+  level: number
 }
 
 export interface GenOptions {
@@ -43,6 +52,8 @@ export interface GenOptions {
   focus: Focus
   equipment: Equipment[]
   seed: number
+  /** Niveau du jour (1 à 10), voir level.ts */
+  level: number
 }
 
 /** Générateur pseudo-aléatoire reproductible */
@@ -56,13 +67,13 @@ const mulberry32 = (a: number) => () => {
 
 const REP_SECONDS = 3.5
 
-export const setSeconds = (ex: Exercise) => ex.work ?? (ex.reps ?? 10) * REP_SECONDS
+export const setSeconds = (it: PlanItem) => it.work ?? (it.reps ?? 10) * REP_SECONDS
 
 export const itemSeconds = (it: PlanItem) => {
   const sides = it.ex.perSide ? 2 : 1
   const rounds = it.ex.rounds ?? 1
   const efforts = it.sets * sides
-  const perRound = efforts * setSeconds(it.ex) + (efforts - 1) * it.ex.rest
+  const perRound = efforts * setSeconds(it) + (efforts - 1) * it.rest
   return rounds * perRound + (rounds - 1) * (it.ex.roundRest ?? 0) + it.restAfter
 }
 
@@ -78,7 +89,10 @@ const PATTERNS: Record<Focus, Category[]> = {
 export const availableFocuses = (equipment: Equipment[]) =>
   FOCUSES.filter((f) => f.id !== 'doigts' || equipment.includes('poutre') || equipment.includes('elastique'))
 
-export function generatePlan({ minutes, fatigue, focus, equipment, seed }: GenOptions): Plan {
+const round5 = (v: number) => Math.max(5, Math.round(v / 5) * 5)
+
+export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }: GenOptions): Plan {
+  const lp = levelParams(level)
   const rand = mulberry32(seed)
   const shuffle = <T,>(arr: T[]) => {
     const a = [...arr]
@@ -89,20 +103,47 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed }: GenOp
     return a
   }
 
-  const maxIntensity = fatigue === 'fatigue' || focus === 'mobilite' ? (focus === 'mobilite' ? 1 : 2) : 3
+  // Fatigué : jamais d'exercice intense, quel que soit le niveau
+  const maxIntensity = focus === 'mobilite' ? 1 : fatigue === 'fatigue' ? 2 : lp.maxIntensity
   const has = (ex: Exercise) => ex.needs.every((n) => equipment.includes(n))
   const ok = (ex: Exercise) => has(ex) && ex.intensity <= maxIntensity
   const used = new Set<string>()
   const pick = (cat: Category): Exercise | undefined => {
     const pool = shuffle(EXERCISES.filter((e) => e.category === cat && ok(e) && !used.has(e.id)))
-    // En forme : on privilégie les exercices les plus exigeants disponibles
-    if (fatigue === 'frais') pool.sort((a, b) => b.intensity - a.intensity)
+    // Niveau élevé : exercices plus physiques d'abord ; niveau bas : plus accessibles
+    if (lp.prefer > 0) pool.sort((a, b) => b.intensity - a.intensity)
+    if (lp.prefer < 0) pool.sort((a, b) => a.intensity - b.intensity)
     return pool[0]
   }
-  const adjustSets = (ex: Exercise) => {
-    if (fatigue === 'fatigue') return Math.max(1, ex.sets - 1)
-    if (fatigue === 'frais' && ex.category !== 'doigts' && ex.sets > 1) return ex.sets + 1
-    return ex.sets
+
+  /** Prescription d'un exercice adaptée au niveau */
+  const prescribe = (ex: Exercise, phase: Phase, restAfter: number): PlanItem => {
+    const adaptive = phase === 'principal' && ex.category !== 'mobilite'
+    const fingers = ex.category === 'doigts'
+    if (!adaptive) {
+      return { ex, phase, sets: ex.sets, work: ex.work, reps: ex.reps, rest: ex.rest, restAfter }
+    }
+    if (fingers) {
+      // Doigts : durées et repos fixes (sécurité des tendons), seul le nombre de séries bouge
+      return {
+        ex,
+        phase,
+        sets: Math.max(1, ex.sets + (lp.setsDelta < 0 || fatigue === 'fatigue' ? -1 : 0)),
+        work: ex.work,
+        reps: ex.reps,
+        rest: ex.rest,
+        restAfter: round5(restAfter),
+      }
+    }
+    return {
+      ex,
+      phase,
+      sets: Math.max(1, ex.sets + (ex.sets > 1 ? lp.setsDelta : 0)),
+      work: ex.work ? round5(ex.work * lp.volume) : undefined,
+      reps: ex.reps ? Math.max(3, Math.round(ex.reps * lp.volume)) : undefined,
+      rest: ex.rest ? round5(ex.rest * lp.rest) : 0,
+      restAfter: Math.max(15, round5(restAfter * lp.rest)),
+    }
   }
 
   const nWarm = minutes <= 15 ? 2 : minutes <= 30 ? 3 : 4
@@ -113,7 +154,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed }: GenOp
     const ex = pick('echauffement')
     if (!ex) break
     used.add(ex.id)
-    warm.push({ ex, sets: ex.sets, phase: 'echauffement', restAfter: 10 })
+    warm.push(prescribe(ex, 'echauffement', 10))
   }
 
   const cool: PlanItem[] = []
@@ -121,7 +162,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed }: GenOp
     const ex = pick('mobilite')
     if (!ex) break
     used.add(ex.id)
-    cool.push({ ex, sets: ex.sets, phase: 'retour', restAfter: 10 })
+    cool.push(prescribe(ex, 'retour', 10))
   }
 
   const total = minutes * 60
@@ -137,12 +178,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed }: GenOp
       continue
     }
     const hard = ex.intensity === 3
-    const it: PlanItem = {
-      ex,
-      sets: adjustSets(ex),
-      phase: focus === 'mobilite' ? 'retour' : 'principal',
-      restAfter: focus === 'mobilite' ? 10 : hard ? 90 : 45,
-    }
+    const it = focus === 'mobilite' ? prescribe(ex, 'retour', 10) : prescribe(ex, 'principal', hard ? 90 : 45)
     const cost = itemSeconds(it)
     // On accepte un léger dépassement plutôt que de laisser un gros trou
     if (cost > budget + 90) {
@@ -163,6 +199,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed }: GenOp
     estimated: items.reduce((s, it) => s + itemSeconds(it), 0) + 10,
     focus,
     fatigue,
+    level,
   }
 }
 
@@ -201,13 +238,13 @@ export function buildSteps(plan: Plan): Step[] {
             item: idx,
             title: ex.name,
             cue: ex.cue,
-            seconds: ex.work,
-            reps: ex.work ? undefined : ex.reps,
+            seconds: it.work,
+            reps: it.work ? undefined : it.reps,
             label: parts.filter(Boolean).join(' · '),
           })
           const lastEffort = s === it.sets && si === sides.length - 1
-          if (!lastEffort && ex.rest > 0) {
-            steps.push({ kind: 'rest', item: idx, title: 'Repos', cue: ex.name, seconds: ex.rest, label: 'Récupère', next: ex.name })
+          if (!lastEffort && it.rest > 0) {
+            steps.push({ kind: 'rest', item: idx, title: 'Repos', cue: ex.name, seconds: it.rest, label: 'Récupère', next: ex.name })
           }
         })
       }
@@ -225,7 +262,7 @@ export function buildSteps(plan: Plan): Step[] {
 
 export const formatPrescription = (it: PlanItem) => {
   const { ex } = it
-  const effort = ex.work ? `${ex.work} s` : `${ex.reps} reps`
+  const effort = it.work ? `${it.work} s` : `${it.reps} reps`
   const side = ex.perSide ? ' par côté' : ''
   const rounds = ex.rounds && ex.rounds > 1 ? ` · ${ex.rounds} tours` : ''
   return it.sets > 1 ? `${it.sets} × ${effort}${side}${rounds}` : `${effort}${side}${rounds}`

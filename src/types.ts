@@ -22,6 +22,8 @@ export interface Session {
   note: string
   climbs: Climb[]
   createdAt: string
+  /** Séance maison guidée : niveau appliqué et part de la séance réellement faite (0-1) */
+  guided?: { level: number; completion: number }
 }
 
 export interface HomePrefs {
