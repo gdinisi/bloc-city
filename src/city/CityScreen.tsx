@@ -21,7 +21,6 @@ import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
 import { QuestsMini } from './QuestsPanel'
-import { XpBar } from '../ui/XpBar'
 import type { Session } from '../types'
 
 
@@ -117,8 +116,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
   return (
     <div className="screen">
-      <XpBar sessions={sessions} />
-
       <div className="reward-row">
         <button type="button" className={`reward-btn packs ${city.packs.length ? 'on' : ''}`} disabled={!city.packs.length} onClick={() => setOpening(city.packs)}>
           <span className="reward-emoji">🎁</span>

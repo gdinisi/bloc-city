@@ -6,7 +6,7 @@ import type { Session } from '../types'
  * plus d'heures que le précédent : 5 h pour le niveau 2, puis +10 h, +15 h…
  */
 
-const TITLES = [
+export const TITLES = [
   'Grimpeur en herbe',
   'Premiers blocs',
   'Grimpeur du dimanche',
@@ -45,3 +45,6 @@ export const fmtHours = (h: number) => {
   const mm = total % 60
   return hh === 0 ? `${mm} min` : mm === 0 ? `${hh} h` : `${hh} h ${String(mm).padStart(2, '0')}`
 }
+
+/** Tous les grades, avec les heures nécessaires pour les atteindre */
+export const GRADES_XP = TITLES.map((title, i) => ({ level: i + 1, title, hours: hoursFor(i + 1) }))

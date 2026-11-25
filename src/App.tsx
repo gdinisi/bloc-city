@@ -11,6 +11,7 @@ import { useClaimable } from './city/QuestsPanel'
 import { FriendsScreen, NewPassword } from './screens/FriendsScreen'
 import { Icon } from './ui/Icon'
 import { useTheme } from './lib/theme'
+import { TopXp } from './ui/XpBar'
 import type { IconName } from './ui/Icon'
 import { cloudEnabled, takeInviteFromUrl, useAuth } from './lib/cloud'
 import { useCloudSync, useProfile } from './lib/sync'
@@ -47,8 +48,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <img className="app-logo" src={`${import.meta.env.BASE_URL}pwa-64x64.png`} alt="" width={32} height={32} />
-        <h1>Bloc City</h1>
+        <TopXp sessions={data.sessions} onOpen={() => go('stats')} />
         <button
           type="button"
           className="theme-btn"

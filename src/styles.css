@@ -4309,3 +4309,174 @@ textarea {
 .xp-next b {
   color: var(--ink);
 }
+
+/* --- objectifs de séance : illustrations nettes, le choix se voit au contour --- */
+.focus-btn {
+  --ink: #f3f3f4;
+  --muted: #c9ced4;
+  color: #f3f3f4;
+  background: #16171a;
+  border: 1.5px solid transparent;
+}
+
+.focus-art,
+.focus-btn.on .focus-art {
+  opacity: 1;
+}
+
+.focus-btn b,
+.focus-btn span {
+  text-shadow: none;
+}
+
+.focus-btn span {
+  color: #d6dade;
+}
+
+.focus-btn.on {
+  background: #16171a;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(240, 120, 45, 0.35);
+}
+
+.focus-btn.on span {
+  color: #d6dade;
+}
+
+/* --- expérience dans l'en-tête --- */
+.top-xp {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 4px 4px 0;
+  text-align: left;
+  color: var(--ink);
+}
+
+.xp-badge.small {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+}
+
+.xp-badge.small b {
+  font-size: 1rem;
+}
+
+.top-xp-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.top-xp-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.top-xp-line b {
+  font-size: 0.95rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.top-xp-line small {
+  font-size: 0.72rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.xp-bar.thin {
+  margin: 0;
+  height: 6px;
+}
+
+.topbar .theme-btn {
+  margin-left: 4px;
+}
+
+.topbar .friends-btn {
+  max-width: 34%;
+}
+
+/* --- grades (onglet Stats) --- */
+.xp-grades .xp-card {
+  margin: 10px 0 12px;
+  border: 1px solid var(--line);
+}
+
+.grade-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.grade-list li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  background: var(--card-2);
+  border: 1px solid transparent;
+}
+
+.grade-num {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  background: var(--card-3);
+  color: var(--muted);
+}
+
+.grade-name {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.grade-name b {
+  font-weight: 650;
+}
+
+.grade-name small,
+.grade-left {
+  font-size: 0.74rem;
+  color: var(--muted);
+}
+
+.grade-list .done .grade-num {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.grade-list .current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.grade-list .current .grade-num {
+  background: var(--grad);
+  color: #fff;
+}
+
+.grade-list .locked .grade-name b {
+  color: var(--muted);
+}

@@ -4,6 +4,7 @@ import { typeInfo } from '../types'
 import type { Bucket, Period, PeriodKind } from '../lib/periodStats'
 import { bestStreak, computeStats, formatHours, periodTitle } from '../lib/periodStats'
 import { weeklyStreak } from '../lib/stats'
+import { XpGrades } from '../ui/XpBar'
 
 interface Props {
   sessions: Session[]
@@ -39,6 +40,7 @@ export function StatsScreen({ sessions, weeklyGoal }: Props) {
 
   return (
     <div className="screen">
+      <XpGrades sessions={sessions} />
       <section className="card stats-head">
         <div className="seg wide">
           {KINDS.map((k) => (
