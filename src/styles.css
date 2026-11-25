@@ -5086,3 +5086,24 @@ img.photo-mobilite.card {
 .workout-hero img.photo-haut {
   object-position: 60% 74%;
 }
+
+/* --- calendrier : bloc de l'objectif hebdo sobre, sans image --- */
+.goal-card,
+:root[data-theme='light'] .goal-card {
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+/* --- « Mobilité » : cadrage un peu plus bas dans le bandeau --- */
+.workout-hero img.photo-mobilite {
+  object-position: 45% 84%;
+}
+
+/* --- cadrage de la photo « Doigts » --- */
+img.photo-doigts.card {
+  object-position: 50% 45%;
+}
+
+.workout-hero img.photo-doigts {
+  object-position: 45% 70%;
+}

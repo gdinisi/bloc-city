@@ -24,4 +24,7 @@ await sharp('assets/focus-haut-source.webp').extract({ left: 200, top: 330, widt
 // Séance « Mobilité » : grimpeur en dévers sur le rocher ocre (assets/focus-mobilite-source.webp)
 await sharp('assets/focus-mobilite-source.webp').resize(700).webp({ quality: 80 }).toFile('public/img/focus-mobilite.webp')
 await sharp('assets/focus-mobilite-source.webp').extract({ left: 120, top: 380, width: 440, height: 595 }).resize(440).webp({ quality: 80 }).toFile('public/img/focus-mobilite-card.webp')
+// Séance « Doigts » : main magnésiée sur une réglette (assets/focus-doigts-source.webp)
+await sharp('assets/focus-doigts-source.webp').resize(700).webp({ quality: 80 }).toFile('public/img/focus-doigts.webp')
+await sharp('assets/focus-doigts-source.webp').extract({ left: 110, top: 290, width: 440, height: 595 }).resize(440).webp({ quality: 80 }).toFile('public/img/focus-doigts-card.webp')
 console.log('images ok')
