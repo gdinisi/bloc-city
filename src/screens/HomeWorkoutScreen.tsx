@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react'
 import type { Session, Settings } from '../types'
 import { EQUIPMENT } from '../workout/catalog'
-import type { Equipment } from '../workout/catalog'
+import type { Equipment, Exercise } from '../workout/catalog'
+import { ExerciseSheet } from '../workout/ExerciseSheet'
 import type { Phase, Plan } from '../workout/generator'
 import { DURATIONS, FATIGUES, FOCUSES, availableFocuses, formatPrescription, generatePlan } from '../workout/generator'
 import { unlockAudio } from '../workout/sound'
@@ -23,6 +24,7 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
   const { equipment, home } = settings
   const [seed, setSeed] = useState(() => Date.now() % 100000)
   const [playing, setPlaying] = useState<Plan | null>(null)
+  const [info, setInfo] = useState<Exercise | null>(null)
 
   const focuses = availableFocuses(equipment)
   const focus = focuses.some((f) => f.id === home.focus) ? home.focus : 'complet'
@@ -112,14 +114,22 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
             <ol className="plan-list">
               {g.items.map((it) => (
                 <li key={it.ex.id}>
-                  <span>{it.ex.name}</span>
-                  <span className="muted">{formatPrescription(it)}</span>
+                  <button type="button" className="plan-item" onClick={() => setInfo(it.ex)}>
+                    <span className="plan-text">
+                      <span className="plan-name">{it.ex.name}</span>
+                      <span className="muted">{formatPrescription(it)}</span>
+                    </span>
+                    <span className="info-btn" aria-label={`Comment faire : ${it.ex.name}`}>
+                      i
+                    </span>
+                  </button>
                 </li>
               ))}
             </ol>
           </div>
         ))}
-        {home.fatigue === 'fatigue' && <p className="muted small-text">Fatigué : séance allégée, sans travail intense des doigts.</p>}
+        <p className="muted small-text">Touche un exercice pour voir comment le faire.</p>
+        {home.fatigue === 'fatigue' &&<p className="muted small-text">Fatigué : séance allégée, sans travail intense des doigts.</p>}
         <div className="plan-actions">
           <button type="button" className="btn" onClick={() => setSeed((s) => s + 1)}>
             🎲 Autre proposition
@@ -136,6 +146,8 @@ export function HomeWorkoutScreen({ settings, onSettings, onSave }: Props) {
           </button>
         </div>
       </section>
+
+      {info && <ExerciseSheet ex={info} onClose={() => setInfo(null)} />}
 
       {playing && (
         <Player

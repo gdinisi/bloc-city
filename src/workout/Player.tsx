@@ -5,6 +5,8 @@ import { newId } from '../lib/store'
 import type { Plan } from './generator'
 import { FOCUSES, buildSteps } from './generator'
 import { beep, buzz } from './sound'
+import { ExerciseFigure, hasAnim } from './Figure'
+import { ExerciseSheet } from './ExerciseSheet'
 
 interface Props {
   plan: Plan
@@ -26,6 +28,8 @@ export function Player({ plan, onSave, onClose }: Props) {
   const [paused, setPaused] = useState(false)
   const [done, setDone] = useState<Session | null>(null)
   const [tooShort, setTooShort] = useState(false)
+  /** Fiche ouverte ; on retient si le minuteur tournait pour le relancer à la fermeture */
+  const [info, setInfo] = useState<{ resume: boolean } | null>(null)
 
   const elapsed = useRef(0)
   const lastTick = useRef(performance.now())
@@ -144,9 +148,17 @@ export function Player({ plan, onSave, onClose }: Props) {
   const ratio = total ? remaining / total : 1
   const R = 88
   const C = 2 * Math.PI * R
+  const ex = plan.items[step.item].ex
+  // Pendant la préparation et les repos : on montre l'exercice qui arrive
+  const showFigure = step.kind !== 'work' && hasAnim(ex.id)
+
+  const openInfo = () => {
+    setInfo({ resume: !paused })
+    setPaused(true)
+  }
 
   return (
-    <div className={`player ${step.kind}`}>
+    <div className={`player ${step.kind} ${showFigure ? 'with-figure' : ''}`}>
       <div className="player-top">
         <button
           type="button"
@@ -169,6 +181,10 @@ export function Player({ plan, onSave, onClose }: Props) {
       <div className="player-body">
         <div className="player-kind">{step.kind === 'work' ? step.label || 'À toi !' : step.label}</div>
         <h2 className="player-title">{step.kind === 'work' ? step.title : step.next ?? step.title}</h2>
+        <button type="button" className="how-btn" onClick={openInfo}>
+          <span className="info-btn">i</span> Comment faire ?
+        </button>
+        {showFigure && <ExerciseFigure id={ex.id} size="small" />}
 
         {step.seconds !== undefined ? (
           <div className="ring">
@@ -198,6 +214,16 @@ export function Player({ plan, onSave, onClose }: Props) {
 
         <p className="player-cue">{step.cue}</p>
       </div>
+
+      {info && (
+        <ExerciseSheet
+          ex={ex}
+          onClose={() => {
+            if (info.resume) setPaused(false)
+            setInfo(null)
+          }}
+        />
+      )}
 
       <div className="player-controls">
         <button type="button" className="round big" aria-label="Étape précédente" onClick={() => goTo(idx - 1)}>

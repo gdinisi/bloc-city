@@ -840,6 +840,175 @@ input[type='range'] {
   margin-top: 10px;
 }
 
+/* ---------- Fiches exercices ---------- */
+.sheet-backdrop.top {
+  z-index: 40;
+}
+
+.plan-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  text-align: left;
+}
+
+.plan-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.plan-name {
+  font-weight: 700;
+}
+
+.info-btn {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--line);
+  background: #fff3c4;
+  font-family: Georgia, serif;
+  font-style: italic;
+  font-weight: 900;
+  font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.how-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 800;
+  font-size: 0.9rem;
+  padding: 4px 12px 4px 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.player.with-figure .ring,
+.player.with-figure .reps {
+  width: min(36vw, 140px);
+}
+
+.player.with-figure .ring-text b,
+.player.with-figure .reps b {
+  font-size: 2.4rem;
+}
+
+.player.with-figure .figure svg {
+  max-width: 220px;
+}
+
+.guide-muscles {
+  margin: 0;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.guide-block {
+  background: #fff;
+  border: 2px solid var(--line);
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.guide-block.warn {
+  background: #fff0ec;
+}
+
+.guide-block h3 {
+  margin: 0 0 4px;
+  font-size: 0.95rem;
+}
+
+.guide-block ol,
+.guide-block ul {
+  margin: 0;
+  padding-left: 20px;
+  line-height: 1.5;
+}
+
+.guide-variants {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+
+.guide-variants div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: #eef6ff;
+  border-radius: 12px;
+  padding: 8px 10px;
+}
+
+.guide-video {
+  text-align: center;
+  text-decoration: none;
+  color: var(--ink);
+}
+
+/* ---------- Démonstrations ---------- */
+.figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.figure svg {
+  width: 100%;
+  max-width: 300px;
+  background: #fffaf0;
+  border: 2.5px solid var(--line);
+  border-radius: 18px;
+}
+
+.figure.small svg {
+  max-width: 200px;
+  border-radius: 14px;
+}
+
+.figure figcaption {
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+  padding: 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.gallery-frames {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+
+.gallery-none {
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--muted);
+  border-radius: 14px;
+  color: var(--muted);
+}
+
 /* ---------- Bientôt ---------- */
 .soon {
   text-align: center;
