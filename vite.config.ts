@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon-48x48.png', 'apple-touch-icon-180x180.png'],
+      includeAssets: ['favicon-48x48.png', 'apple-touch-icon-180x180.png', 'img/*.webp'],
       manifest: {
         name: 'Bloc City',
         short_name: 'Bloc City',

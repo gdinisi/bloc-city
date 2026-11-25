@@ -9,6 +9,9 @@ import { DURATIONS, FATIGUES, FOCUSES, availableFocuses, formatPrescription, gen
 import { unlockAudio } from '../workout/sound'
 import { Player } from '../workout/Player'
 import { LEVEL_MAX, computeLevel, levelLabel } from '../workout/level'
+import { MountainArt } from '../ui/MountainArt'
+import { Icon } from '../ui/Icon'
+import { FOCUS_ART } from './HomeScreen'
 
 interface Props {
   sessions: Session[]
@@ -54,8 +57,47 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
 
   return (
     <div className="screen">
+      <section className="workout-hero">
+        <MountainArt variant={FOCUS_ART[focus]} seed={seed % 9} />
+        <div className="workout-hero-body">
+          <span className="reco-tag static">
+            <Icon name="bolt" size={13} stroke={2} />
+            {FOCUSES.find((f) => f.id === focus)?.label}
+          </span>
+          <h2>Séance du jour</h2>
+          <div className="workout-meta">
+            <span>
+              <Icon name="clock" size={15} /> ≈ {Math.round(plan.estimated / 60)} min
+            </span>
+            <span>
+              <Icon name="mountain" size={15} /> Niveau {lvl.today}
+            </span>
+            <span>
+              <Icon name="flame" size={15} /> {levelLabel(lvl.today)}
+            </span>
+          </div>
+          <div className="workout-hero-actions">
+            <button
+              type="button"
+              className="btn grad"
+              onClick={() => {
+                unlockAudio()
+                setPlaying(plan)
+              }}
+            >
+              <Icon name="play" fill size={16} /> Démarrer
+            </button>
+            <button type="button" className="btn icon-only" aria-label="Autre proposition" onClick={() => setSeed((s) => s + 1)}>
+              <Icon name="dice" size={18} />
+            </button>
+          </div>
+        </div>
+      </section>
+
       <button type="button" className="card library-link" onClick={() => setLibrary(true)}>
-        <span className="library-link-emoji">📚</span>
+        <span className="library-link-emoji">
+          <Icon name="book" size={22} />
+        </span>
         <span>
           <b>Fiches exercices</b>
           <span className="muted">Tous les exercices expliqués, avec animation</span>
@@ -109,6 +151,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
                   className={`focus-btn ${focus === f.id ? 'on' : ''}`}
                   onClick={() => setHome({ focus: f.id })}
                 >
+                  <MountainArt variant={FOCUS_ART[f.id]} seed={3} className="focus-art" />
                   <b>{f.label}</b>
                   <span>{enabled ? f.hint : 'Poutre ou élastique requis'}</span>
                 </button>
@@ -168,17 +211,17 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
         {home.fatigue === 'fatigue' &&<p className="muted small-text">Fatigué : séance allégée, sans travail intense des doigts.</p>}
         <div className="plan-actions">
           <button type="button" className="btn" onClick={() => setSeed((s) => s + 1)}>
-            🎲 Autre proposition
+            <Icon name="dice" size={17} /> Autre
           </button>
           <button
             type="button"
-            className="btn primary"
+            className="btn grad"
             onClick={() => {
               unlockAudio()
               setPlaying(plan)
             }}
           >
-            ▶ C'est parti
+            <Icon name="play" fill size={15} /> C'est parti
           </button>
         </div>
       </section>

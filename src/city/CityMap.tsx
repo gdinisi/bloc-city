@@ -342,7 +342,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
         onWheel={readOnly ? undefined : onWheel}
         style={{ touchAction: readOnly ? 'auto' : 'none' }}
       >
-        <rect x={-half} y={top} width={vbW} height={vbH} fill="#fff6e2" />
+        <rect x={-half} y={top} width={vbW} height={vbH} fill="transparent" />
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
           {/* socle de terre sous la carte */}
           <polygon points={`${(-G * TW) / 2},${(G * TH) / 2 - TH / 2} 0,${G * TH - TH / 2} 0,${G * TH - TH / 2 + 10} ${(-G * TW) / 2},${(G * TH) / 2 - TH / 2 + 10}`} fill="#b07a4a" />

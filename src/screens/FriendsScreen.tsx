@@ -109,8 +109,7 @@ function Login() {
 
   return (
     <div className="screen">
-      <section className="card friends-hero">
-        <div className="friends-hero-emoji">🏆</div>
+      <section className="card friends-hero" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/peak-tall.webp)` }}>
         <h2>Grimpe avec tes amis</h2>
         <p className="muted">
           Crée ton compte pour sauvegarder ta progression, comparer ta semaine à
@@ -411,6 +410,10 @@ function Friends({
 
   return (
     <div className="screen">
+      <header className="friends-banner" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/face.webp)` }}>
+        <span className="reco-tag static">Cordée</span>
+        <h2>Qui grimpe le plus haut cette semaine ?</h2>
+      </header>
       <section className="card">
         <div className="card-title-row">
           <h2>Classement</h2>

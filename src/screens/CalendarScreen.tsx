@@ -5,6 +5,7 @@ import { MONTHS, WEEKDAYS_SHORT, formatLongDate, monthGrid, toKey, weekKey } fro
 import { bestGrade, countsByWeek, recentBlocLevels, weeklyStreak } from '../lib/stats'
 import { formatHours } from '../lib/periodStats'
 import { SessionForm } from '../components/SessionForm'
+import { MountainArt } from '../ui/MountainArt'
 
 interface Props {
   sessions: Session[]
@@ -42,7 +43,8 @@ export function CalendarScreen({ sessions, weeklyGoal, onGoalChange, onSave, onD
 
   return (
     <div className="screen">
-      <section className="card hero">
+      <section className="card hero hero-art">
+        <MountainArt variant="ridge" seed={5} className="hero-art-bg" />
         <div className="hero-top">
           <div>
             <div className="muted">Cette semaine</div>
