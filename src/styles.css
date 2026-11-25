@@ -5112,3 +5112,8 @@ img.photo-doigts.card {
 img.photo-doigts.card {
   object-position: 45% 50%;
 }
+
+/* tuile « Doigts » : la main entière dans le cadre */
+.focus-btn img.photo-doigts {
+  object-position: 45% 60%;
+}
