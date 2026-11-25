@@ -2697,3 +2697,8 @@ input[type='range'] {
 .forgot h2 {
   margin: 0;
 }
+
+.app-logo {
+  border-radius: 9px;
+  border: 2px solid var(--line);
+}

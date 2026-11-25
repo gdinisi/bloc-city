@@ -43,7 +43,7 @@ export default function App() {
   return (
     <div className="app">
       <header className="topbar">
-        <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" width={32} height={32} />
+        <img className="app-logo" src={`${import.meta.env.BASE_URL}pwa-64x64.png`} alt="" width={32} height={32} />
         <h1>Bloc City</h1>
         {cloudEnabled && (
           <button type="button" className={`friends-btn ${tab === 'amis' ? 'on' : ''}`} onClick={() => go('amis')}>
