@@ -94,29 +94,6 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
         </div>
       </section>
 
-      <button type="button" className="card library-link" onClick={() => setLibrary(true)}>
-        <span className="library-link-emoji">
-          <Icon name="book" size={22} />
-        </span>
-        <span>
-          <b>Fiches exercices</b>
-          <span className="muted">Tous les exercices expliqués, avec animation</span>
-        </span>
-        <span className="library-link-arrow">›</span>
-      </button>
-
-      <section className="card">
-        <h2>Ton matériel</h2>
-        <p className="muted small-text">Les séances s'adaptent à ce que tu as. Rien de coché = poids du corps.</p>
-        <div className="chips">
-          {EQUIPMENT.map((e) => (
-            <button key={e.id} type="button" className={`chip ${equipment.includes(e.id) ? 'on' : ''}`} onClick={() => toggleEquipment(e.id)}>
-              {e.emoji} {e.label}
-            </button>
-          ))}
-        </div>
-      </section>
-
       <section className="card setup">
         <div className="field">
           <span>Temps dispo</span>
@@ -223,6 +200,29 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
           >
             <Icon name="play" fill size={15} /> C'est parti
           </button>
+        </div>
+      </section>
+
+      <button type="button" className="card library-link" onClick={() => setLibrary(true)}>
+        <span className="library-link-emoji">
+          <Icon name="book" size={22} />
+        </span>
+        <span>
+          <b>Fiches exercices</b>
+          <span className="muted">Tous les exercices expliqués, avec animation</span>
+        </span>
+        <span className="library-link-arrow">›</span>
+      </button>
+
+      <section className="card">
+        <h2>Ton matériel</h2>
+        <p className="muted small-text">Les séances s'adaptent à ce que tu as. Rien de coché = poids du corps.</p>
+        <div className="chips">
+          {EQUIPMENT.map((e) => (
+            <button key={e.id} type="button" className={`chip ${equipment.includes(e.id) ? 'on' : ''}`} onClick={() => toggleEquipment(e.id)}>
+              {e.emoji} {e.label}
+            </button>
+          ))}
         </div>
       </section>
 

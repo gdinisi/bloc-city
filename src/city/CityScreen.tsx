@@ -10,18 +10,18 @@ import {
   move,
   paint,
   place,
-  population,
   rotate,
   sculpt,
   store,
   unlockedGrounds,
 } from './economy'
-import { BUILDINGS, CATS, CITY_LEVELS, GROUNDS, RARITIES, buildingById, cityLevel, gridSizeFor, nextGrowthLevel, nextLevelAt, sizeOf } from './buildings'
+import { BUILDINGS, GROUNDS, RARITIES, buildingById, sizeOf } from './buildings'
 import { BuildingThumb, GroundTile } from './iso'
 import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
 import { QuestsMini } from './QuestsPanel'
+import { XpBar } from '../ui/XpBar'
 import type { Session } from '../types'
 
 
@@ -61,12 +61,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const [shop, setShop] = useState(false)
   const now = useNow()
 
-  const pop = population(city)
-  const level = cityLevel(pop)
   const grid = gridOf(city)
-  const growAt = nextGrowthLevel(level)
-  const nextAt = nextLevelAt(pop)
-  const levelStart = CITY_LEVELS[level - 1] ?? 0
   const chestAt = chestReadyAt(city)
   const chestReady = now >= chestAt
   const inventory = Object.entries(city.inventory).filter(([, n]) => n > 0)
@@ -122,38 +117,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
   return (
     <div className="screen">
-      <section className="card city-hud">
-        <div className="city-stats">
-          <div>
-            <b>👥 {pop}</b>
-            <span>habitants</span>
-          </div>
-          <div>
-            <b>🏙️ {level}</b>
-            <span>niveau</span>
-          </div>
-          <div>
-            <b>🪙 {city.coins}</b>
-            <span>pièces</span>
-          </div>
-          <div>
-            <b>
-              📖 {city.discovered.length}/{BUILDINGS.length}
-            </b>
-            <span>collection</span>
-          </div>
-        </div>
-        {nextAt !== null && (
-          <div className="bar small-bar" title={`Prochain niveau à ${nextAt} habitants`}>
-            <div className="bar-fill" style={{ width: `${((pop - levelStart) / (nextAt - levelStart)) * 100}%` }} />
-          </div>
-        )}
-        <p className="muted small-text">
-          Carte {grid} × {grid}
-          {growAt !== null ? ` · ${gridSizeFor(growAt)} × ${gridSizeFor(growAt)} au niveau ${growAt}` : ' · taille maximale'}
-          {nextAt !== null ? ` · niveau ${level + 1} à ${nextAt} habitants` : ''}
-        </p>
-      </section>
+      <XpBar sessions={sessions} />
 
       <div className="reward-row">
         <button type="button" className={`reward-btn packs ${city.packs.length ? 'on' : ''}`} disabled={!city.packs.length} onClick={() => setOpening(city.packs)}>
@@ -249,7 +213,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           ghost={editingGround}
           movingUid={mode.type === 'move' ? mode.uid : null}
         />
-        <p className="muted small-text center map-hint">Glisse pour te déplacer · pince avec deux doigts pour zoomer</p>
         {city.placed.length === 0 && mode.type === 'idle' && (
           <p className="muted small-text center">Ta ville est vide : ouvre tes packs puis pose tes bâtiments depuis l'inventaire.</p>
         )}
@@ -366,27 +329,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           <p className="muted small-text">Les bâtiments épiques, légendaires et les merveilles s'assemblent à partir de fragments trouvés dans les packs, les coffres et les quêtes.</p>
         </section>
       )}
-
-      <section className="card">
-        <h2>Collection</h2>
-        <div className="cat-progress">
-          {(Object.keys(CATS) as (keyof typeof CATS)[]).map((cat) => {
-            const all = BUILDINGS.filter((b) => b.cat === cat)
-            const got = all.filter((b) => city.discovered.includes(b.id)).length
-            return (
-              <div key={cat}>
-                <span>
-                  {CATS[cat].emoji} {CATS[cat].label}
-                </span>
-                <b>
-                  {got}/{all.length}
-                </b>
-              </div>
-            )
-          })}
-        </div>
-        <p className="muted small-text">Certains bâtiments ne s'obtiennent qu'avec les quêtes (accueil). Les séances en salle ou en extérieur rapportent plus souvent des bâtiments d'escalade, les séances maison des parcs.</p>
-      </section>
 
       {opening && <PackOpening packs={opening} city={city} onCity={onCity} onClose={() => setOpening(null)} />}
       {shop && <Shop city={city} onCity={onCity} onClose={() => setShop(false)} />}

@@ -84,7 +84,7 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
           </div>
         </div>
         <div className="activity-body">
-          <Ring value={done / goal} size={104} stroke={10}>
+          <Ring value={done / goal} size={90} stroke={9}>
             <b>{pct}%</b>
             <span>objectif</span>
           </Ring>

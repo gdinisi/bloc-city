@@ -4168,3 +4168,144 @@ textarea {
 .activity .activity-body {
   padding: 14px 16px 12px;
 }
+
+/* --- accueil compact : tient sur un iPhone avec ses barres système --- */
+.screen.home {
+  gap: 12px;
+}
+
+.activity-photo {
+  height: 86px;
+}
+
+.activity .activity-body {
+  padding: 12px 16px 10px;
+}
+
+.activity .activity-stats {
+  gap: 6px;
+}
+
+.week-row {
+  padding-bottom: 12px;
+}
+
+.week-row span {
+  padding: 4px 0 5px;
+}
+
+.reco-card {
+  width: 132px;
+  height: 138px;
+}
+
+.reco-body {
+  bottom: 44px;
+  right: 10px;
+  left: 10px;
+}
+
+.reco-body b {
+  font-size: 0.95rem;
+}
+
+.reco-body small {
+  -webkit-line-clamp: 1;
+}
+
+.reco-play {
+  left: 10px;
+  bottom: 10px;
+  width: 28px;
+  height: 28px;
+}
+
+/* --- barre d'expérience (onglet Ville) --- */
+.xp-card {
+  padding: 14px 16px !important;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 14%, var(--card)) 0%, var(--card) 60%) !important;
+}
+
+.xp-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.xp-badge {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  border-radius: 14px;
+  background: var(--grad);
+  color: #fff;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.xp-badge b {
+  font-size: 0.95rem;
+  font-weight: 800;
+}
+
+.xp-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.xp-title small,
+.xp-total small {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.xp-title b {
+  font-size: 1.02rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.xp-total {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+.xp-total b {
+  font-weight: 700;
+}
+
+.xp-bar {
+  margin-top: 12px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--card-3);
+  overflow: hidden;
+}
+
+.xp-bar i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--grad);
+  box-shadow: 0 0 12px rgba(240, 120, 45, 0.5);
+  transition: width 0.6s ease;
+}
+
+.xp-next {
+  margin: 6px 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.xp-next b {
+  color: var(--ink);
+}
