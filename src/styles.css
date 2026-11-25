@@ -4581,3 +4581,16 @@ textarea {
 .xp-grades .xp-card {
   margin: 10px 16px 12px;
 }
+
+/* --- objectifs : les tuiles non choisies sont assombries, la tuile choisie reste lumineuse --- */
+.focus-btn:not(.on) .focus-art {
+  filter: brightness(0.45) saturate(0.6);
+}
+
+.focus-btn:not(.on) b {
+  color: #c9ced4;
+}
+
+.focus-btn.on .focus-art {
+  filter: none;
+}
