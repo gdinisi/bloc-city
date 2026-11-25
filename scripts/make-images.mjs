@@ -18,4 +18,7 @@ await sharp('assets/focus-complet-source.png').resize(700).webp({ quality: 80 })
 await sharp('assets/focus-gainage-source.webp').resize(700).webp({ quality: 80 }).toFile('public/img/focus-gainage.webp')
 // … et un recadrage serré sur la grimpeuse pour les petites cartes
 await sharp('assets/focus-gainage-source.webp').extract({ left: 110, top: 430, width: 470, height: 600 }).resize(470).webp({ quality: 80 }).toFile('public/img/focus-gainage-card.webp')
+// Séance « Haut du corps » : alpiniste sur l'arête enneigée au couchant (assets/focus-haut-source.webp)
+await sharp('assets/focus-haut-source.webp').resize(700).webp({ quality: 80 }).toFile('public/img/focus-haut.webp')
+await sharp('assets/focus-haut-source.webp').extract({ left: 200, top: 330, width: 420, height: 570 }).resize(420).webp({ quality: 80 }).toFile('public/img/focus-haut-card.webp')
 console.log('images ok')

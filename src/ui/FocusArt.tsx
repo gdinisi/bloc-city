@@ -15,11 +15,13 @@ export const FOCUS_ART: Record<Focus, ArtVariant> = {
 const FOCUS_PHOTO: Partial<Record<Focus, string>> = {
   complet: 'img/focus-complet.webp',
   gainage: 'img/focus-gainage.webp',
+  haut: 'img/focus-haut.webp',
 }
 
 /** Recadrages serrés pour les petites cartes et les tuiles */
 const FOCUS_PHOTO_CARD: Partial<Record<Focus, string>> = {
   gainage: 'img/focus-gainage-card.webp',
+  haut: 'img/focus-haut-card.webp',
 }
 
 /** Image d'une séance : photo si on en a une, sinon illustration de montagne */

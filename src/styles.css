@@ -5055,3 +5055,12 @@ img.focus-photo {
   box-shadow: none !important;
   max-width: none;
 }
+
+/* cadrage de la photo « Haut du corps » */
+img.photo-haut.card {
+  object-position: 55% 35%;
+}
+
+.workout-hero img.photo-haut {
+  object-position: 60% 82%;
+}
