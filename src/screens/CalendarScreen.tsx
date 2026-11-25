@@ -3,6 +3,7 @@ import type { Session } from '../types'
 import { typeInfo } from '../types'
 import { MONTHS, WEEKDAYS_SHORT, formatLongDate, monthGrid, toKey, weekKey } from '../lib/dates'
 import { bestGrade, countsByWeek, recentBlocLevels, weeklyStreak } from '../lib/stats'
+import { formatHours } from '../lib/periodStats'
 import { SessionForm } from '../components/SessionForm'
 
 interface Props {
@@ -153,7 +154,7 @@ export function CalendarScreen({ sessions, weeklyGoal, onGoalChange, onSave, onD
                         {s.type !== 'repos' && (
                           <span className="muted">
                             {' '}
-                            · {s.durationMin} min · RPE {s.rpe}
+                            · {formatHours(s.durationMin)} · RPE {s.rpe}
                           </span>
                         )}
                       </span>

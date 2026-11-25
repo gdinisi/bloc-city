@@ -3,12 +3,14 @@ import { useAppData } from './lib/store'
 import { CalendarScreen } from './screens/CalendarScreen'
 import { ComingSoon } from './screens/ComingSoon'
 import { HomeWorkoutScreen } from './screens/HomeWorkoutScreen'
+import { StatsScreen } from './screens/StatsScreen'
 
-type Tab = 'calendrier' | 'seances' | 'ville' | 'classement'
+type Tab = 'calendrier' | 'seances' | 'stats' | 'ville' | 'classement'
 
 const TABS: { id: Tab; label: string; emoji: string }[] = [
   { id: 'calendrier', label: 'Calendrier', emoji: '📅' },
   { id: 'seances', label: 'Séances', emoji: '💪' },
+  { id: 'stats', label: 'Stats', emoji: '📊' },
   { id: 'ville', label: 'Ville', emoji: '🏙️' },
   { id: 'classement', label: 'Classement', emoji: '🏆' },
 ]
@@ -37,6 +39,7 @@ export default function App() {
         {tab === 'seances' && (
           <HomeWorkoutScreen settings={data.settings} onSettings={data.updateSettings} onSave={data.upsertSession} />
         )}
+        {tab === 'stats' && <StatsScreen sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} />}
         {tab === 'ville' && (
           <ComingSoon
             emoji="🏙️"

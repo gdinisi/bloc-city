@@ -527,6 +527,21 @@ input[type='range'] {
   width: auto;
 }
 
+.duration-custom {
+  display: flex;
+  gap: 8px;
+}
+
+.duration-custom select {
+  flex: 1;
+  border: 2.5px solid var(--line);
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  font-size: 16px;
+  font-weight: 700;
+}
+
 .level-input {
   flex: 1;
   min-width: 120px;
@@ -975,6 +990,163 @@ input[type='range'] {
   color: var(--ink);
 }
 
+/* ---------- Statistiques ---------- */
+.stats-head {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.stats-head .month-nav {
+  margin-bottom: 0;
+}
+
+.round:disabled {
+  opacity: 0.3;
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.tile {
+  background: var(--card);
+  border: 2.5px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 3px 0 var(--line);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.tile b {
+  font-size: 1.7rem;
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.tile span {
+  font-size: 0.8rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.bar-chart svg {
+  width: 100%;
+  display: block;
+  margin-top: 8px;
+}
+
+.chart-readout {
+  margin: 4px 0 0;
+  font-size: 0.9rem;
+}
+
+.chart-readout b::first-letter {
+  text-transform: uppercase;
+}
+
+.chart-table {
+  margin-top: 8px;
+  font-size: 0.85rem;
+}
+
+.chart-table summary {
+  color: var(--muted);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.chart-table table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 6px;
+}
+
+.chart-table td {
+  padding: 4px 0;
+  border-bottom: 1px solid #efe7d8;
+}
+
+.chart-table td:not(:first-child) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.stack-bar {
+  display: flex;
+  gap: 2px;
+  height: 18px;
+  border-radius: 999px;
+  overflow: hidden;
+  margin-top: 12px;
+  background: #fff;
+}
+
+.type-legend {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.type-legend li {
+  display: grid;
+  grid-template-columns: 12px 1fr auto auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+}
+
+.type-legend i {
+  width: 12px;
+  height: 12px;
+  border-radius: 4px;
+}
+
+.type-legend b {
+  font-variant-numeric: tabular-nums;
+}
+
+.type-legend .muted {
+  font-size: 0.8rem;
+  min-width: 86px;
+  text-align: right;
+}
+
+.stat-rows {
+  display: flex;
+  flex-direction: column;
+  margin-top: 8px;
+}
+
+.stat-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid #efe7d8;
+  font-size: 0.92rem;
+}
+
+.stat-row:last-child {
+  border-bottom: none;
+}
+
+.stat-row b {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.stats-sub {
+  margin: 10px 0 6px;
+}
+
 /* ---------- Bibliothèque d'exercices ---------- */
 .library-link {
   display: flex;
@@ -1206,7 +1378,7 @@ input[type='range'] {
   width: 100%;
   max-width: 560px;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, 1fr);
   background: #fff;
   border-top: 2.5px solid var(--line);
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));

@@ -18,6 +18,12 @@ const BLOC_SUGGESTIONS = ['Jaune', 'Vert', 'Bleu', 'Rouge', 'Noir', 'Blanc', 'Vi
 
 const DURATIONS = [15, 30, 45, 60, 90, 120]
 
+const formatDuration = (d: number) => {
+  if (d < 60) return `${d} min`
+  const m = d % 60
+  return `${Math.floor(d / 60)}h${m ? String(m).padStart(2, '0') : ''}`
+}
+
 const RPE_LABELS: Record<number, string> = {
   1: 'Très facile', 2: 'Facile', 3: 'Tranquille', 4: 'Modéré', 5: 'Correct',
   6: 'Soutenu', 7: 'Dur', 8: 'Très dur', 9: 'Presque max', 10: 'Maximal',
@@ -26,7 +32,9 @@ const RPE_LABELS: Record<number, string> = {
 export function SessionForm({ date, existing, onSave, onDelete, onClose, blocLevels = [] }: Props) {
   const [type, setType] = useState<SessionType>(existing?.type ?? 'salle')
   const [day, setDay] = useState(existing?.date ?? date)
-  const [duration, setDuration] = useState(existing?.durationMin ?? 60)
+  const [duration, setDuration] = useState(existing?.durationMin || 60)
+  /** Durée hors des choix rapides (ex. 2h45 de grimpe) */
+  const [customDuration, setCustomDuration] = useState(!!existing?.durationMin && !DURATIONS.includes(existing.durationMin))
   const [rpe, setRpe] = useState(existing?.rpe ?? 6)
   const [note, setNote] = useState(existing?.note ?? '')
   const [climbs, setClimbs] = useState<Climb[]>(existing?.climbs ?? [])
@@ -90,11 +98,55 @@ export function SessionForm({ date, existing, onSave, onDelete, onClose, blocLev
               <span>Durée</span>
               <div className="chips">
                 {DURATIONS.map((d) => (
-                  <button key={d} type="button" className={`chip ${duration === d ? 'on' : ''}`} onClick={() => setDuration(d)}>
-                    {d < 60 ? `${d} min` : `${Math.floor(d / 60)}h${d % 60 ? String(d % 60) : ''}`}
+                  <button
+                    key={d}
+                    type="button"
+                    className={`chip ${!customDuration && duration === d ? 'on' : ''}`}
+                    onClick={() => {
+                      setCustomDuration(false)
+                      setDuration(d)
+                    }}
+                  >
+                    {formatDuration(d)}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className={`chip ${customDuration ? 'on' : ''}`}
+                  onClick={() => {
+                    setCustomDuration(true)
+                    if (DURATIONS.includes(duration)) setDuration(150)
+                  }}
+                >
+                  {customDuration ? formatDuration(duration) : 'Autre'}
+                </button>
               </div>
+              {customDuration && (
+                <div className="duration-custom">
+                  <select
+                    aria-label="Heures"
+                    value={Math.floor(duration / 60)}
+                    onChange={(e) => setDuration(Math.max(5, Number(e.target.value) * 60 + (duration % 60)))}
+                  >
+                    {Array.from({ length: 13 }, (_, h) => (
+                      <option key={h} value={h}>
+                        {h} h
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    aria-label="Minutes"
+                    value={duration % 60}
+                    onChange={(e) => setDuration(Math.max(5, Math.floor(duration / 60) * 60 + Number(e.target.value)))}
+                  >
+                    {Array.from({ length: 12 }, (_, i) => i * 5).map((m) => (
+                      <option key={m} value={m}>
+                        {String(m).padStart(2, '0')} min
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
 
             <label className="field">
