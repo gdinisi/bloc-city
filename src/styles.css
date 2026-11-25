@@ -5064,3 +5064,21 @@ img.photo-haut.card {
 .workout-hero img.photo-haut {
   object-position: 60% 82%;
 }
+
+/* « Haut du corps » : cadrage plus haut dans le bandeau pour voir les sommets */
+.workout-hero img.photo-haut {
+  object-position: 60% 35%;
+}
+
+/* cadrage de la photo « Mobilité » */
+img.photo-mobilite.card {
+  object-position: 50% 40%;
+}
+
+.workout-hero img.photo-mobilite {
+  object-position: 45% 82%;
+}
+
+.workout-hero img.photo-mobilite {
+  object-position: 45% 96%;
+}
