@@ -139,13 +139,13 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
             </small>
           </span>
         </button>
-        <button type="button" className="btn home-add" aria-label="Noter une grimpe" onClick={() => setAdding(true)}>
+        <button type="button" className="btn home-add" aria-label="Enregistrer une séance" onClick={() => setAdding(true)}>
           <span className="home-add-icon">
             <Icon name="plus" size={16} stroke={2.6} />
           </span>
           <span>
-            Noter
-            <small>une grimpe</small>
+            Enregistrer
+            <small>une séance</small>
           </span>
         </button>
       </div>

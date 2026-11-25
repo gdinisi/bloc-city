@@ -4929,3 +4929,45 @@ textarea {
   content: '';
   flex: 0 0 4px;
 }
+
+/* =====================================================================
+   Formulaires sur iPhone : pas de zoom automatique, rien ne déborde
+   ===================================================================== */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+.code-input {
+  font-size: 1.4rem !important;
+}
+
+.sheet {
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+.sheet * {
+  max-width: 100%;
+}
+
+.sheet input[type='date'] {
+  -webkit-appearance: none;
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  text-align: left;
+}
+
+.sheet-backdrop {
+  overscroll-behavior: contain;
+}
+
+html,
+body {
+  overflow-x: hidden;
+}
