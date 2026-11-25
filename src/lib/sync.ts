@@ -9,22 +9,53 @@ interface App extends Data {
   replaceAll: (saved: Partial<SavedData>, updatedAt: number) => void
 }
 
+/* Le profil est aussi gardé sur le téléphone : sans réseau, on entre quand même dans l'app */
+const PROFILE_KEY = 'blocCity.profile'
+
+const cachedProfile = (userId: string | null): Profile | null => {
+  if (!userId) return null
+  try {
+    const p = JSON.parse(localStorage.getItem(PROFILE_KEY) ?? 'null') as Profile | null
+    return p && p.id === userId ? p : null
+  } catch {
+    return null
+  }
+}
+
+const cacheProfile = (p: Profile | null) => {
+  try {
+    if (p) localStorage.setItem(PROFILE_KEY, JSON.stringify(p))
+  } catch {
+    /* rien */
+  }
+}
+
 /** Profil du joueur connecté (null tant qu'il n'a pas choisi de pseudo) */
 export function useProfile(userId: string | null) {
-  const [profile, setProfile] = useState<Profile | null>(null)
-  const [loaded, setLoaded] = useState(false)
+  const [profile, setProfileRaw] = useState<Profile | null>(() => cachedProfile(userId))
+  const [loaded, setLoaded] = useState(() => cachedProfile(userId) !== null)
+  const setProfile = useCallback((p: Profile | null) => {
+    cacheProfile(p)
+    setProfileRaw(p)
+  }, [])
   const reload = useCallback(async () => {
     if (!userId) return
     try {
-      setProfile(await getMyProfile(userId))
+      const p = await getMyProfile(userId)
+      cacheProfile(p)
+      setProfileRaw(p)
+    } catch {
+      // pas de réseau : on garde le profil connu sur le téléphone
+      setProfileRaw(cachedProfile(userId))
     } finally {
       setLoaded(true)
     }
   }, [userId])
   useEffect(() => {
-    setProfile(null)
-    setLoaded(false)
-    if (userId) void reload().catch(() => undefined)
+    const known = cachedProfile(userId)
+    setProfileRaw(known)
+    setLoaded(known !== null)
+    if (userId) void reload()
   }, [userId, reload])
   return { profile, setProfile, loaded, reload }
 }

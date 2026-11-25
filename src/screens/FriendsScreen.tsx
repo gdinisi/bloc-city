@@ -69,7 +69,7 @@ export function FriendsScreen(p: Props) {
 
 /* ---------- connexion : e-mail + mot de passe ---------- */
 
-function Login() {
+export function Login({ welcome = false }: { welcome?: boolean }) {
   const [mode, setMode] = useState<"connexion" | "creation" | "oubli">(
     "creation",
   );
@@ -106,10 +106,11 @@ function Login() {
   return (
     <div className="screen">
       <section className="card friends-hero" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/peak-tall.webp)` }}>
-        <h2>Grimpe avec tes amis</h2>
+        <h2>{welcome ? "Bienvenue sur Bloc City" : "Grimpe avec tes amis"}</h2>
         <p className="muted">
-          Crée ton compte pour sauvegarder ta progression, comparer ta semaine à
-          celle de tes amis et visiter leurs villes.
+          {welcome
+            ? "Crée ton compte ou connecte-toi pour commencer : tes séances, ta ville et ta progression sont sauvegardées, et tu peux te mesurer à tes amis."
+            : "Crée ton compte pour sauvegarder ta progression, comparer ta semaine à celle de tes amis et visiter leurs villes."}
         </p>
         {invite && (
           <p className="invite-note">
@@ -254,7 +255,7 @@ function Login() {
 
 /* ---------- premier passage : pseudo ---------- */
 
-function ChoosePseudo({
+export function ChoosePseudo({
   userId,
   sessions,
   weeklyGoal,

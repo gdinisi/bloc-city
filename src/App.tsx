@@ -8,7 +8,7 @@ import type { TabId } from './screens/HomeScreen'
 import { CityScreen } from './city/CityScreen'
 import { chestReadyAt } from './city/economy'
 import { useClaimable } from './city/QuestsPanel'
-import { FriendsScreen, NewPassword } from './screens/FriendsScreen'
+import { ChoosePseudo, FriendsScreen, Login, NewPassword } from './screens/FriendsScreen'
 import { Icon } from './ui/Icon'
 import { useTheme } from './lib/theme'
 import { TopXp } from './ui/XpBar'
@@ -43,6 +43,28 @@ export default function App() {
   const go = (t: TabId) => {
     setTab(t)
     window.scrollTo(0, 0)
+  }
+
+  // Compte obligatoire : tant qu'on n'est pas connecté (et qu'on n'a pas choisi de pseudo), on reste sur l'écran d'accueil du compte
+  if (cloudEnabled && (!auth.ready || !auth.userId || !me.loaded || !me.profile)) {
+    return (
+      <div className="app gate">
+        {!auth.ready || (auth.userId && !me.loaded) ? (
+          <div className="gate-loading">
+            <img src={`${import.meta.env.BASE_URL}pwa-192x192.png`} alt="" width={84} height={84} />
+          </div>
+        ) : !auth.userId ? (
+          <main>
+            <Login welcome />
+          </main>
+        ) : (
+          <main>
+            <ChoosePseudo userId={auth.userId} sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} onDone={me.setProfile} />
+          </main>
+        )}
+        {auth.recovery && <NewPassword onDone={auth.endRecovery} />}
+      </div>
+    )
   }
 
   return (

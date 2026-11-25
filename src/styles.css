@@ -5117,3 +5117,26 @@ img.photo-doigts.card {
 .focus-btn img.photo-doigts {
   object-position: 45% 60%;
 }
+
+/* --- écran d'accueil du compte (avant d'entrer dans l'app) --- */
+.app.gate main {
+  padding-top: calc(env(safe-area-inset-top) + 12px);
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+
+.gate-loading {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gate-loading img {
+  border-radius: 22px;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.card > .seg.wide + .login-form,
+.card > .seg.wide + .invite-note {
+  margin-top: 14px;
+}
