@@ -4594,3 +4594,17 @@ textarea {
 .focus-btn.on .focus-art {
   filter: none;
 }
+
+.activity-photo {
+  background-position: center 45%;
+}
+
+.activity-photo::before {
+  background: linear-gradient(90deg, rgba(13, 14, 16, 0.62) 0%, rgba(13, 14, 16, 0.25) 45%, rgba(13, 14, 16, 0) 70%),
+    linear-gradient(180deg, rgba(13, 14, 16, 0) 55%, rgba(13, 14, 16, 0.35) 100%);
+}
+
+.activity-photo h2,
+.activity-photo .home-date {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.45);
+}

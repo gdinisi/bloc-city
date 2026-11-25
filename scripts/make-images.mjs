@@ -10,6 +10,6 @@ await sharp(SRC).extract({ left: 0, top: 160, width: 736, height: 470 }).resize(
 await sharp(SRC).extract({ left: 0, top: 120, width: 736, height: 900 }).resize(800).webp({ quality: 76 }).toFile('public/img/peak-tall.webp')
 // Gros plan de la face éclairée (cartes)
 await sharp(SRC).extract({ left: 300, top: 450, width: 436, height: 330 }).resize(600).webp({ quality: 78 }).toFile('public/img/face.webp')
-// Bandeau de l'accueil : bande large centrée sur le sommet éclairé
-await sharp(SRC).extract({ left: 0, top: 430, width: 736, height: 230 }).resize(900).webp({ quality: 80 }).toFile('public/img/home-banner.webp')
+// Bandeau de l'accueil : panorama des Dolomites au coucher du soleil (assets/home-source.webp)
+await sharp('assets/home-source.webp').resize(1200).webp({ quality: 80 }).toFile('public/img/home-banner.webp')
 console.log('images ok')
