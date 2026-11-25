@@ -4817,3 +4817,70 @@ textarea {
 .friend-day-type {
   font-weight: 700;
 }
+
+/* --- ville d'un ami : la carte remplit tout le cadre (pas de bande vide) --- */
+.visit-map .city-svg {
+  height: 100%;
+}
+
+/* --- accueil : bouton « Noter une grimpe » bien visible --- */
+.home-actions {
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.home-actions .btn {
+  justify-content: flex-start;
+  gap: 10px;
+  padding: 12px 12px;
+}
+
+.home-add {
+  padding: 12px 12px !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: flex-start !important;
+  gap: 10px;
+  border: 1.5px solid var(--accent) !important;
+  background: var(--accent-soft) !important;
+  color: var(--ink);
+  text-align: left;
+}
+
+.home-add-icon {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.home-add > span:last-child {
+  display: flex;
+  flex-direction: column;
+  font-weight: 700;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.home-add small {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.home-go > span {
+  white-space: nowrap;
+  font-size: 0.98rem;
+}
+
+.home-go > .icon {
+  flex: none;
+}
+
+.home-add > span:last-child {
+  font-size: 0.98rem;
+}

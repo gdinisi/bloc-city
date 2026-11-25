@@ -43,42 +43,6 @@ export function CalendarScreen({ sessions, weeklyGoal, onGoalChange, onSave, onD
 
   return (
     <div className="screen">
-      <section className="card hero hero-art">
-        <MountainArt variant="ridge" seed={5} className="hero-art-bg" />
-        <div className="hero-top">
-          <div>
-            <div className="muted">Cette semaine</div>
-            <div className="big">
-              {thisWeek}
-              <span className="of">/{weeklyGoal} séances</span>
-            </div>
-          </div>
-          <div className="streak" title="Semaines d'affilée à l'objectif">
-            <span className="streak-fire">🔥</span>
-            <b>{streak}</b>
-            <span className="muted">sem.</span>
-          </div>
-        </div>
-        <div className="bar">
-          <div className="bar-fill" style={{ width: `${progress * 100}%` }} />
-        </div>
-        <div className="hero-bottom">
-          <div className="goal">
-            Objectif
-            <button type="button" className="round" aria-label="Diminuer l'objectif" onClick={() => onGoalChange(weeklyGoal - 1)}>
-              −
-            </button>
-            <b>{weeklyGoal}</b>
-            <button type="button" className="round" aria-label="Augmenter l'objectif" onClick={() => onGoalChange(weeklyGoal + 1)}>
-              +
-            </button>
-            / sem.
-          </div>
-          {best && <div className="muted">Meilleure cotation : <b>{best}</b></div>}
-        </div>
-        {thisWeek >= weeklyGoal && <div className="cheer">Objectif atteint, la série continue ! Les jours de repos ne la cassent pas.</div>}
-      </section>
-
       <section className="card">
         <div className="month-nav">
           <button type="button" className="round" aria-label="Mois précédent" onClick={() => shiftMonth(-1)}>
@@ -173,6 +137,42 @@ export function CalendarScreen({ sessions, weeklyGoal, onGoalChange, onSave, onD
             })}
           </ul>
         )}
+      </section>
+
+      <section className="card hero hero-art">
+        <MountainArt variant="ridge" seed={5} className="hero-art-bg" />
+        <div className="hero-top">
+          <div>
+            <div className="muted">Cette semaine</div>
+            <div className="big">
+              {thisWeek}
+              <span className="of">/{weeklyGoal} séances</span>
+            </div>
+          </div>
+          <div className="streak" title="Semaines d'affilée à l'objectif">
+            <span className="streak-fire">🔥</span>
+            <b>{streak}</b>
+            <span className="muted">sem.</span>
+          </div>
+        </div>
+        <div className="bar">
+          <div className="bar-fill" style={{ width: `${progress * 100}%` }} />
+        </div>
+        <div className="hero-bottom">
+          <div className="goal">
+            Objectif
+            <button type="button" className="round" aria-label="Diminuer l'objectif" onClick={() => onGoalChange(weeklyGoal - 1)}>
+              −
+            </button>
+            <b>{weeklyGoal}</b>
+            <button type="button" className="round" aria-label="Augmenter l'objectif" onClick={() => onGoalChange(weeklyGoal + 1)}>
+              +
+            </button>
+            / sem.
+          </div>
+          {best && <div className="muted">Meilleure cotation : <b>{best}</b></div>}
+        </div>
+        {thisWeek >= weeklyGoal && <div className="cheer">Objectif atteint, la série continue ! Les jours de repos ne la cassent pas.</div>}
       </section>
 
       {editing && (
