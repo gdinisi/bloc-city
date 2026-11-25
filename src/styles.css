@@ -4971,3 +4971,18 @@ html,
 body {
   overflow-x: hidden;
 }
+
+/* --- accueil : boutons et séances proposées un peu plus hauts --- */
+.home-actions .btn,
+.home-add {
+  padding-top: 15px !important;
+  padding-bottom: 15px !important;
+}
+
+.reco-card {
+  height: 166px;
+}
+
+.reco-card {
+  height: 190px;
+}
