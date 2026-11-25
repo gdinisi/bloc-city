@@ -9,7 +9,12 @@ interface Props {
   onSave: (s: Session) => void
   onDelete?: (id: string) => void
   onClose: () => void
+  /** Niveaux de bloc déjà saisis (suggestions) */
+  blocLevels?: string[]
 }
+
+/** En bloc il n'y a pas de cotation universelle : on propose les couleurs courantes des salles */
+const BLOC_SUGGESTIONS = ['Jaune', 'Vert', 'Bleu', 'Rouge', 'Noir', 'Blanc', 'Violet', 'Orange', 'Rose']
 
 const DURATIONS = [15, 30, 45, 60, 90, 120]
 
@@ -18,7 +23,7 @@ const RPE_LABELS: Record<number, string> = {
   6: 'Soutenu', 7: 'Dur', 8: 'Très dur', 9: 'Presque max', 10: 'Maximal',
 }
 
-export function SessionForm({ date, existing, onSave, onDelete, onClose }: Props) {
+export function SessionForm({ date, existing, onSave, onDelete, onClose, blocLevels = [] }: Props) {
   const [type, setType] = useState<SessionType>(existing?.type ?? 'salle')
   const [day, setDay] = useState(existing?.date ?? date)
   const [duration, setDuration] = useState(existing?.durationMin ?? 60)
@@ -27,7 +32,15 @@ export function SessionForm({ date, existing, onSave, onDelete, onClose }: Props
   const [climbs, setClimbs] = useState<Climb[]>(existing?.climbs ?? [])
   const [style, setStyle] = useState<ClimbStyle>('bloc')
   const [grade, setGrade] = useState('6a')
+  const [blocLevel, setBlocLevel] = useState('')
   const [flash, setFlash] = useState(false)
+  const suggestions = [...new Set([...blocLevels, ...BLOC_SUGGESTIONS])]
+  const level = style === 'bloc' ? blocLevel.trim() : grade
+
+  const addClimb = () => {
+    if (!level) return
+    setClimbs([...climbs, { style, grade: level.slice(0, 24), flash }])
+  }
 
   const isRest = type === 'repos'
   const canClimb = type === 'salle' || type === 'exterieur'
@@ -104,18 +117,41 @@ export function SessionForm({ date, existing, onSave, onDelete, onClose }: Props
                   </button>
                 ))}
               </div>
-              <select value={grade} onChange={(e) => setGrade(e.target.value)} aria-label="Cotation">
-                {GRADES.map((g) => (
-                  <option key={g}>{g}</option>
-                ))}
-              </select>
+              {style === 'voie' ? (
+                <select value={grade} onChange={(e) => setGrade(e.target.value)} aria-label="Cotation">
+                  {GRADES.map((g) => (
+                    <option key={g}>{g}</option>
+                  ))}
+                </select>
+              ) : (
+                <>
+                  <input
+                    className="level-input"
+                    type="text"
+                    list="bloc-levels"
+                    maxLength={24}
+                    placeholder="Niveau (ex. Vert, V4)"
+                    aria-label="Niveau du bloc"
+                    value={blocLevel}
+                    onChange={(e) => setBlocLevel(e.target.value)}
+                  />
+                  <datalist id="bloc-levels">
+                    {suggestions.map((s) => (
+                      <option key={s} value={s} />
+                    ))}
+                  </datalist>
+                </>
+              )}
               <label className="flash">
                 <input type="checkbox" checked={flash} onChange={(e) => setFlash(e.target.checked)} /> Flash
               </label>
-              <button type="button" className="btn small" onClick={() => setClimbs([...climbs, { style, grade, flash }])}>
+              <button type="button" className="btn small" disabled={!level} onClick={addClimb}>
                 + Ajouter
               </button>
             </div>
+            {style === 'bloc' && (
+              <p className="hint">En bloc, chaque salle a son système : écris le niveau comme ta salle le note (couleur, numéro, V-grade…).</p>
+            )}
             {climbs.length > 0 && (
               <div className="chips">
                 {climbs.map((c, i) => (

@@ -2,7 +2,8 @@ import type { Anim, Pose } from './skeleton'
 
 /*
  * Rappel des angles : 0 = droite, 90 = bas, 180 = gauche, -90 = haut.
- * Le personnage regarde vers la droite. Membre "2" = côté le plus éloigné (gris).
+ * De profil, le personnage regarde vers la droite ; le membre "2" est le côté éloigné (gris).
+ * De face (front), "arm"/"leg" = côté gauche de l'image, "arm2"/"leg2" = côté droit.
  */
 
 const STAND: Pose = { torso: -90, arm: [92, 90], arm2: [88, 90], leg: [92, 90], leg2: [88, 90] }
@@ -10,7 +11,14 @@ const HIGH_PLANK: Pose = { torso: -28, head: -20, arm: [90, 90], leg: [152, 152]
 const FOREARM_PLANK: Pose = { torso: -14, head: -10, arm: [90, 0], leg: [166, 166] }
 const QUAD: Pose = { torso: -24, head: -10, arm: [90, 90], leg: [90, 180] }
 const HANG: Pose = { torso: -90, arm: [-74, -80], arm2: [-106, -100], leg: [95, 100], leg2: [88, 95] }
+const HANG_BENT: Pose = { ...HANG, leg: [70, 110], leg2: [65, 105] }
 const PRONE: Pose = { torso: 0, head: 0, arm: [0, 0], leg: [180, 180] }
+
+/** Vue de face, debout */
+const FRONT_STAND: Pose = { torso: -90, arm: [100, 95], arm2: [80, 85], leg: [94, 90], leg2: [86, 90] }
+/** Vue de face, suspendu (genoux pliés vers l'arrière) */
+const FRONT_HANG: Pose = { torso: -90, arm: [-115, -110], arm2: [-65, -70], leg: [96, 92], leg2: [84, 88], shinK: 0.45 }
+const FRONT_TOP: Pose = { ...FRONT_HANG, arm: [150, -80], arm2: [30, -100] }
 
 const still = (p: Pose, breathe: Partial<Pose> = { spine: 3 }): Pose[] => [p, { ...p, ...breathe }]
 
@@ -27,8 +35,8 @@ export const ANIMS: Record<string, Anim> = {
   },
   'chat-vache': {
     frames: [
-      { ...QUAD, spine: -7, head: -55 },
-      { ...QUAD, spine: 10, head: 50 },
+      { ...QUAD, spine: -7, head: -55, label: 'Inspire : creuse le dos' },
+      { ...QUAD, spine: 10, head: 50, label: 'Expire : enroule le dos' },
     ],
     fix: 'knee',
     dur: 1500,
@@ -46,29 +54,31 @@ export const ANIMS: Record<string, Anim> = {
   jumping: {
     front: true,
     frames: [
-      { torso: -90, arm: [100, 95], arm2: [80, 85], leg: [96, 90], leg2: [84, 90] },
-      { torso: -90, arm: [-145, -125], arm2: [-35, -55], leg: [112, 100], leg2: [68, 80], dy: -6 },
+      { ...FRONT_STAND, hold: 120 },
+      // bras par l'extérieur jusqu'au-dessus de la tête, jambes écartées, petit saut
+      { torso: -90, arm: [240, 260], arm2: [-60, -80], leg: [116, 98], leg2: [64, 82], dy: -5, hold: 120 },
     ],
     fix: 'hip',
-    dur: 380,
-    hold: 80,
+    dur: 420,
   },
   'pull-apart': {
     front: true,
     frames: [
-      { torso: -90, arm: [130, 45], arm2: [50, 135], leg: [95, 90], leg2: [85, 90] },
-      { torso: -90, arm: [180, 180], arm2: [0, 0], leg: [95, 90], leg2: [85, 90] },
+      { ...FRONT_STAND, arm: [80, 80], arm2: [100, 100], armK: 0.42, label: 'Bras tendus devant toi', hold: 500 },
+      { ...FRONT_STAND, arm: [180, 180], arm2: [0, 0], label: 'Écarte jusqu\'à la poitrine', hold: 500 },
     ],
     props: ['band-hands'],
     fix: 'hip',
     dur: 900,
   },
   'susp-legere': {
-    frames: still({ ...HANG, leg: [60, 120], leg2: [55, 115] }, { shrug: 4 }),
+    frames: [
+      { ...HANG, leg: [60, 100], leg2: [56, 104], label: 'Pieds au sol : tu allèges' },
+      { ...HANG, leg: [60, 100], leg2: [56, 104], shrug: 3, label: 'Pieds au sol : tu allèges' },
+    ],
     anchor: 'grip',
     props: ['bar'],
     dur: 1200,
-    caption: 'Pieds au sol ou sur une chaise pour alléger',
   },
 
   // ---------- Gainage ----------
@@ -83,27 +93,36 @@ export const ANIMS: Record<string, Anim> = {
   },
   hollow: {
     frames: [
-      { torso: 196, head: 205, spine: 5, arm: [200, 200], leg: [-28, -28] },
-      { torso: 190, head: 200, spine: 5, arm: [190, 190], leg: [-14, -14] },
+      { torso: 196, head: 205, spine: 5, arm: [200, 200], leg: [-28, -28], label: 'Sur le DOS · bas du dos collé' },
+      { torso: 190, head: 200, spine: 5, arm: [190, 190], leg: [-14, -14], label: 'Sur le DOS · bas du dos collé' },
     ],
     fix: 'hip',
     dur: 1500,
     props: ['mat'],
+    caption: 'Le corps forme une banane, regard vers le plafond',
   },
   superman: {
-    frames: [PRONE, { torso: -10, head: -22, spine: -4, arm: [-14, -14], leg: [171, 171] }],
+    frames: [
+      { ...PRONE, label: 'Sur le VENTRE' },
+      { torso: -10, head: -14, spine: -4, arm: [-14, -14], leg: [171, 171], label: 'Sur le VENTRE · décolle tout' },
+    ],
     fix: 'hip',
     dur: 1200,
     props: ['mat'],
+    caption: 'Regard vers le sol, bras et jambes décollés',
   },
   'dead-bug': {
     frames: [
-      { torso: 180, head: 180, arm: [-90, -90], leg: [-90, 0] },
-      { torso: 180, head: 180, arm: [190, 190], arm2: [-90, -90], leg: [-90, 0], leg2: [-8, -8] },
+      { torso: 180, head: 180, arm: [-90, -90], leg: [-90, 0], label: 'Bras au plafond, genoux à 90°' },
+      { torso: 180, head: 180, arm: [184, 184], arm2: [-90, -90], leg: [-90, 0], leg2: [-6, -6], label: 'Un bras + la jambe opposée' },
+      { torso: 180, head: 180, arm: [-90, -90], leg: [-90, 0], label: 'Reviens' },
+      { torso: 180, head: 180, arm: [-90, -90], arm2: [184, 184], leg: [-6, -6], leg2: [-90, 0], label: 'Change de côté' },
     ],
     fix: 'hip',
-    dur: 1100,
+    dur: 1000,
+    hold: 450,
     props: ['mat'],
+    caption: 'Sur le dos : le bas du dos reste collé au sol',
   },
   'bird-dog': {
     frames: [QUAD, { ...QUAD, arm: [-8, -8], arm2: [90, 90], leg2: [174, 174] }],
@@ -144,36 +163,48 @@ export const ANIMS: Record<string, Anim> = {
     caption: 'Sous une table solide, talons au sol',
   },
   tractions: {
-    frames: [HANG, { ...HANG, arm: [70, -80], arm2: [110, -100] }],
+    front: true,
+    frames: [
+      { ...FRONT_HANG, label: 'Bras tendus', hold: 500 },
+      { ...FRONT_TOP, label: 'Menton au-dessus de la barre', hold: 500 },
+    ],
     anchor: 'grip',
     props: ['bar'],
     dur: 1100,
   },
   'tractions-exc': {
-    frames: [{ ...HANG, arm: [70, -80], arm2: [110, -100] }, HANG],
+    front: true,
+    frames: [
+      { ...FRONT_TOP, leg: [94, 90], leg2: [86, 90], shinK: 1, label: 'Monte en haut (chaise ou saut)', hold: 700, dur: 500 },
+      { ...FRONT_TOP, label: 'Lâche la chaise', hold: 300, dur: 3200 },
+      { ...FRONT_HANG, label: 'Descends en 5 secondes', hold: 600, dur: 700 },
+    ],
     anchor: 'grip',
-    props: ['bar'],
-    dur: 3000,
-    hold: 600,
-    caption: 'Descente lente : 5 secondes',
+    props: ['bar', 'chair-foot'],
   },
   'scap-pull': {
-    frames: [HANG, { ...HANG, shrug: 7 }],
+    frames: [
+      { ...HANG, label: 'Épaules relâchées' },
+      { ...HANG, shrug: 7, label: 'Abaisse les épaules' },
+    ],
     anchor: 'grip',
     props: ['bar'],
     dur: 800,
     caption: 'Bras tendus : seules les épaules bougent',
   },
   'tuck-lever': {
-    frames: still({ torso: 180, head: 180, arm: [-62, -62], leg: [205, 20], leg2: [200, 15] }, { shrug: 2 }),
+    frames: [
+      { ...HANG, label: 'Suspendu bras tendus', hold: 500 },
+      { torso: -180, head: -180, arm: [-66, -66], arm2: [-72, -72], leg: [-158, 22], leg2: [-152, 26], label: 'Dos à l\'horizontale, genoux serrés', hold: 1600 },
+    ],
     anchor: 'grip',
     props: ['bar'],
-    dur: 1500,
+    dur: 1200,
   },
   'tirage-elast': {
     frames: [
-      { ...STAND, torso: -88, arm: [0, 0], arm2: [4, 4] },
-      { ...STAND, torso: -92, arm: [150, 0], arm2: [146, 2] },
+      { ...STAND, torso: -88, arm: [0, 0], arm2: [4, 4], label: 'Bras tendus vers l\'accroche' },
+      { ...STAND, torso: -92, arm: [150, 0], arm2: [146, 2], label: 'Tire les coudes en arrière' },
     ],
     props: ['band'],
     dur: 900,
@@ -210,30 +241,31 @@ export const ANIMS: Record<string, Anim> = {
   },
   ytw: {
     front: true,
+    top: true,
+    anchor: 'center',
     frames: [
-      { torso: -90, arm: [-125, -125], arm2: [-55, -55], leg: [95, 90], leg2: [85, 90] },
-      { torso: -90, arm: [180, 180], arm2: [0, 0], leg: [95, 90], leg2: [85, 90] },
-      { torso: -90, arm: [150, -125], arm2: [30, -55], leg: [95, 90], leg2: [85, 90] },
+      { torso: -90, arm: [235, 235], arm2: [-55, -55], leg: [93, 90], leg2: [87, 90], label: 'Y : bras en diagonale', hold: 700 },
+      { torso: -90, arm: [180, 180], arm2: [0, 0], leg: [93, 90], leg2: [87, 90], label: 'T : bras sur les côtés', hold: 700 },
+      { torso: -90, arm: [140, 220], arm2: [40, -40], leg: [93, 90], leg2: [87, 90], label: 'W : coudes vers les côtes', hold: 700 },
     ],
     fix: 'hip',
     dur: 700,
-    hold: 600,
-    caption: 'Vu de dessus : à plat ventre, bras en Y, T puis W',
+    caption: 'Vu de dessus : allongé sur le ventre, bras décollés du sol',
   },
   'rot-ext': {
     front: true,
     frames: [
-      { torso: -90, arm: [95, 5], arm2: [85, 175], leg: [95, 90], leg2: [85, 90] },
-      { torso: -90, arm: [95, 160], arm2: [85, 20], leg: [95, 90], leg2: [85, 90] },
+      { ...FRONT_STAND, arm: [92, 90], arm2: [88, 90], foreK: 0.3, label: 'Coudes collés, mains devant toi', hold: 500 },
+      { ...FRONT_STAND, arm: [92, 180], arm2: [88, 0], foreK: 0.95, label: 'Écarte les mains vers l\'extérieur', hold: 500 },
     ],
+    props: ['band-hands'],
     fix: 'hip',
-    dur: 900,
-    caption: 'Coudes collés au corps',
+    dur: 1000,
   },
   'face-pull': {
     frames: [
-      { ...STAND, arm: [-15, -15], arm2: [-12, -12] },
-      { ...STAND, arm: [190, -60], arm2: [186, -64] },
+      { ...STAND, arm: [-15, -15], arm2: [-12, -12], label: 'Bras tendus vers l\'accroche' },
+      { ...STAND, arm: [190, -60], arm2: [186, -64], label: 'Tire vers le visage, coudes hauts' },
     ],
     props: ['band'],
     dur: 900,
@@ -241,24 +273,34 @@ export const ANIMS: Record<string, Anim> = {
 
   // ---------- Doigts ----------
   repeaters: {
-    frames: [{ ...HANG, leg: [70, 110], leg2: [65, 105] }, { ...HANG, leg: [70, 110], leg2: [65, 105], shrug: 3 }],
+    frames: [
+      { ...HANG_BENT, label: 'Suspendu 7 s', hold: 1400 },
+      { ...HANG, arm: [-70, -55], arm2: [-110, -125], leg: [92, 90], leg2: [88, 90], pin: 'neck', label: 'Pause 3 s : pieds au sol', hold: 600 },
+    ],
     anchor: 'grip',
     props: ['board'],
-    dur: 500,
-    hold: 900,
-    caption: '7 s suspendu, 3 s de pause',
+    dur: 300,
+    caption: '6 fois de suite = 1 tour, puis 2 à 3 min de repos',
   },
   'max-hang': {
-    frames: still({ ...HANG, leg: [70, 110], leg2: [65, 105] }, { shrug: 3 }),
+    frames: [
+      { ...HANG_BENT, label: '10 s sur une PETITE prise', hold: 1800 },
+      { ...STAND, pin: 'neck', label: 'Repos complet : 2 min', hold: 1400 },
+    ],
     anchor: 'grip',
-    props: ['board'],
-    dur: 1500,
+    props: ['board-edge'],
+    dur: 500,
+    caption: 'Prise exigeante (en rouge), jamais jusqu\'à l\'échec',
   },
   'hang-leger': {
-    frames: still({ ...HANG, leg: [70, 110], leg2: [65, 105] }, { shrug: 2 }),
+    frames: [
+      { ...HANG_BENT, label: '20 s sur une GROSSE prise', hold: 1600 },
+      { ...HANG_BENT, shrug: 3, label: '20 s sur une GROSSE prise', hold: 1600 },
+    ],
     anchor: 'grip',
-    props: ['board'],
-    dur: 1600,
+    props: ['board-jug'],
+    dur: 1200,
+    caption: 'Grosse prise confortable (en vert)',
   },
 
   // ---------- Jambes ----------
@@ -307,10 +349,6 @@ export const ANIMS: Record<string, Anim> = {
   },
 
   // ---------- Mobilité ----------
-  'avant-bras': {
-    frames: still({ ...STAND, arm: [0, 0], arm2: [42, -22] }, { arm2: [46, -26] }),
-    dur: 1500,
-  },
   grenouille: {
     frames: [
       { torso: -10, head: -15, arm: [90, 0], leg: [90, 180] },
@@ -346,19 +384,36 @@ export const ANIMS: Record<string, Anim> = {
     fix: 'foot',
     dur: 1600,
   },
+  'ouverture-thorax': {
+    top: true,
+    anchor: 'center',
+    frames: [
+      { torso: -90, arm: [4, 4], arm2: [0, 0], leg: [10, 90], leg2: [14, 92], label: 'Bras l\'un sur l\'autre', hold: 600 },
+      { torso: -90, arm: [-90, -90], arm2: [0, 0], armK: 0.2, arm2K: 1, leg: [10, 90], leg2: [14, 92], label: 'Ouvre vers le plafond', hold: 150 },
+      { torso: -90, arm: [180, 180], arm2: [0, 0], leg: [10, 90], leg2: [14, 92], label: 'Pose le bras derrière toi', hold: 900 },
+      { torso: -90, arm: [-90, -90], arm2: [0, 0], armK: 0.2, arm2K: 1, leg: [10, 90], leg2: [14, 92], label: 'Reviens lentement', hold: 150 },
+    ],
+    fix: 'hip',
+    dur: 1100,
+    caption: 'Vu de dessus : allongé sur le côté, genoux pliés au sol',
+  },
   'pec-porte': {
     frames: [
-      { ...STAND, arm: [-10, -90], arm2: [92, 90] },
-      { ...STAND, torso: -80, arm: [-22, -100], arm2: [92, 90] },
+      { ...STAND, arm: [185, -90], arm2: [92, 90], label: 'Avant-bras contre le cadre', hold: 600 },
+      { ...STAND, torso: -84, arm: [200, -88], arm2: [92, 90], leg: [82, 92], leg2: [100, 88], label: 'Avance le buste', hold: 900 },
     ],
     fix: 'hand',
-    props: ['wall-hand'],
-    dur: 1500,
+    props: ['door-hand'],
+    dur: 1400,
+    caption: 'Coude à hauteur d\'épaule, bras derrière toi',
   },
   enfant: {
-    frames: still({ torso: 22, head: 30, arm: [10, 2], leg: [8, 180] }, { spine: 4 }),
+    frames: [
+      { torso: -85, arm: [95, 60], leg: [23, 180], label: 'À genoux, assis sur les talons', hold: 600 },
+      { torso: 9, head: 2, arm: [4, 0], leg: [23, 180], label: 'Bras loin devant, front au sol', hold: 1400 },
+    ],
     fix: 'knee',
-    dur: 1800,
+    dur: 1600,
     props: ['mat'],
   },
   dorsaux: {

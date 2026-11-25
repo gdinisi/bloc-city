@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Session } from '../types'
 import { typeInfo } from '../types'
 import { MONTHS, WEEKDAYS_SHORT, formatLongDate, monthGrid, toKey, weekKey } from '../lib/dates'
-import { bestGrade, countsByWeek, weeklyStreak } from '../lib/stats'
+import { bestGrade, countsByWeek, recentBlocLevels, weeklyStreak } from '../lib/stats'
 import { SessionForm } from '../components/SessionForm'
 
 interface Props {
@@ -176,6 +176,7 @@ export function CalendarScreen({ sessions, weeklyGoal, onGoalChange, onSave, onD
         <SessionForm
           date={selected}
           existing={editing === 'new' ? undefined : editing}
+          blocLevels={recentBlocLevels(sessions)}
           onClose={() => setEditing(null)}
           onSave={(s) => {
             onSave(s)

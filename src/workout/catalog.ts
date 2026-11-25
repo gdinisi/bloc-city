@@ -70,7 +70,7 @@ export const EXERCISES: Exercise[] = [
   { id: 'pike', name: 'Pompes piquées (pike)', cue: 'Fesses en l\'air en V inversé, descends la tête entre les mains.', category: 'antagonistes', needs: [], intensity: 3, sets: 3, reps: 8, rest: 60 },
   { id: 'dips-chaise', name: 'Dips sur chaise', cue: 'Mains au bord d\'une chaise stable, descends à 90° aux coudes.', category: 'antagonistes', needs: [], intensity: 2, sets: 3, reps: 10, rest: 60 },
   { id: 'ytw', name: 'Y-T-W au sol', cue: 'À plat ventre, lève les bras en Y, puis T, puis W, pouces vers le ciel.', category: 'antagonistes', needs: [], intensity: 1, sets: 3, reps: 6, rest: 30 },
-  { id: 'rot-ext', name: 'Rotations externes à l\'élastique', cue: 'Coude collé au corps à 90°, tourne l\'avant-bras vers l\'extérieur.', category: 'antagonistes', needs: ['elastique'], intensity: 1, sets: 2, reps: 15, rest: 20, perSide: true },
+  { id: 'rot-ext', name: 'Rotations externes à l\'élastique', cue: 'Élastique tenu à deux mains, coudes collés au corps à 90° : écarte les mains vers l\'extérieur.', category: 'antagonistes', needs: ['elastique'], intensity: 1, sets: 3, reps: 15, rest: 20 },
   { id: 'face-pull', name: 'Face pulls à l\'élastique', cue: 'Tire l\'élastique vers le visage, coudes hauts, termine pouces en arrière.', category: 'antagonistes', needs: ['elastique'], intensity: 2, sets: 3, reps: 15, rest: 30 },
 
   // ---------- Doigts ----------

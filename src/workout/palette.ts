@@ -1,0 +1,8 @@
+export const INK = '#2b2d42'
+export const FAR = '#8e95b5'
+export const SHIRT = '#ff8a3d'
+export const SKIN = '#ffd8b0'
+export const SKIN_DARK = '#e8b98c'
+export const PROP = '#b07a4a'
+export const BAND = '#e84393'
+export const FLOORC = '#d9cdb5'

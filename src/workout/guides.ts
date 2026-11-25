@@ -218,7 +218,7 @@ export const GUIDES: Record<string, Guide> = {
   },
   'rot-ext': {
     muscles: 'Coiffe des rotateurs (prévention épaule)',
-    steps: ['Élastique accroché sur le côté, à hauteur du coude.', 'Coude collé au corps, plié à 90°.', 'Tourne l\'avant-bras vers l\'extérieur sans décoller le coude, reviens lentement.'],
+    steps: ['Tiens l\'élastique à deux mains, paumes vers le haut, mains écartées de la largeur des épaules.', 'Coudes collés au corps, pliés à 90°, mains devant toi.', 'Écarte les mains vers l\'extérieur en gardant les coudes collés, puis reviens lentement.'],
     mistakes: ['Décoller le coude', 'Élastique trop dur'],
     video: 'rotation externe élastique épaule',
   },

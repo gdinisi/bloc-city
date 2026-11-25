@@ -34,6 +34,18 @@ export const weeklyStreak = (sessions: Session[], goal: number, today = new Date
 export const bestGrade = (sessions: Session[]) => {
   let best: string | null = null
   for (const s of sessions)
-    for (const c of s.climbs) if (best === null || gradeRank(c.grade) > gradeRank(best)) best = c.grade
+    for (const c of s.climbs) {
+      // les niveaux de bloc libres (couleurs…) ne sont pas comparables : on les ignore
+      if (gradeRank(c.grade) < 0) continue
+      if (best === null || gradeRank(c.grade) > gradeRank(best)) best = c.grade
+    }
   return best
+}
+
+/** Niveaux de bloc déjà saisis, du plus récent au plus ancien */
+export const recentBlocLevels = (sessions: Session[]) => {
+  const out: string[] = []
+  const sorted = [...sessions].sort((a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt))
+  for (const s of sorted) for (const c of s.climbs) if (c.style === 'bloc' && !out.includes(c.grade)) out.push(c.grade)
+  return out.slice(0, 12)
 }

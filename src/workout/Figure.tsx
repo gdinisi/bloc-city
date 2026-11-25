@@ -1,14 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { Anim, Joints, Pt } from './skeleton'
-import { FLOOR_Y, GRIP_Y, HEAD_R, easeInOut, layoutFirst, mix, place, spinePath } from './skeleton'
+import { FLOOR_Y, GRIP_Y, HEAD_R, dir, layoutFirst, place, spinePath, timeline } from './skeleton'
 import { ANIMS } from './anims'
-
-const INK = '#2b2d42'
-const FAR = '#9a9fb8'
-const SHIRT = '#ff8a3d'
-const SKIN = '#ffd8b0'
-const PROP = '#b07a4a'
-const BAND = '#e84393'
+import { SCENES } from './scenes'
+import { BAND, FAR, INK, PROP, SHIRT, SKIN } from './palette'
 
 const reduceMotion = () => {
   try {
@@ -18,47 +13,162 @@ const reduceMotion = () => {
   }
 }
 
-/** Calcule la pose à l'instant t (ms) */
-function poseAt(anim: Anim, t: number) {
-  const n = anim.frames.length
-  if (n === 1) return anim.frames[0]
-  const dur = anim.dur ?? 1100
-  const hold = anim.hold ?? 350
-  const segs = anim.wrap ? n - 1 : n
-  const segLen = dur + hold
-  const total = segs * segLen
-  // t peut être légèrement négatif au premier rendu (horodatage rAF antérieur)
-  const local = ((t % total) + total) % total
-  const i = Math.min(segs - 1, Math.floor(local / segLen))
-  const within = local - i * segLen
-  const k = within < hold ? 0 : easeInOut((within - hold) / dur)
-  return mix(anim.frames[i], anim.frames[(i + 1) % n], k)
-}
-
 const line = (a: Pt, b: Pt, color: string, w: number) => (
   <line x1={a[0]} y1={a[1]} x2={b[0]} y2={b[1]} stroke={color} strokeWidth={w} strokeLinecap="round" />
 )
 
-function Props({ anim, first, j }: { anim: Anim; first: Joints; j: Joints }) {
-  const hand = first.hand
-  const items = anim.props ?? []
+const poly = (pts: Pt[], color: string, w: number) => (
+  <polyline
+    points={pts.map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}
+    stroke={color}
+    strokeWidth={w}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    fill="none"
+  />
+)
+
+/** Élastique : légère courbe quand il est détendu */
+export function Band({ a, b, slack = 0 }: { a: Pt; b: Pt; slack?: number }) {
+  const mx = (a[0] + b[0]) / 2
+  const my = (a[1] + b[1]) / 2 + slack
+  return <path d={`M${a[0]} ${a[1]} Q${mx} ${my} ${b[0]} ${b[1]}`} stroke={BAND} strokeWidth={4} strokeLinecap="round" fill="none" />
+}
+
+/* ---------- Corps : points de rendu (épaules / hanches écartées en vue de face) ---------- */
+
+interface Rig {
+  head: Pt
+  neck: Pt
+  hip: Pt
+  shL: Pt
+  shR: Pt
+  hipL: Pt
+  hipR: Pt
+  arm: Pt[]
+  arm2: Pt[]
+  leg: Pt[]
+  leg2: Pt[]
+}
+
+const SHOULDER = 10
+const HIP = 6
+
+function rig(j: Joints, front: boolean): Rig {
+  if (!front) {
+    return {
+      head: j.head,
+      neck: j.neck,
+      hip: j.hip,
+      shL: j.neck,
+      shR: j.neck,
+      hipL: j.hip,
+      hipR: j.hip,
+      arm: [j.neck, j.elbow, j.hand],
+      arm2: [j.neck, j.elbow2, j.hand2],
+      leg: [j.hip, j.knee, j.foot],
+      leg2: [j.hip, j.knee2, j.foot2],
+    }
+  }
+  const ux = j.neck[0] - j.hip[0]
+  const uy = j.neck[1] - j.hip[1]
+  const len = Math.hypot(ux, uy) || 1
+  const px = -uy / len
+  const py = ux / len
+  const off = (p: Pt, k: number): Pt => [p[0] + px * k, p[1] + py * k]
+  return {
+    head: j.head,
+    neck: j.neck,
+    hip: j.hip,
+    shL: off(j.neck, -SHOULDER),
+    shR: off(j.neck, SHOULDER),
+    hipL: off(j.hip, -HIP),
+    hipR: off(j.hip, HIP),
+    arm: [j.neck, j.elbow, j.hand].map((p) => off(p, -SHOULDER)),
+    arm2: [j.neck, j.elbow2, j.hand2].map((p) => off(p, SHOULDER)),
+    leg: [j.hip, j.knee, j.foot].map((p) => off(p, -HIP)),
+    leg2: [j.hip, j.knee2, j.foot2].map((p) => off(p, HIP)),
+  }
+}
+
+function Eyes({ r, headAngle, front }: { r: Rig; headAngle: number; front: boolean }) {
+  const [hx, hy] = r.head
+  if (front) {
+    // deux yeux, perpendiculaires au cou
+    const [ux, uy] = dir(headAngle)
+    const px = -uy
+    const py = ux
+    return (
+      <g fill={INK}>
+        <circle cx={hx + px * 3.2 + ux * 1} cy={hy + py * 3.2 + uy * 1} r={1.6} />
+        <circle cx={hx - px * 3.2 + ux * 1} cy={hy - py * 3.2 + uy * 1} r={1.6} />
+      </g>
+    )
+  }
+  // de profil : l'œil regarde du côté "avant" du corps
+  const [ex, ey] = dir(headAngle + 90)
+  const [ux, uy] = dir(headAngle)
+  return <circle cx={hx + ex * 4.5 + ux * 1.5} cy={hy + ey * 4.5 + uy * 1.5} r={1.8} fill={INK} />
+}
+
+function Body({ r, spine, front, headAngle, eyes }: { r: Rig; spine: number; front: boolean; headAngle: number; eyes: boolean }) {
+  const far = front ? INK : FAR
   return (
     <g>
-      {items.includes('mat') && <rect x={30} y={FLOOR_Y - 1} width={140} height={5} rx={2} fill="#7fd1a8" />}
+      {poly(r.leg2, far, 8)}
+      {!front && poly(r.arm2, far, 7)}
+      {front ? (
+        <polygon
+          points={[r.shL, r.shR, r.hipR, r.hipL].map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}
+          fill={SHIRT}
+          stroke={SHIRT}
+          strokeWidth={8}
+          strokeLinejoin="round"
+        />
+      ) : (
+        <path d={spinePath(r.hip, r.neck, spine)} stroke={SHIRT} strokeWidth={12} strokeLinecap="round" fill="none" />
+      )}
+      {poly(r.leg, INK, 8)}
+      {line(r.neck, r.head, SKIN, 6)}
+      <circle cx={r.head[0]} cy={r.head[1]} r={HEAD_R} fill={SKIN} stroke={INK} strokeWidth={3} />
+      {eyes && <Eyes r={r} headAngle={headAngle} front={front} />}
+      {front && poly(r.arm2, INK, 7)}
+      {poly(r.arm, INK, 7)}
+    </g>
+  )
+}
+
+/* ---------- Décor ---------- */
+
+function Board({ cx, kind }: { cx: number; kind: 'board' | 'board-edge' | 'board-jug' }) {
+  return (
+    <g>
+      {line([cx - 24, GRIP_Y - 10], [cx - 24, 0], INK, 2)}
+      {line([cx + 24, GRIP_Y - 10], [cx + 24, 0], INK, 2)}
+      <rect x={cx - 40} y={GRIP_Y - 11} width={80} height={13} rx={3} fill={PROP} stroke={INK} strokeWidth={2.5} />
+      {kind === 'board-edge' && <rect x={cx - 30} y={GRIP_Y - 1} width={60} height={3} rx={1} fill="#e74c3c" />}
+      {kind === 'board-jug' && <rect x={cx - 34} y={GRIP_Y - 3} width={68} height={8} rx={4} fill="#2ecc71" stroke={INK} strokeWidth={2} />}
+    </g>
+  )
+}
+
+function BackProps({ anim, first }: { anim: Anim; first: Joints }) {
+  const hand = first.hand
+  const items = anim.props ?? []
+  const midHands = (first.hand[0] + first.hand2[0]) / 2
+  const doorSide = first.hand[0] < first.neck[0] ? -1 : 1
+  return (
+    <g>
+      {anim.top && <rect x={22} y={6} width={156} height={138} rx={16} fill="#c8ecd8" stroke="#7fd1a8" strokeWidth={3} />}
+      {items.includes('mat') && <rect x={24} y={FLOOR_Y - 1} width={152} height={5} rx={2} fill="#7fd1a8" />}
       {items.includes('bar') && (
         <g>
-          {line([40, 0], [40, GRIP_Y], PROP, 4)}
-          {line([160, 0], [160, GRIP_Y], PROP, 4)}
-          {line([34, GRIP_Y], [166, GRIP_Y], INK, 5)}
+          {line([36, 0], [36, GRIP_Y], PROP, 4)}
+          {line([164, 0], [164, GRIP_Y], PROP, 4)}
+          {line([30, GRIP_Y], [170, GRIP_Y], INK, 5)}
         </g>
       )}
-      {items.includes('board') && (
-        <g>
-          <rect x={hand[0] - 34} y={GRIP_Y - 10} width={68} height={12} rx={3} fill={PROP} stroke={INK} strokeWidth={2.5} />
-          {line([hand[0] - 20, GRIP_Y - 10], [hand[0] - 20, 0], INK, 2)}
-          {line([hand[0] + 20, GRIP_Y - 10], [hand[0] + 20, 0], INK, 2)}
-        </g>
-      )}
+      {(['board', 'board-edge', 'board-jug'] as const).map((k) => items.includes(k) && <Board key={k} cx={midHands} kind={k} />)}
       {items.includes('table-hands') && (
         <g>
           <rect x={hand[0] - 40} y={hand[1] - 6} width={80} height={6} rx={2} fill={PROP} stroke={INK} strokeWidth={2} />
@@ -76,121 +186,111 @@ function Props({ anim, first, j }: { anim: Anim; first: Joints; j: Joints }) {
       )}
       {items.includes('chair-foot') && (
         <g>
-          <rect x={first.foot[0] - 18} y={first.foot[1]} width={36} height={5} rx={2} fill={PROP} stroke={INK} strokeWidth={2} />
-          {line([first.foot[0] - 14, first.foot[1] + 5], [first.foot[0] - 14, FLOOR_Y], PROP, 3.5)}
-          {line([first.foot[0] + 14, first.foot[1] + 5], [first.foot[0] + 14, FLOOR_Y], PROP, 3.5)}
+          <rect x={first.foot[0] - 18} y={first.foot[1] + 4} width={36} height={5} rx={2} fill={PROP} stroke={INK} strokeWidth={2} />
+          {line([first.foot[0] - 14, first.foot[1] + 9], [first.foot[0] - 14, FLOOR_Y], PROP, 3.5)}
+          {line([first.foot[0] + 14, first.foot[1] + 9], [first.foot[0] + 14, FLOOR_Y], PROP, 3.5)}
         </g>
       )}
-      {items.includes('wall-hand') && line([hand[0] + 4, 18], [hand[0] + 4, FLOOR_Y], PROP, 5)}
-      {items.includes('band') && (
+      {items.includes('door-hand') && (
         <g>
-          {line([188, hand[1] - 4], [188, hand[1] + 4], INK, 4)}
-          {line(j.hand, [188, hand[1]], BAND, 3)}
+          <rect x={hand[0] + doorSide * 4 - (doorSide < 0 ? 10 : 0)} y={8} width={10} height={FLOOR_Y - 6} rx={2} fill="#e3c9a8" stroke={PROP} strokeWidth={3} />
         </g>
       )}
-      {items.includes('band-hands') && line(j.hand, j.hand2, BAND, 3)}
+      {items.includes('band') && <rect x={184} y={hand[1] - 10} width={10} height={20} rx={3} fill={PROP} stroke={INK} strokeWidth={2} />}
     </g>
   )
 }
 
-function Body({ j, spine, front }: { j: Joints; spine: number; front?: boolean }) {
-  const far = front ? INK : FAR
+function FrontProps({ anim, first, r }: { anim: Anim; first: Joints; r: Rig }) {
+  const items = anim.props ?? []
+  const hand = r.arm[2]
+  const hand2 = r.arm2[2]
   return (
     <g>
-      {line(j.neck, j.elbow2, far, 7)}
-      {line(j.elbow2, j.hand2, far, 7)}
-      {line(j.hip, j.knee2, far, 8)}
-      {line(j.knee2, j.foot2, far, 8)}
-      <path d={spinePath(j, spine)} stroke={SHIRT} strokeWidth={12} strokeLinecap="round" fill="none" />
-      {line(j.hip, j.knee, INK, 8)}
-      {line(j.knee, j.foot, INK, 8)}
-      <circle cx={j.head[0]} cy={j.head[1]} r={HEAD_R} fill={SKIN} stroke={INK} strokeWidth={3} />
-      {line(j.neck, j.elbow, INK, 7)}
-      {line(j.elbow, j.hand, INK, 7)}
+      {items.includes('band') && <Band a={hand} b={[189, first.hand[1]]} />}
+      {items.includes('band-hands') && <Band a={hand} b={hand2} slack={Math.max(0, 14 - Math.abs(hand[0] - hand2[0]) / 3)} />}
     </g>
   )
 }
 
-/**
- * Vue de face : on écarte les épaules et les hanches perpendiculairement au torse,
- * pour qu'on voie clairement les deux bras et les deux jambes de part et d'autre du corps.
- */
-const SHOULDER = 10
-const HIP = 6
+/** Hauteur de la scène, et de la scène + bandeau d'étiquette en dessous */
+export const VIEW_H = 150
+export const VIEW_H_LABEL = 172
 
-function FrontBody({ j }: { j: Joints }) {
-  const ux = j.neck[0] - j.hip[0]
-  const uy = j.neck[1] - j.hip[1]
-  const len = Math.hypot(ux, uy) || 1
-  // perpendiculaire au torse (vers la droite quand le torse est vertical)
-  const px = -uy / len
-  const py = ux / len
-  const off = (p: Pt, k: number): Pt => [p[0] + px * k, p[1] + py * k]
-
-  const shL = off(j.neck, -SHOULDER)
-  const shR = off(j.neck, SHOULDER)
-  const hipL = off(j.hip, -HIP)
-  const hipR = off(j.hip, HIP)
-  const arm = [shL, off(j.elbow, -SHOULDER), off(j.hand, -SHOULDER)]
-  const arm2 = [shR, off(j.elbow2, SHOULDER), off(j.hand2, SHOULDER)]
-  const leg = [hipL, off(j.knee, -HIP), off(j.foot, -HIP)]
-  const leg2 = [hipR, off(j.knee2, HIP), off(j.foot2, HIP)]
-  const chain = (pts: Pt[], w: number) => (
-    <polyline
-      points={pts.map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')}
-      stroke={INK}
-      strokeWidth={w}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      fill="none"
-    />
-  )
-  const torso = [shL, shR, hipR, hipL].map((p) => p.map((v) => v.toFixed(1)).join(',')).join(' ')
-
+/** Étiquette centrée dans un bandeau sous la scène (ne cache jamais le décor) */
+export function LabelBadge({ text }: { text: string }) {
+  const w = Math.min(194, 14 + text.length * 5.7)
   return (
     <g>
-      {chain(leg, 8)}
-      {chain(leg2, 8)}
-      <polygon points={torso} fill={SHIRT} stroke={SHIRT} strokeWidth={8} strokeLinejoin="round" />
-      {line(j.neck, j.head, SKIN, 6)}
-      <circle cx={j.head[0]} cy={j.head[1]} r={HEAD_R} fill={SKIN} stroke={INK} strokeWidth={3} />
-      {chain(arm, 7)}
-      {chain(arm2, 7)}
+      <rect x={100 - w / 2} y={152} width={w} height={18} rx={9} fill={INK} />
+      <text x={100} y={164.5} textAnchor="middle" fontSize={10.5} fontWeight={800} fill="#fff">
+        {text}
+      </text>
     </g>
   )
 }
+
+/* ---------- Composant ---------- */
 
 export function hasAnim(id: string) {
-  return id in ANIMS
+  return id in ANIMS || id in SCENES
 }
 
-export function ExerciseFigure({ id, size = 'normal', frame }: { id: string; size?: 'normal' | 'small'; frame?: number }) {
-  const anim = ANIMS[id]
-  const first = useMemo(() => (anim ? layoutFirst(anim) : null), [anim])
+function useClock(active: boolean) {
   const [t, setT] = useState(0)
-
   useEffect(() => {
-    if (!anim || anim.frames.length < 2 || frame !== undefined || reduceMotion()) return
+    if (!active || reduceMotion()) return
     let raf = 0
     const start = performance.now()
     const loop = (now: number) => {
-      setT(now - start)
+      setT(Math.max(0, now - start))
       raf = requestAnimationFrame(loop)
     }
     raf = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(raf)
-  }, [anim, frame])
+  }, [active])
+  return t
+}
+
+export function ExerciseFigure({ id, size = 'normal', frame }: { id: string; size?: 'normal' | 'small'; frame?: number }) {
+  const anim: Anim | undefined = ANIMS[id]
+  const scene = SCENES[id]
+  const first = useMemo(() => (anim ? layoutFirst(anim) : null), [anim])
+  const animated = (!!scene || (!!anim && anim.frames.length > 1)) && frame === undefined
+  const t = useClock(animated)
+
+  if (scene) {
+    const time = frame !== undefined ? frame * scene.period * 0.25 + scene.period * 0.08 : t
+    return (
+      <figure className={`figure ${size}`}>
+        <svg viewBox={`0 0 200 ${VIEW_H_LABEL}`} role="img" aria-label="Démonstration de l'exercice">
+          {scene.render(time)}
+        </svg>
+        {scene.caption && <figcaption>{scene.caption}</figcaption>}
+      </figure>
+    )
+  }
 
   if (!anim || !first) return null
-  const pose = frame !== undefined ? anim.frames[Math.min(frame, anim.frames.length - 1)] : poseAt(anim, t)
-  const j = place(anim, first, pose)
+  const tl =
+    frame !== undefined
+      ? (() => {
+          const f = anim.frames[Math.min(frame, anim.frames.length - 1)]
+          return { pose: f, a: f, b: f, k: 0, label: f.label }
+        })()
+      : timeline(anim, t)
+  const j = place(anim, first, tl.pose, tl.a, tl.b, tl.k)
+  const r = rig(j, !!anim.front)
+  const labelled = anim.frames.some((f) => f.label)
 
   return (
     <figure className={`figure ${size}`}>
-      <svg viewBox="0 0 200 150" role="img" aria-label="Démonstration de l'exercice">
-        {line([10, FLOOR_Y + 2], [190, FLOOR_Y + 2], '#d9cdb5', 4)}
-        <Props anim={anim} first={first} j={j} />
-        {anim.front ? <FrontBody j={j} /> : <Body j={j} spine={pose.spine ?? 0} front={anim.front} />}
+      <svg viewBox={`0 0 200 ${labelled ? VIEW_H_LABEL : VIEW_H}`} role="img" aria-label="Démonstration de l'exercice">
+        {!anim.top && line([10, FLOOR_Y + 2], [190, FLOOR_Y + 2], '#d9cdb5', 4)}
+        <BackProps anim={anim} first={first} />
+        <Body r={r} spine={tl.pose.spine ?? 0} front={!!anim.front} headAngle={tl.pose.head ?? tl.pose.torso} eyes={!(anim.top && anim.front)} />
+        <FrontProps anim={anim} first={first} r={r} />
+        {tl.label && <LabelBadge text={tl.label} />}
       </svg>
       {anim.caption && <figcaption>{anim.caption}</figcaption>}
     </figure>
