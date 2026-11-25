@@ -17,8 +17,15 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
 
 export const cloudEnabled = Boolean(url && key)
 
+/** Arrivée par le lien « mot de passe oublié » (à lire avant que Supabase ne nettoie l'adresse) */
+const recoveryInUrl = /type=recovery/.test(location.hash)
+
+// flux « implicit » : le lien reçu par e-mail marche même s'il s'ouvre dans Safari
+// plutôt que dans l'app installée (pas de secret à retrouver sur l'appareil d'origine)
 export const supabase = cloudEnabled
-  ? createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'blocCity.auth' } })
+  ? createClient(url!, key!, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, flowType: 'implicit', storageKey: 'blocCity.auth' },
+    })
   : null
 
 /* ---------- compte ---------- */
@@ -26,16 +33,20 @@ export const supabase = cloudEnabled
 export function useAuth() {
   const [session, setSession] = useState<AuthSession | null>(null)
   const [ready, setReady] = useState(!supabase)
+  const [recovery, setRecovery] = useState(recoveryInUrl)
   useEffect(() => {
     if (!supabase) return
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setReady(true)
     })
-    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data } = supabase.auth.onAuthStateChange((e, s) => {
+      setSession(s)
+      if (e === 'PASSWORD_RECOVERY') setRecovery(true)
+    })
     return () => data.subscription.unsubscribe()
   }, [])
-  return { session, ready, userId: session?.user.id ?? null, email: session?.user.email ?? null }
+  return { session, ready, userId: session?.user.id ?? null, email: session?.user.email ?? null, recovery, endRecovery: () => setRecovery(false) }
 }
 
 /** Crée le compte ; renvoie true s'il faut d'abord confirmer l'adresse (lien reçu par e-mail) */
@@ -56,13 +67,26 @@ export async function signIn(email: string, password: string) {
   if (error) throw new Error(frenchError(error.message))
 }
 
+/** Envoie le lien pour choisir un nouveau mot de passe */
+export async function resetPassword(email: string) {
+  const { error } = await supabase!.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${location.origin}${import.meta.env.BASE_URL}` })
+  if (error) throw new Error(frenchError(error.message))
+}
+
+export async function updatePassword(password: string) {
+  const { error } = await supabase!.auth.updateUser({ password })
+  if (error) throw new Error(frenchError(error.message))
+}
+
 export async function signOut() {
   await supabase?.auth.signOut()
 }
 
 function frenchError(msg: string) {
   const m = msg.toLowerCase()
-  if (m.includes('rate limit') || m.includes('security purposes')) return 'Trop de demandes de code : réessaie dans quelques minutes.'
+  if (m.includes('rate limit') || m.includes('security purposes')) return "Trop d'e-mails demandés : réessaie dans quelques minutes."
+  if (m.includes('different from the old')) return "Choisis un mot de passe différent de l'ancien."
+  if (m.includes('session') && m.includes('missing')) return 'Le lien a expiré : redemande un e-mail de réinitialisation.'
   if (m.includes('not confirmed')) return "Adresse pas encore confirmée : clique sur le lien reçu par e-mail, puis reconnecte-toi."
   if (m.includes('invalid login') || m.includes('invalid credentials')) return 'E-mail ou mot de passe incorrect.'
   if (m.includes('password')) return 'Le mot de passe doit faire au moins 6 caractères.'

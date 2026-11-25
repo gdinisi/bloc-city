@@ -8,7 +8,7 @@ import type { TabId } from './screens/HomeScreen'
 import { CityScreen } from './city/CityScreen'
 import { chestReadyAt } from './city/economy'
 import { useClaimable } from './city/QuestsPanel'
-import { FriendsScreen } from './screens/FriendsScreen'
+import { FriendsScreen, NewPassword } from './screens/FriendsScreen'
 import { cloudEnabled, takeInviteFromUrl, useAuth } from './lib/cloud'
 import { useCloudSync, useProfile } from './lib/sync'
 
@@ -86,6 +86,8 @@ export default function App() {
           />
         )}
       </main>
+
+      {auth.recovery && <NewPassword onDone={auth.endRecovery} />}
 
       <nav className="tabbar">
         {TABS.map((t) => {

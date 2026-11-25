@@ -2687,3 +2687,13 @@ input[type='range'] {
 .add-friend.rename input {
   text-transform: none;
 }
+
+.forgot {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.forgot h2 {
+  margin: 0;
+}
