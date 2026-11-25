@@ -143,49 +143,83 @@ function towelScene(t: number) {
   )
 }
 
-/* ---------- Étirement des avant-bras : gros plan de la main seule ---------- */
+/* ---------- Étirement des avant-bras : haut du corps de profil, bras tendu, l'autre main tire ---------- */
 const HELPER = '#f0bf92' // l'autre main, un ton plus foncé pour la distinguer
+
+/** Main « moufle » : part du poignet dans la direction `angle` */
+function Mitten({ at: w, angle, fill = SKIN, thumbSide = -1 }: { at: Pt; angle: number; fill?: string; thumbSide?: 1 | -1 }) {
+  return (
+    <g transform={`rotate(${angle} ${w[0]} ${w[1]})`}>
+      <rect x={w[0] + 4} y={w[1] + thumbSide * 9 - 3.5} width={12} height={7} rx={3.5} fill={fill} stroke={INK} strokeWidth={2} />
+      <rect x={w[0] - 2} y={w[1] - 8} width={30} height={16} rx={8} fill={fill} stroke={INK} strokeWidth={2.5} />
+      {ln([w[0] + 18, w[1] - 4], [w[0] + 18, w[1] + 4], SKIN_DARK, 1.4)}
+      {ln([w[0] + 23, w[1] - 4], [w[0] + 23, w[1] + 4], SKIN_DARK, 1.4)}
+    </g>
+  )
+}
+
 function forearmScene(t: number) {
-  const period = 3200
-  const fingersBack = t % (period * 2) < period // 1er temps : doigts vers l'arrière ; 2e : poignet vers le bas
-  const s = pingPong(t, period, 0.22)
-  const W: Pt = [86, 84] // poignet
-  const a = (fingersBack ? -1 : 1) * 62 * s
-  const rot = (p: Pt): Pt => {
-    const r = rad(a)
-    const dx = p[0] - W[0]
-    const dy = p[1] - W[1]
-    return [W[0] + dx * Math.cos(r) - dy * Math.sin(r), W[1] + dx * Math.sin(r) + dy * Math.cos(r)]
-  }
-  // l'autre main appuie du côté opposé au mouvement
-  const helperY = fingersBack ? 98 : 58
+  const period = 3600
+  const up = t % (period * 2) < period // 1er temps : doigts vers le haut ; 2e : doigts vers le bas
+  const u = (t % period) / period
+  // repos -> le poignet se plie -> l'autre main tire un peu plus -> on relâche
+  const bend = u < 0.12 ? 0 : u < 0.38 ? ease((u - 0.12) / 0.26) : u < 0.78 ? 1 : 1 - ease((u - 0.78) / 0.22)
+  const pull = u < 0.42 ? 0 : u < 0.6 ? ease((u - 0.42) / 0.18) : u < 0.78 ? 1 : 1 - ease((u - 0.78) / 0.22)
+  const dirSign = up ? -1 : 1
+  const a = dirSign * (78 * bend + 14 * pull) // angle de la main
+
+  const S: Pt = [50, 62] // épaule
+  const W: Pt = [142, 62] // poignet
+  // point de contact de l'autre main : sur les doigts, côté opposé au corps
+  const contact = at(at(W, a, 22), a - dirSign * 90, 11)
+  const helperIn = bend > 0.6 ? 1 : 0
+  const S2: Pt = [56, 70]
+  const E2: Pt = [lerp(96, 104, pull), up ? 104 : 110]
+  const fingertip = at(W, a, 30)
+
   return (
     <g>
-      {/* zone étirée sur l'avant-bras */}
-      <rect x={18} y={fingersBack ? 92 : 66} width={66} height={10} rx={5} fill="#ff6b9a" opacity={0.15 + 0.55 * s} />
-      {/* avant-bras, simple */}
-      <rect x={14} y={72} width={76} height={24} rx={11} fill={SKIN} stroke={INK} strokeWidth={2.5} />
-      <g transform={`rotate(${a} ${W[0]} ${W[1]})`}>
-        {/* paume (côté paume plus clair, en bas) */}
-        <rect x={W[0] - 4} y={71} width={36} height={26} rx={11} fill={SKIN} stroke={INK} strokeWidth={2.5} />
-        <rect x={W[0] + 2} y={90} width={24} height={4} rx={2} fill="#ffeedd" />
-        {/* doigts */}
-        <rect x={W[0] + 28} y={74} width={36} height={20} rx={10} fill={SKIN} stroke={INK} strokeWidth={2.5} />
-        {ln([W[0] + 40, 76], [W[0] + 40, 92], SKIN_DARK, 1.6)}
-        {ln([W[0] + 51, 76], [W[0] + 51, 92], SKIN_DARK, 1.6)}
-        {/* pouce */}
-        <rect x={W[0] + 8} y={66} width={20} height={10} rx={5} fill={SKIN} stroke={INK} strokeWidth={2.2} />
-        {/* l'autre main : paume posée sur les doigts */}
-        <rect x={W[0] + 30} y={helperY - 7} width={34} height={14} rx={7} fill={HELPER} stroke={INK} strokeWidth={2.2} />
-        {[W[0] + 41, W[0] + 52].map((x) => ln([x, helperY - 5], [x, helperY + 5], '#d9a272', 1.5))}
-      </g>
-      {s > 0.08 &&
-        (fingersBack ? (
-          <CurvedArrow a={rot([158, 106])} b={rot([160, 70])} c={rot([172, 90])} />
-        ) : (
-          <CurvedArrow a={rot([158, 62])} b={rot([160, 98])} c={rot([172, 78])} />
-        ))}
-      <Badge text={fingersBack ? 'Pousse les doigts vers l\'arrière' : 'Puis plie le poignet vers le bas'} />
+      {/* zone étirée : dessous de l'avant-bras (doigts en haut) ou dessus (doigts en bas) */}
+      <rect x={86} y={up ? 66 : 50} width={52} height={7} rx={3.5} fill="#ff6b9a" opacity={0.12 + 0.6 * bend} />
+
+      {/* l'autre bras (derrière) : va chercher les doigts */}
+      {helperIn > 0 && (
+        <g opacity={Math.min(1, (bend - 0.6) / 0.25)}>
+          <polyline points={`${S2[0]},${S2[1]} ${E2[0]},${E2[1]} ${contact[0]},${contact[1]}`} stroke="#c9733a" strokeWidth={12} fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          <polyline points={`${E2[0]},${E2[1]} ${contact[0]},${contact[1]}`} stroke={HELPER} strokeWidth={8} fill="none" strokeLinecap="round" />
+        </g>
+      )}
+
+      {/* corps, de profil */}
+      <rect x={20} y={50} width={46} height={110} rx={20} fill={SHIRT} />
+      {ln([42, 50], [42, 40], SKIN, 8)}
+      <circle cx={44} cy={28} r={14} fill={SKIN} stroke={INK} strokeWidth={3} />
+      <circle cx={51} cy={26} r={1.9} fill={INK} />
+
+      {/* bras tendu devant, à hauteur d'épaule */}
+      {ln(S, [78, 62], SHIRT, 18)}
+      {ln([74, 62], W, INK, 13)}
+      {ln([74, 62], W, SKIN, 8.5)}
+      <Mitten at={W} angle={a} thumbSide={up ? -1 : 1} />
+
+      {/* main qui tire, posée sur les doigts */}
+      {helperIn > 0 && (
+        <g opacity={Math.min(1, (bend - 0.6) / 0.25)}>
+          <g transform={`rotate(${a} ${contact[0]} ${contact[1]})`}>
+            <rect x={contact[0] - 12} y={contact[1] - 7} width={24} height={14} rx={7} fill={HELPER} stroke={INK} strokeWidth={2.2} />
+          </g>
+        </g>
+      )}
+
+      {/* flèche : vers soi */}
+      {/* flèche droite, à droite de la main : « vers toi » */}
+      {pull > 0.05 && (
+        <g opacity={pull}>
+          <CurvedArrow a={[192, fingertip[1]]} b={[contact[0] + 22, fingertip[1]]} c={[(192 + contact[0] + 22) / 2, fingertip[1]]} />
+        </g>
+      )}
+
+      <Badge text={up ? '1. Doigts vers le haut : tire-les vers toi' : '2. Doigts vers le bas : pousse le dos de la main vers toi'} />
     </g>
   )
 }
@@ -282,7 +316,7 @@ function wiperScene(t: number) {
 export const SCENES: Record<string, Scene> = {
   'ext-doigts': { period: 2400, render: fingersScene, caption: 'Gros plan : élastique autour du bout des doigts' },
   'poignet-flex': { period: 3000, render: towelScene, caption: 'Vu de face : serviette roulée tenue à deux mains devant toi' },
-  'avant-bras': { period: 3200, render: forearmScene, caption: 'Gros plan de la main, bras tendu devant toi · l\'autre main (plus foncée) appuie · en rose : la zone étirée' },
+  'avant-bras': { period: 3600, render: forearmScene, caption: 'Bras tendu devant toi, à hauteur d\'épaule · en rose : la zone étirée' },
   'pec-porte': { period: 4200, render: pecScene, caption: 'De profil (en haut à droite : la position vue de face) · en rose : la zone étirée' },
   'essuie-glace': { period: 4400, render: wiperScene, caption: 'Vu depuis les pieds : épaules et bras collés au sol' },
 }
