@@ -5044,3 +5044,14 @@ img.photo-gainage.card {
 .workout-hero img.photo-gainage {
   object-position: 48% 100%;
 }
+
+/* --- photos de séance : bord à bord, sans cadre --- */
+img.focus-photo {
+  padding: 0 !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: none !important;
+  box-shadow: none !important;
+  max-width: none;
+}
