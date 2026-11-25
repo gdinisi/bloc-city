@@ -18,7 +18,21 @@ const PRONE: Pose = { torso: 0, head: 0, arm: [0, 0], leg: [180, 180] }
 const FRONT_STAND: Pose = { torso: -90, arm: [100, 95], arm2: [80, 85], leg: [94, 90], leg2: [86, 90] }
 /** Vue de face, suspendu (genoux pliés vers l'arrière) */
 const FRONT_HANG: Pose = { torso: -90, arm: [-115, -110], arm2: [-65, -70], leg: [96, 92], leg2: [84, 88], shinK: 0.45 }
-const FRONT_TOP: Pose = { ...FRONT_HANG, arm: [150, -80], arm2: [30, -100] }
+/** En haut : coudes descendus le long du corps (le bras gauche passe par la gauche : -210 et non 150) */
+const FRONT_TOP: Pose = { ...FRONT_HANG, arm: [-210, -80], arm2: [30, -100] }
+
+/** Dead bug de profil, sur le dos : bras au plafond (légèrement écartés pour voir les deux), genoux à 90° */
+const DEAD_BUG_START: Pose = {
+  torso: 180,
+  head: 180,
+  arm: [-97, -97],
+  arm2: [-83, -83],
+  leg: [-92, -2],
+  leg2: [-84, 4],
+}
+
+/** Ouverture thoracique vue de dessus, couché à l'horizontale (tête à gauche, ventre vers le bas de l'image) */
+const OPEN_BOOK: Pose = { torso: 180, head: 180, arm: [94, 94], arm2: [90, 90], leg: [90, 0], leg2: [94, 2] }
 
 const still = (p: Pose, breathe: Partial<Pose> = { spine: 3 }): Pose[] => [p, { ...p, ...breathe }]
 
@@ -112,17 +126,21 @@ export const ANIMS: Record<string, Anim> = {
     caption: 'Regard vers le sol, bras et jambes décollés',
   },
   'dead-bug': {
+    /*
+     * De profil, allongé sur le dos, tête à gauche. Départ : bras tendus vers le plafond, genoux à 90°.
+     * Le bras qui part derrière la tête et la jambe opposée qui s'allonge sont colorés en bleu.
+     */
     frames: [
-      { torso: 180, head: 180, arm: [-90, -90], leg: [-90, 0], label: 'Bras au plafond, genoux à 90°' },
-      { torso: 180, head: 180, arm: [184, 184], arm2: [-90, -90], leg: [-90, 0], leg2: [-6, -6], label: 'Un bras + la jambe opposée' },
-      { torso: 180, head: 180, arm: [-90, -90], leg: [-90, 0], label: 'Reviens' },
-      { torso: 180, head: 180, arm: [-90, -90], arm2: [184, 184], leg: [-6, -6], leg2: [-90, 0], label: 'Change de côté' },
+      { ...DEAD_BUG_START, label: 'Bras vers le plafond, genoux à 90°' },
+      { ...DEAD_BUG_START, arm: [-160, -160], leg2: [-5, -5], hl: ['arm', 'leg2'], label: 'Un bras derrière la tête + la jambe opposée' },
+      { ...DEAD_BUG_START, label: 'Reviens au centre' },
+      { ...DEAD_BUG_START, arm2: [-160, -160], leg: [-5, -5], hl: ['arm2', 'leg'], label: 'Change de côté' },
     ],
     fix: 'hip',
     dur: 1000,
-    hold: 450,
+    hold: 500,
     props: ['mat'],
-    caption: 'Sur le dos : le bas du dos reste collé au sol',
+    caption: 'Allongé sur le dos · en bleu : les membres qui bougent ensemble',
   },
   'bird-dog': {
     frames: [QUAD, { ...QUAD, arm: [-8, -8], arm2: [90, 90], leg2: [174, 174] }],
@@ -195,7 +213,8 @@ export const ANIMS: Record<string, Anim> = {
   'tuck-lever': {
     frames: [
       { ...HANG, label: 'Suspendu bras tendus', hold: 500 },
-      { torso: -180, head: -180, arm: [-66, -66], arm2: [-72, -72], leg: [-158, 22], leg2: [-152, 26], label: 'Dos à l\'horizontale, genoux serrés', hold: 1600 },
+      // dos horizontal, visage vers le plafond ; cuisses remontées vers la poitrine, tibias repliés
+      { torso: -180, head: -180, arm: [-70, -70], arm2: [-76, -76], leg: [-122, 8], leg2: [-128, 2], label: 'Dos à l\'horizontale, genoux contre la poitrine', hold: 1600 },
     ],
     anchor: 'grip',
     props: ['bar'],
@@ -223,9 +242,10 @@ export const ANIMS: Record<string, Anim> = {
     caption: 'Mains rapprochées, coudes le long du corps',
   },
   pike: {
+    // V inversé : fesses au plus haut, bras dans le prolongement du dos (jambes à leur vraie longueur)
     frames: [
-      { torso: 35, head: 60, arm: [35, 35], leg: [110, 110] },
-      { torso: 52, head: 85, arm: [2, 92], leg: [110, 110] },
+      { torso: 52, head: 72, arm: [64, 64], leg: [105, 105], legK: 1.4, label: 'Fesses en l\'air, bras tendus', hold: 500 },
+      { torso: 56.3, head: 84, arm: [136.5, 26.6], leg: [125, 125], legK: 1.4, label: 'Plie les coudes : la tête vers le sol', hold: 500 },
     ],
     fix: 'foot',
     dur: 1000,
@@ -385,17 +405,22 @@ export const ANIMS: Record<string, Anim> = {
     dur: 1600,
   },
   'ouverture-thorax': {
+    /*
+     * Vu de dessus, allongé sur le côté, tête à gauche, le ventre vers le bas de l'image.
+     * Genoux pliés devant soi. Le bras du dessus part de devant (bas), monte vers le plafond
+     * (il paraît court) et se pose derrière (haut).
+     */
     top: true,
     anchor: 'center',
     frames: [
-      { torso: -90, arm: [4, 4], arm2: [0, 0], leg: [10, 90], leg2: [14, 92], label: 'Bras l\'un sur l\'autre', hold: 600 },
-      { torso: -90, arm: [-90, -90], arm2: [0, 0], armK: 0.2, arm2K: 1, leg: [10, 90], leg2: [14, 92], label: 'Ouvre vers le plafond', hold: 150 },
-      { torso: -90, arm: [180, 180], arm2: [0, 0], leg: [10, 90], leg2: [14, 92], label: 'Pose le bras derrière toi', hold: 900 },
-      { torso: -90, arm: [-90, -90], arm2: [0, 0], armK: 0.2, arm2K: 1, leg: [10, 90], leg2: [14, 92], label: 'Reviens lentement', hold: 150 },
+      { ...OPEN_BOOK, arm: [94, 94], label: 'Bras l\'un sur l\'autre, devant toi', hold: 700 },
+      { ...OPEN_BOOK, arm: [150, 150], armK: 0.18, hl: ['arm'], label: 'Monte le bras vers le plafond', hold: 100 },
+      { ...OPEN_BOOK, arm: [268, 268], hl: ['arm'], label: 'Pose-le derrière toi, regarde ta main', hold: 1000 },
+      { ...OPEN_BOOK, arm: [150, 150], armK: 0.18, hl: ['arm'], label: 'Reviens lentement', hold: 100 },
     ],
     fix: 'hip',
     dur: 1100,
-    caption: 'Vu de dessus : allongé sur le côté, genoux pliés au sol',
+    caption: 'Vu de dessus : allongé sur le côté, genoux pliés restent au sol',
   },
   'pec-porte': {
     frames: [

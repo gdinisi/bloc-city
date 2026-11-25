@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { Anim, Joints, Pt } from './skeleton'
-import { FLOOR_Y, GRIP_Y, HEAD_R, dir, layoutFirst, place, spinePath, timeline } from './skeleton'
+import type { Anim, Joints, Limb, Pt } from './skeleton'
+import { FLOOR_Y, GRIP_Y, HEAD_R, cycleLength, dir, layoutFirst, place, spinePath, timeline } from './skeleton'
 import { ANIMS } from './anims'
 import { SCENES } from './scenes'
 import { BAND, FAR, INK, PROP, SHIRT, SKIN } from './palette'
@@ -111,12 +111,30 @@ function Eyes({ r, headAngle, front }: { r: Rig; headAngle: number; front: boole
   return <circle cx={hx + ex * 4.5 + ux * 1.5} cy={hy + ey * 4.5 + uy * 1.5} r={1.8} fill={INK} />
 }
 
-function Body({ r, spine, front, headAngle, eyes }: { r: Rig; spine: number; front: boolean; headAngle: number; eyes: boolean }) {
+const HL = '#2f80ed'
+const HL_FAR = '#8db8f5'
+
+function Body({
+  r,
+  spine,
+  front,
+  headAngle,
+  eyes,
+  hl,
+}: {
+  r: Rig
+  spine: number
+  front: boolean
+  headAngle: number
+  eyes: boolean
+  hl: Set<Limb>
+}) {
   const far = front ? INK : FAR
+  const c = (limb: Limb, base: string) => (hl.has(limb) ? (base === FAR ? HL_FAR : HL) : base)
   return (
     <g>
-      {poly(r.leg2, far, 8)}
-      {!front && poly(r.arm2, far, 7)}
+      {poly(r.leg2, c('leg2', far), 8)}
+      {!front && poly(r.arm2, c('arm2', far), 7)}
       {front ? (
         <polygon
           points={[r.shL, r.shR, r.hipR, r.hipL].map((p) => `${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(' ')}
@@ -128,12 +146,12 @@ function Body({ r, spine, front, headAngle, eyes }: { r: Rig; spine: number; fro
       ) : (
         <path d={spinePath(r.hip, r.neck, spine)} stroke={SHIRT} strokeWidth={12} strokeLinecap="round" fill="none" />
       )}
-      {poly(r.leg, INK, 8)}
+      {poly(r.leg, c('leg', INK), 8)}
       {line(r.neck, r.head, SKIN, 6)}
       <circle cx={r.head[0]} cy={r.head[1]} r={HEAD_R} fill={SKIN} stroke={INK} strokeWidth={3} />
       {eyes && <Eyes r={r} headAngle={headAngle} front={front} />}
-      {front && poly(r.arm2, INK, 7)}
-      {poly(r.arm, INK, 7)}
+      {front && poly(r.arm2, c('arm2', INK), 7)}
+      {poly(r.arm, c('arm', INK), 7)}
     </g>
   )
 }
@@ -159,7 +177,6 @@ function BackProps({ anim, first }: { anim: Anim; first: Joints }) {
   const doorSide = first.hand[0] < first.neck[0] ? -1 : 1
   return (
     <g>
-      {anim.top && <rect x={22} y={6} width={156} height={138} rx={16} fill="#c8ecd8" stroke="#7fd1a8" strokeWidth={3} />}
       {items.includes('mat') && <rect x={24} y={FLOOR_Y - 1} width={152} height={5} rx={2} fill="#7fd1a8" />}
       {items.includes('bar') && (
         <g>
@@ -219,11 +236,14 @@ export const VIEW_H_LABEL = 172
 
 /** Étiquette centrée dans un bandeau sous la scène (ne cache jamais le décor) */
 export function LabelBadge({ text }: { text: string }) {
-  const w = Math.min(194, 14 + text.length * 5.7)
+  const natural = 14 + text.length * 5.7
+  const w = Math.min(194, natural)
+  // texte trop long : on réduit la police plutôt que de déborder
+  const fs = natural > 194 ? (10.5 * 180) / (natural - 14) : 10.5
   return (
     <g>
       <rect x={100 - w / 2} y={152} width={w} height={18} rx={9} fill={INK} />
-      <text x={100} y={164.5} textAnchor="middle" fontSize={10.5} fontWeight={800} fill="#fff">
+      <text x={100} y={164.5} textAnchor="middle" fontSize={fs} fontWeight={800} fill="#fff">
         {text}
       </text>
     </g>
@@ -252,12 +272,19 @@ function useClock(active: boolean) {
   return t
 }
 
-export function ExerciseFigure({ id, size = 'normal', frame }: { id: string; size?: 'normal' | 'small'; frame?: number }) {
+/** Durée d'un cycle (ms), pour les captures de contrôle */
+export function animCycle(id: string) {
+  if (SCENES[id]) return SCENES[id].period * (id === 'poignet-flex' || id === 'avant-bras' ? 2 : 1)
+  return ANIMS[id] ? cycleLength(ANIMS[id]) : 1000
+}
+
+export function ExerciseFigure({ id, size = 'normal', frame, at }: { id: string; size?: 'normal' | 'small'; frame?: number; at?: number }) {
   const anim: Anim | undefined = ANIMS[id]
   const scene = SCENES[id]
   const first = useMemo(() => (anim ? layoutFirst(anim) : null), [anim])
-  const animated = (!!scene || (!!anim && anim.frames.length > 1)) && frame === undefined
-  const t = useClock(animated)
+  const animated = (!!scene || (!!anim && anim.frames.length > 1)) && frame === undefined && at === undefined
+  const clock = useClock(animated)
+  const t = at ?? clock
 
   if (scene) {
     const time = frame !== undefined ? frame * scene.period * 0.25 + scene.period * 0.08 : t
@@ -288,7 +315,9 @@ export function ExerciseFigure({ id, size = 'normal', frame }: { id: string; siz
       <svg viewBox={`0 0 200 ${labelled ? VIEW_H_LABEL : VIEW_H}`} role="img" aria-label="Démonstration de l'exercice">
         {!anim.top && line([10, FLOOR_Y + 2], [190, FLOOR_Y + 2], '#d9cdb5', 4)}
         <BackProps anim={anim} first={first} />
-        <Body r={r} spine={tl.pose.spine ?? 0} front={!!anim.front} headAngle={tl.pose.head ?? tl.pose.torso} eyes={!(anim.top && anim.front)} />
+        <Body r={r} spine={tl.pose.spine ?? 0} front={!!anim.front} headAngle={tl.pose.head ?? tl.pose.torso} eyes={anim.eyes ?? !(anim.top && anim.front)}
+          hl={new Set([...(tl.a.hl ?? []), ...(tl.k > 0 ? (tl.b.hl ?? []) : [])])}
+        />
         <FrontProps anim={anim} first={first} r={r} />
         {tl.label && <LabelBadge text={tl.label} />}
       </svg>

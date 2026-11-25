@@ -6,7 +6,9 @@
 
 export type Pt = [number, number]
 
-export type Joint = 'hip' | 'neck' | 'head' | 'elbow' | 'hand' | 'elbow2' | 'hand2' | 'knee' | 'foot' | 'knee2' | 'foot2'
+export type Limb = 'arm' | 'arm2' | 'leg' | 'leg2'
+
+export type Joint ='hip' | 'neck' | 'head' | 'elbow' | 'hand' | 'elbow2' | 'hand2' | 'knee' | 'foot' | 'knee2' | 'foot2'
 
 export interface Pose {
   /** Direction hanche -> épaules */
@@ -26,6 +28,11 @@ export interface Pose {
   foreK?: number
   /** Longueur apparente des tibias (genoux pliés vus de face) */
   shinK?: number
+  /** Longueur des jambes entières (proportions : 1 = normal) */
+  legK?: number
+  /** Longueur apparente de chaque cuisse (pointée vers nous en vue de dessus) */
+  thighK?: number
+  thigh2K?: number
   /** Durée de la transition qui part de cette image (ms) */
   dur?: number
   /** Monte tout le corps sauf les mains (gainage des épaules suspendu) */
@@ -36,6 +43,8 @@ export interface Pose {
   pin?: Joint
   /** Texte affiché dans le badge pendant cette image */
   label?: string
+  /** Membres mis en couleur (ceux qui travaillent) */
+  hl?: Limb[]
   /** Pause sur cette image (ms) */
   hold?: number
 }
@@ -57,8 +66,10 @@ export interface Anim {
   frames: Pose[]
   /** Personnage vu de face : épaules et hanches écartées */
   front?: boolean
-  /** Vu de dessus (allongé) : pas de sol, un tapis derrière le corps */
+  /** Vu de dessus (allongé) : pas de ligne de sol */
   top?: boolean
+  /** Afficher le visage (par défaut : sauf vue de dessus de face, où l'on voit l'arrière du crâne) */
+  eyes?: boolean
   /** 'floor' : posé au sol ; 'grip' : mains accrochées en haut ; 'center' : centré (vue de dessus) */
   anchor?: 'floor' | 'grip' | 'center'
   /** Articulation qui ne bouge pas entre les images clés */
@@ -105,10 +116,11 @@ export function solve(p: Pose): Joints {
   const hand = add(elbow, p.arm[1], L.fore * k1 * fk)
   const elbow2 = add(neck, arm2[0], L.upper * k2)
   const hand2 = add(elbow2, arm2[1], L.fore * k2 * fk)
-  const knee = add(hip, p.leg[0], L.thigh)
-  const foot = add(knee, p.leg[1], L.shin * sk)
-  const knee2 = add(hip, leg2[0], L.thigh)
-  const foot2 = add(knee2, leg2[1], L.shin * sk)
+  const lk = p.legK ?? 1
+  const knee = add(hip, p.leg[0], L.thigh * lk * (p.thighK ?? 1))
+  const foot = add(knee, p.leg[1], L.shin * sk * lk)
+  const knee2 = add(hip, leg2[0], L.thigh * lk * (p.thigh2K ?? 1))
+  const foot2 = add(knee2, leg2[1], L.shin * sk * lk)
   return { hip, neck, head, elbow, hand, elbow2, hand2, knee, foot, knee2, foot2 }
 }
 
@@ -128,6 +140,9 @@ export function mix(a: Pose, b: Pose, t: number): Pose {
     arm2K: lerp(a.arm2K ?? a.armK ?? 1, b.arm2K ?? b.armK ?? 1, t),
     foreK: lerp(a.foreK ?? 1, b.foreK ?? 1, t),
     shinK: lerp(a.shinK ?? 1, b.shinK ?? 1, t),
+    legK: lerp(a.legK ?? 1, b.legK ?? 1, t),
+    thighK: lerp(a.thighK ?? 1, b.thighK ?? 1, t),
+    thigh2K: lerp(a.thigh2K ?? 1, b.thigh2K ?? 1, t),
     shrug: lerp(a.shrug ?? 0, b.shrug ?? 0, t),
     dx: lerp(a.dx ?? 0, b.dx ?? 0, t),
     dy: lerp(a.dy ?? 0, b.dy ?? 0, t),
@@ -191,6 +206,16 @@ export function spinePath(from: Pt, to: Pt, spine: number) {
 }
 
 export const easeInOut = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2)
+
+/** Durée d'un cycle complet de l'animation (ms) */
+export function cycleLength(anim: Anim) {
+  const n = anim.frames.length
+  if (n === 1) return 1000
+  const segs = anim.wrap ? n - 1 : n
+  let total = 0
+  for (let i = 0; i < segs; i++) total += (anim.frames[i].hold ?? anim.hold ?? 350) + (anim.frames[i].dur ?? anim.dur ?? 1100)
+  return total
+}
 
 /** Pose interpolée à l'instant t (ms), avec les images encadrantes */
 export function timeline(anim: Anim, t: number) {
