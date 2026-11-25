@@ -2,51 +2,63 @@ import type { CityState } from '../city/economy'
 import { newCity } from '../city/economy'
 import City3D from './City3D'
 
-/** Ville d'exemple pour montrer le rendu 3D (mode développement : ?demo3d), sans toucher aux données */
+/** Ville d'exemple 16 × 16 pour montrer le rendu 3D (mode développement : ?demo3d), sans toucher aux données */
 function demoCity(): CityState {
   const ground: Record<string, string> = {}
   const elevation: Record<string, number> = {}
-  for (let i = 0; i < 12; i++) ground[`2,${i}`] = 'route'
-  for (let i = 3; i < 12; i++) ground[`${i},4`] = 'route'
-  for (let i = 0; i < 12; i++) {
-    ground[`6,${i}`] = 'eau'
-    ground[`7,${i}`] = 'eau'
+  // rivière nord-sud et pont
+  for (let y = 0; y < 16; y++) {
+    ground[`7,${y}`] = 'eau'
+    ground[`8,${y}`] = 'eau'
   }
-  ground['6,4'] = 'pont'
-  ground['7,4'] = 'pont'
-  for (let x = 0; x < 2; x++) for (let y = 7; y < 12; y++) elevation[`${x},${y}`] = Math.min(3, y - 6)
-  ;['3,0', '4,0', '5,0'].forEach((k) => (ground[k] = 'paves'))
-  ;['9,9', '8,9', '9,8', '10,9'].forEach((k) => (ground[k] = 'sable'))
-  ground['5,9'] = 'planches'
-  ground['0,5'] = ground['1,5'] = 'fleurs'
-  ground['10,10'] = ground['11,10'] = 'neige'
-  ground['11,11'] = 'terre'
-  const P = (id: string, x: number, y: number) => ({ uid: `${id}${x}${y}`, id, x, y, flip: false })
+  // routes : une avenue est-ouest et deux nord-sud
+  for (let x = 0; x < 16; x++) ground[`${x},6`] = x === 7 || x === 8 ? 'pont' : 'route'
+  for (let y = 0; y < 16; y++) {
+    if (y !== 6) ground[`3,${y}`] = 'route'
+    if (y !== 6) ground[`13,${y}`] = 'route'
+  }
+  ;['4,3', '5,3', '6,3'].forEach((k) => (ground[k] = 'paves'))
+  for (let x = 14; x < 16; x++) for (let y = 9; y < 16; y++) ground[`${x},${y}`] = 'sable'
+  ground['6,8'] = ground['6,9'] = 'fleurs'
+  // colline à l'ouest, plateau au sud
+  for (let x = 0; x < 3; x++) for (let y = 9; y < 16; y++) elevation[`${x},${y}`] = y < 11 ? 2 : 3
+  for (let x = 4; x < 7; x++) for (let y = 12; y < 16; y++) elevation[`${x},${y}`] = 1
+
+  const P = (id: string, x: number, y: number, flip = false) => ({ uid: `${id}${x}${y}`, id, x, y, flip })
   return {
     ...newCity(),
     packs: [],
-    // niveau suffisant pour une carte 12 × 12
     placed: [
-      P('maison-bleue', 3, 2),
-      P('maison-jaune', 3, 5),
-      P('arbre', 0, 8),
-      P('chateau', 3, 7),
-      P('immeuble', 4, 2),
-      P('sapin', 1, 9),
-      P('phare', 8, 6),
-      P('pyramide', 8, 1),
       P('tour-eiffel', 0, 0),
-      P('salle-bloc', 5, 5),
-      P('bloc', 0, 3),
-      P('arbre', 1, 4),
-      P('sapin', 9, 3),
-      P('fontaine', 3, 3),
-      P('falaise', 1, 7),
-      P('colisee', 8, 8),
-      P('chalet', 4, 6),
-      P('boulangerie', 5, 3),
-      P('maison-rose', 10, 6),
-      P('arbre', 11, 7),
+      P('chateau', 4, 0),
+      P('arbre', 0, 4),
+      P('immeuble', 1, 4),
+      P('sapin', 2, 5),
+      P('maison-bleue', 4, 4),
+      P('maison-jaune', 5, 4),
+      P('maison-rose', 6, 4),
+      P('chalet', 4, 5, true),
+      P('boulangerie', 5, 5),
+      P('cafe', 6, 5),
+      P('salle-bloc', 4, 7),
+      P('fontaine', 6, 7),
+      P('grande-paroi', 0, 9),
+      P('sapin', 0, 13),
+      P('sapin', 2, 13),
+      P('arbre', 1, 14),
+      P('falaise', 4, 12),
+      P('arbre', 6, 11),
+      P('pyramide', 9, 0),
+      P('gratte-ciel', 14, 0),
+      P('immeuble', 14, 3),
+      P('arbre', 15, 4),
+      P('colisee', 9, 8),
+      P('phare', 14, 7),
+      P('tour-verre', 9, 12),
+      P('arbre', 12, 13),
+      P('sapin', 12, 14),
+      P('arbre', 10, 5),
+      P('sapin', 11, 5),
     ],
     ground,
     elevation,

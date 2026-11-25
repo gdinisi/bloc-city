@@ -93,13 +93,19 @@ function pyramidRoof(size: number, h: number, color: string, y: number) {
 }
 
 function windows(g: THREE.Group, w: number, h: number, floors: number, y0: number, color = '#cfe9ff') {
+  // au-delà de quelques étages, la façade vitrée texturée suffit (beaucoup plus léger)
+  if (floors > 8) return
   const fh = h / floors
+  let k = 0
   for (let f = 0; f < floors; f++) {
     for (const u of [-0.2, 0.2]) {
       const y = y0 + f * fh + fh * 0.5
-      g.add(box(0.14, fh * 0.45, 0.02, color, y - fh * 0.22, u * w * 1.6, w / 2 + 0.01, { rough: 0.2, metal: 0.2 }))
-      const side = box(0.02, fh * 0.45, 0.14, color, y - fh * 0.22, w / 2 + 0.01, u * w * 1.6, { rough: 0.2, metal: 0.2 })
-      g.add(side)
+      // la nuit, environ deux fenêtres sur trois sont allumées
+      const lit = night && (k++ * 7 + f * 3) % 3 !== 0
+      const o: MatOpts = lit ? { emissive: '#ffb347', rough: 0.4 } : { rough: 0.2, metal: 0.2 }
+      const c = lit ? '#ffd27a' : night ? '#2b3550' : color
+      g.add(box(0.14, fh * 0.45, 0.02, c, y - fh * 0.22, u * w * 1.6, w / 2 + 0.01, o))
+      g.add(box(0.02, fh * 0.45, 0.14, c, y - fh * 0.22, w / 2 + 0.01, u * w * 1.6, o))
     }
   }
 }
@@ -114,9 +120,50 @@ function holds(g: THREE.Group, n: number, area: (i: number) => [number, number, 
   }
 }
 
+/*
+ * Hauteurs réalistes en 3D (1 case ≈ 10 m). L'emprise au sol vient de la taille
+ * du bâtiment (étirement horizontal), la hauteur vient d'ici : la tour Eiffel
+ * domine enfin les maisons, et un arbre n'est plus aussi grand qu'un immeuble.
+ */
+const H3D: Record<string, number> = {
+  'maison-bleue': 0.62,
+  'maison-jaune': 0.62,
+  'maison-rose': 0.58,
+  chalet: 0.55,
+  boulangerie: 0.65,
+  cafe: 0.6,
+  villa: 0.8,
+  'magasin-sport': 0.9,
+  immeuble: 2.4,
+  'gratte-ciel': 7,
+  'tour-verre': 11,
+  refuge: 0.55,
+  'salle-bloc': 1.4,
+  mur: 1.3,
+  falaise: 3.2,
+  'grande-paroi': 8,
+  arche: 2.2,
+  statue: 1.1,
+  'tour-horloge': 4.5,
+  phare: 3.8,
+  moai: 1.3,
+  chateau: 2.4,
+  observatoire: 1.6,
+  temple: 1.5,
+  pyramide: 5.5,
+  'tour-eiffel': 13,
+  colisee: 2.3,
+  fusee: 8,
+  kiosque: 0.5,
+}
+
+/** Mode nuit : fenêtres éclairées */
+let night = false
+export const setNight = (on: boolean) => (night = on)
+
 export function buildMesh(b: Building): THREE.Group {
   const g = new THREE.Group()
-  const H = b.h / 30
+  const H = H3D[b.id] ?? b.h / 30
   const { color, accent } = b
   switch (b.kind) {
     case 'house': {
@@ -128,14 +175,16 @@ export function buildMesh(b: Building): THREE.Group {
       break
     }
     case 'tower': {
-      g.add(box(0.78, H, 0.78, color, 0, 0, 0, { tex: wallTex(b) }))
-      windows(g, 0.78, H * 0.9, b.floors ?? 4, H * 0.08)
+      // la nuit, les grandes tours vitrées brillent doucement de l'intérieur
+      const towerNight = night && wallTex(b) === 'glass' ? { emissive: '#2a1e0c' } : {}
+      g.add(box(0.78, H, 0.78, night && wallTex(b) === 'glass' ? '#4a5a7a' : color, 0, 0, 0, { tex: wallTex(b), ...towerNight }))
+      windows(g, 0.78, H * 0.9, Math.max(2, Math.round(H / 0.32)), H * 0.08)
       g.add(box(0.84, 0.08, 0.84, accent, H))
       break
     }
     case 'glass': {
-      g.add(box(0.66, H, 0.66, color, 0, 0, 0, { rough: 0.15, metal: 0.4, tex: 'glass' }))
-      windows(g, 0.66, H * 0.92, 10, H * 0.05, '#e8f6ff')
+      g.add(box(0.66, H, 0.66, night ? '#4a5a7a' : color, 0, 0, 0, { rough: 0.15, metal: 0.4, tex: 'glass', ...(night ? { emissive: '#2a1e0c' } : {}) }))
+      windows(g, 0.66, H * 0.92, Math.round(H / 0.3), H * 0.05, '#e8f6ff')
       g.add(box(0.44, 0.35, 0.44, color, H, 0, 0, { rough: 0.15, metal: 0.4 }))
       g.add(beam(new THREE.Vector3(0, H + 0.35, 0), new THREE.Vector3(0, H + 0.9, 0), 0.015, '#2b2d42'))
       break
@@ -209,12 +258,28 @@ export function buildMesh(b: Building): THREE.Group {
     }
     case 'cliff':
     case 'bigwall': {
-      const n = b.kind === 'cliff' ? 4 : 6
-      for (let i = 0; i < n; i++) {
-        const r = mesh(new THREE.DodecahedronGeometry(0.42 - i * 0.05, 0), mat(i % 2 ? color : '#9c8b7a', { tex: 'rock', bump: 1.5 }), (i % 2 ? 0.06 : -0.06), (i * H) / n + 0.25, i % 3 ? 0.04 : -0.04)
-        r.scale.set(1, 1.3, 0.9)
-        r.rotation.y = i
-        g.add(r)
+      // monolithe rocheux : un tronc de cône déformé par du bruit (parois, ressauts, arêtes)
+      const geo = new THREE.CylinderGeometry(0.22, 0.48, H, 9, Math.max(6, Math.round(H * 2)))
+      const p = geo.getAttribute('position') as THREE.BufferAttribute
+      for (let i = 0; i < p.count; i++) {
+        const x = p.getX(i)
+        const y = p.getY(i)
+        const z = p.getZ(i)
+        const a = Math.atan2(z, x)
+        const k = 1 + Math.sin(a * 3 + y * 2.1) * 0.12 + Math.sin(a * 7 - y * 3.3) * 0.07 + Math.sin(y * 5.7) * 0.05
+        // face avant presque verticale (la « paroi »), dos plus incliné
+        const front = z > 0 ? 0.85 : 1.1
+        p.setXYZ(i, x * k, y, z * k * front)
+      }
+      geo.translate(0, H / 2, 0)
+      geo.computeVertexNormals()
+      const uv = geo.getAttribute('uv') as THREE.BufferAttribute
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * 3, uv.getY(i) * H * 1.2)
+      g.add(mesh(geo, mat(color, { tex: 'rock', bump: 1.6 })))
+      // éboulis au pied
+      for (let i = 0; i < 5; i++) {
+        const a = (i / 5) * Math.PI * 2
+        g.add(mesh(new THREE.DodecahedronGeometry(0.09 + (i % 3) * 0.03, 0), mat('#8a8279', { tex: 'rock' }), Math.cos(a) * 0.42, 0.06, Math.sin(a) * 0.42))
       }
       if (b.kind === 'bigwall') g.add(mesh(new THREE.ConeGeometry(0.2, 0.35, 5), mat('#ffffff'), 0, H + 0.2, 0))
       holds(g, 12, (u) => [(u - 0.5) * 0.4, 0.2 + ((u * 11) % 1) * H * 0.9, 0.36], 13)
@@ -331,8 +396,8 @@ export function buildMesh(b: Building): THREE.Group {
     }
     case 'rocket': {
       g.add(mesh(new THREE.CylinderGeometry(0.45, 0.45, 0.1, 16), mat('#adb5bd'), 0, 0.05, 0))
-      g.add(mesh(new THREE.CylinderGeometry(0.16, 0.18, H * 0.8, 14), mat(color, { metal: 0.3, rough: 0.4 }), 0, 0.1 + H * 0.4, 0))
-      g.add(mesh(new THREE.ConeGeometry(0.16, 0.4, 14), mat(accent), 0, 0.1 + H * 0.8 + 0.2, 0))
+      g.add(mesh(new THREE.CylinderGeometry(0.2, 0.22, H * 0.8, 14), mat(color, { metal: 0.3, rough: 0.4 }), 0, 0.1 + H * 0.4, 0))
+      g.add(mesh(new THREE.ConeGeometry(0.2, H * 0.14, 14), mat(accent), 0, 0.1 + H * 0.8 + H * 0.07, 0))
       for (let i = 0; i < 3; i++) {
         const a = (i / 3) * Math.PI * 2
         g.add(box(0.03, 0.25, 0.18, accent, 0.1, Math.cos(a) * 0.2, Math.sin(a) * 0.2).rotateY(-a))
@@ -350,5 +415,7 @@ export function buildMesh(b: Building): THREE.Group {
     default:
       g.add(box(0.8, Math.max(0.3, H), 0.8, color))
   }
+  // les arbres sont un peu plus petits qu'une maison avec son toit
+  if (b.kind === 'tree' || b.kind === 'pine') g.scale.setScalar(0.9)
   return g
 }

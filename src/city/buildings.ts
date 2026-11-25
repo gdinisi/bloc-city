@@ -44,8 +44,8 @@ export interface Building {
   h: number
   roof?: 'pyramid' | 'flat' | 'none'
   floors?: number
-  /** Emprise au sol : 1 = une case, 2 = 2 × 2 cases */
-  size?: 1 | 2
+  /** Emprise au sol en cases de côté : 1 = une case, 4 = 4 × 4 cases */
+  size?: 1 | 2 | 3 | 4
   /** 'quete' : ne s'obtient que par une quête (jamais dans les packs ni la boutique) */
   source?: 'quete'
 }
@@ -81,19 +81,19 @@ export const BUILDINGS: Building[] = [
   { id: 'chalet', name: 'Chalet', rarity: 'commun', cat: 'maisons', kind: 'house', color: '#c9925b', accent: '#6b3d1f', h: 16, roof: 'pyramid' },
   { id: 'immeuble', name: 'Immeuble', rarity: 'rare', cat: 'maisons', kind: 'tower', color: '#f4a261', accent: '#7a4a2a', h: 46, roof: 'flat', floors: 4 },
   { id: 'villa', name: 'Villa', rarity: 'rare', cat: 'maisons', kind: 'house', color: '#fffaf0', accent: '#2a9d8f', h: 24, roof: 'flat' },
-  { id: 'gratte-ciel', name: 'Gratte-ciel', rarity: 'epique', cat: 'maisons', kind: 'tower', color: '#8ecae6', accent: '#2b2d42', h: 78, roof: 'flat', floors: 7 },
+  { id: 'gratte-ciel', name: 'Gratte-ciel', rarity: 'epique', cat: 'maisons', kind: 'tower', color: '#8ecae6', accent: '#2b2d42', h: 78, roof: 'flat', floors: 7, size: 2 },
 
   // ---------- Commerces ----------
   { id: 'boulangerie', name: 'Boulangerie', rarity: 'commun', cat: 'commerces', kind: 'house', color: '#f6d6ad', accent: '#b5651d', h: 18, roof: 'flat' },
   { id: 'cafe', name: 'Café', rarity: 'commun', cat: 'commerces', kind: 'house', color: '#a8dadc', accent: '#e63946', h: 17, roof: 'flat' },
   { id: 'marche', name: 'Étal du marché', rarity: 'commun', cat: 'commerces', kind: 'stall', color: '#e9c46a', accent: '#e76f51', h: 10 },
-  { id: 'magasin-sport', name: 'Magasin de sport', rarity: 'rare', cat: 'commerces', kind: 'house', color: '#ff8a3d', accent: '#2b2d42', h: 22, roof: 'flat' },
+  { id: 'magasin-sport', name: 'Magasin de sport', rarity: 'rare', cat: 'commerces', kind: 'house', color: '#ff8a3d', accent: '#2b2d42', h: 22, roof: 'flat', size: 2 },
 
   // ---------- Parcs & nature ----------
   { id: 'arbre', name: 'Arbre', rarity: 'commun', cat: 'parcs', kind: 'tree', color: '#52b788', accent: '#8d5524', h: 22 },
   { id: 'sapin', name: 'Sapin', rarity: 'commun', cat: 'parcs', kind: 'pine', color: '#2d6a4f', accent: '#8d5524', h: 28 },
   { id: 'jardin', name: 'Jardin fleuri', rarity: 'commun', cat: 'parcs', kind: 'garden', color: '#95d5b2', accent: '#ff70a6', h: 2 },
-  { id: 'lac', name: 'Petit lac', rarity: 'rare', cat: 'parcs', kind: 'water', color: '#4cc9f0', accent: '#caf0f8', h: 0 },
+  { id: 'lac', name: 'Petit lac', rarity: 'rare', cat: 'parcs', kind: 'water', color: '#4cc9f0', accent: '#caf0f8', h: 0, size: 2 },
   { id: 'fontaine', name: 'Fontaine', rarity: 'rare', cat: 'parcs', kind: 'fountain', color: '#cfd8dc', accent: '#4cc9f0', h: 8 },
   { id: 'kiosque', name: 'Kiosque', rarity: 'rare', cat: 'parcs', kind: 'kiosk', color: '#ffffff', accent: '#2a9d8f', h: 16 },
 
@@ -101,25 +101,25 @@ export const BUILDINGS: Building[] = [
   { id: 'bloc', name: 'Bloc de pierre', rarity: 'commun', cat: 'escalade', kind: 'boulder', color: '#9aa5b1', accent: '#ff595e', h: 14 },
   { id: 'mur', name: 'Mur d\'escalade', rarity: 'rare', cat: 'escalade', kind: 'wall', color: '#5c677d', accent: '#ffca3a', h: 36 },
   { id: 'refuge', name: 'Refuge', rarity: 'rare', cat: 'escalade', kind: 'house', color: '#8d99ae', accent: '#9d0208', h: 16, roof: 'pyramid' },
-  { id: 'salle-bloc', name: 'Salle de bloc', rarity: 'epique', cat: 'escalade', kind: 'gym', color: '#3a86ff', accent: '#ffbe0b', h: 30 },
-  { id: 'falaise', name: 'Falaise', rarity: 'epique', cat: 'escalade', kind: 'cliff', color: '#b08968', accent: '#ffca3a', h: 44 },
-  { id: 'grande-paroi', name: 'Grande paroi', rarity: 'legendaire', cat: 'escalade', kind: 'bigwall', color: '#a8a29e', accent: '#ff006e', h: 70, size: 2 },
-  { id: 'arche', name: 'Arche de pierre', rarity: 'rare', cat: 'escalade', kind: 'arch', color: '#c08552', accent: '#ffca3a', h: 30, source: 'quete' },
+  { id: 'salle-bloc', name: 'Salle de bloc', rarity: 'epique', cat: 'escalade', kind: 'gym', color: '#3a86ff', accent: '#ffbe0b', h: 30, size: 2 },
+  { id: 'falaise', name: 'Falaise', rarity: 'epique', cat: 'escalade', kind: 'cliff', color: '#b08968', accent: '#ffca3a', h: 44, size: 2 },
+  { id: 'grande-paroi', name: 'Grande paroi', rarity: 'legendaire', cat: 'escalade', kind: 'bigwall', color: '#a8a29e', accent: '#ff006e', h: 70, size: 3 },
+  { id: 'arche', name: 'Arche de pierre', rarity: 'rare', cat: 'escalade', kind: 'arch', color: '#c08552', accent: '#ffca3a', h: 30, size: 2, source: 'quete' },
 
   // ---------- Monuments ----------
   { id: 'statue', name: 'Statue du grimpeur', rarity: 'rare', cat: 'monuments', kind: 'statue', color: '#c9b79c', accent: '#ffd166', h: 26, source: 'quete' },
   { id: 'tour-horloge', name: 'Tour de l\'horloge', rarity: 'epique', cat: 'monuments', kind: 'clock', color: '#e9d8a6', accent: '#9b2226', h: 56 },
   { id: 'phare', name: 'Phare', rarity: 'epique', cat: 'monuments', kind: 'lighthouse', color: '#ffffff', accent: '#e63946', h: 62 },
   { id: 'moai', name: 'Moaï', rarity: 'epique', cat: 'monuments', kind: 'moai', color: '#8d8579', accent: '#5e5549', h: 34, source: 'quete' },
-  { id: 'chateau', name: 'Château', rarity: 'legendaire', cat: 'monuments', kind: 'castle', color: '#d6ccc2', accent: '#3d5a80', h: 30, size: 2 },
-  { id: 'observatoire', name: 'Observatoire', rarity: 'legendaire', cat: 'monuments', kind: 'observatory', color: '#e0e1dd', accent: '#415a77', h: 28 },
-  { id: 'temple', name: 'Temple grec', rarity: 'legendaire', cat: 'monuments', kind: 'temple', color: '#f1ece2', accent: '#c9b79c', h: 18, size: 2, source: 'quete' },
+  { id: 'chateau', name: 'Château', rarity: 'legendaire', cat: 'monuments', kind: 'castle', color: '#d6ccc2', accent: '#3d5a80', h: 30, size: 3 },
+  { id: 'observatoire', name: 'Observatoire', rarity: 'legendaire', cat: 'monuments', kind: 'observatory', color: '#e0e1dd', accent: '#415a77', h: 28, size: 2 },
+  { id: 'temple', name: 'Temple grec', rarity: 'legendaire', cat: 'monuments', kind: 'temple', color: '#f1ece2', accent: '#c9b79c', h: 18, size: 3, source: 'quete' },
 
   // ---------- Merveilles (fragments très rares) ----------
-  { id: 'pyramide', name: 'Pyramide', rarity: 'merveille', cat: 'merveilles', kind: 'pyramid', color: '#e9c46a', accent: '#c9a227', h: 30, size: 2 },
-  { id: 'tour-eiffel', name: 'Tour Eiffel', rarity: 'merveille', cat: 'merveilles', kind: 'eiffel', color: '#8d6e63', accent: '#5d4037', h: 64, size: 2 },
-  { id: 'colisee', name: 'Colisée', rarity: 'merveille', cat: 'merveilles', kind: 'colosseum', color: '#e3c9a0', accent: '#b5895a', h: 20, size: 2 },
-  { id: 'tour-verre', name: 'Tour de verre géante', rarity: 'merveille', cat: 'merveilles', kind: 'glass', color: '#9ad1f5', accent: '#2b2d42', h: 58, size: 2 },
+  { id: 'pyramide', name: 'Pyramide', rarity: 'merveille', cat: 'merveilles', kind: 'pyramid', color: '#e9c46a', accent: '#c9a227', h: 30, size: 4 },
+  { id: 'tour-eiffel', name: 'Tour Eiffel', rarity: 'merveille', cat: 'merveilles', kind: 'eiffel', color: '#8d6e63', accent: '#5d4037', h: 64, size: 3 },
+  { id: 'colisee', name: 'Colisée', rarity: 'merveille', cat: 'merveilles', kind: 'colosseum', color: '#e3c9a0', accent: '#b5895a', h: 20, size: 4 },
+  { id: 'tour-verre', name: 'Tour de verre géante', rarity: 'merveille', cat: 'merveilles', kind: 'glass', color: '#9ad1f5', accent: '#2b2d42', h: 58, size: 3 },
   { id: 'fusee', name: 'Fusée', rarity: 'merveille', cat: 'merveilles', kind: 'rocket', color: '#f8f9fa', accent: '#e63946', h: 50, size: 2, source: 'quete' },
 ]
 

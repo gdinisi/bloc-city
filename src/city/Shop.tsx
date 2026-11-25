@@ -44,7 +44,7 @@ export function Shop({ city, onCity, onClose }: Props) {
                   <b>{b.name}</b>
                   <span className="rarity" style={{ color: r.color }}>
                     {r.label}
-                    {b.size === 2 ? ' · 2×2' : ''}
+                    {(b.size ?? 1) > 1 ? ` · ${b.size}×${b.size}` : ''}
                   </span>
                   <span className="muted shop-owned">
                     {frag && !maxed ? `🧩 ${city.fragments[b.id] ?? 0}/${fragmentsNeeded(b)}` : `${owned}/${r.max} possédé${owned > 1 ? 's' : ''}`}

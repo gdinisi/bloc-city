@@ -6,10 +6,11 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js'
 import type { CityState } from '../city/economy'
 import { gridOf } from '../city/economy'
 import { buildingById, sizeOf } from '../city/buildings'
-import { buildMesh, disposeMaterials, mat, setTextures } from './buildings3d'
+import { buildMesh, disposeMaterials, mat, setNight, setTextures } from './buildings3d'
 import type { TexId } from './textures'
 import { disposeTextures, worldUV } from './textures'
 import { occupiedTiles } from '../city/economy'
+import { createMountains } from './mountains'
 
 /** Texture du dessus de chaque type de sol */
 const GROUND_TEX: Record<string, TexId> = {
@@ -32,7 +33,7 @@ const GROUND_TEX: Record<string, TexId> = {
  */
 
 type Quality = 'jolie' | 'fluide'
-type Light = 'jour' | 'couchant'
+type Light = 'jour' | 'couchant' | 'nuit'
 
 const WATER_Y = 0.25
 const BASE = 0.55 // hauteur d'une case au niveau 0
@@ -90,6 +91,25 @@ const AMBIANCE = {
     fog: '#a9cbe8',
     water: 0x17689c,
     sunColor: 0xfff4e0,
+  },
+  nuit: {
+    // la « lumière du soleil » devient le clair de lune
+    elevation: 32,
+    azimuth: 230,
+    turbidity: 0,
+    rayleigh: 0,
+    mie: 0,
+    mieG: 0,
+    exposure: 1.05,
+    env: 0,
+    sun: '#a9c0ff',
+    sunI: 1.1,
+    sky: '#3a4f8f',
+    ground: '#0d1426',
+    hemi: 0.55,
+    fog: '#0b1533',
+    water: 0x0a2440,
+    sunColor: 0xbfd0ff,
   },
 } as const
 
@@ -157,15 +177,15 @@ export default function City3D({ city, onClose }: Props) {
     const scene = new THREE.Scene()
     const camera = new THREE.PerspectiveCamera(45, el.clientWidth / el.clientHeight, 0.1, 2000)
     // un peu plus de recul en portrait (téléphone) pour voir toute l'île
-    const back = el.clientWidth < el.clientHeight ? 1.45 : 1
-    camera.position.set(G * 0.95 * back, G * 0.8 * back, G * 0.95 * back)
+    const back = (el.clientWidth < el.clientHeight ? 1.9 : 1.1) * (G >= 12 ? 1.25 : 1)
+    camera.position.set(G * 0.95 * back, G * 0.75 * back, G * 0.95 * back)
 
     const controls = new OrbitControls(camera, renderer.domElement)
     controls.target.set(0, 0.6, 0)
     controls.enableDamping = true
     controls.dampingFactor = 0.08
     controls.minDistance = 3
-    controls.maxDistance = G * 3
+    controls.maxDistance = G * 4
     controls.maxPolarAngle = Math.PI / 2 - 0.03 // jusqu'au ras de l'eau
     controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN }
 
@@ -173,24 +193,50 @@ export default function City3D({ city, onClose }: Props) {
     const sun = new THREE.Vector3()
     sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - A.elevation), THREE.MathUtils.degToRad(A.azimuth))
 
-    const sky = new Sky()
-    sky.scale.setScalar(1000)
-    const su = sky.material.uniforms
-    su['turbidity'].value = A.turbidity
-    su['rayleigh'].value = A.rayleigh
-    su['mieCoefficient'].value = A.mie
-    su['mieDirectionalG'].value = A.mieG
-    su['sunPosition'].value.copy(sun)
-    scene.add(sky)
-
-    // lumière d'ambiance tirée du ciel
+    const isNight = light === 'nuit'
+    setNight(isNight)
     const pmrem = new THREE.PMREMGenerator(renderer)
-    const skyScene = new THREE.Scene()
-    skyScene.add(sky.clone())
-    const envRT = pmrem.fromScene(skyScene as unknown as THREE.Scene)
-    scene.environment = envRT.texture
-    // en plein jour le ciel éclaire beaucoup : on modère pour garder des couleurs franches
-    scene.environmentIntensity = A.env
+    let envRT: THREE.WebGLRenderTarget | null = null
+    const nightStuff: THREE.Object3D[] = []
+
+    if (!isNight) {
+      const sky = new Sky()
+      sky.scale.setScalar(1000)
+      const su = sky.material.uniforms
+      su['turbidity'].value = A.turbidity
+      su['rayleigh'].value = A.rayleigh
+      su['mieCoefficient'].value = A.mie
+      su['mieDirectionalG'].value = A.mieG
+      su['sunPosition'].value.copy(sun)
+      scene.add(sky)
+      // lumière d'ambiance tirée du ciel
+      const skyScene = new THREE.Scene()
+      skyScene.add(sky.clone())
+      envRT = pmrem.fromScene(skyScene as unknown as THREE.Scene)
+      scene.environment = envRT.texture
+      // en plein jour le ciel éclaire beaucoup : on modère pour garder des couleurs franches
+      scene.environmentIntensity = A.env
+    } else {
+      // ---------- nuit : dégradé, étoiles, lune ----------
+      scene.background = new THREE.Color('#0b1533')
+      const starGeo = new THREE.BufferGeometry()
+      const sp: number[] = []
+      for (let i = 0; i < 1800; i++) {
+        const v = new THREE.Vector3().setFromSphericalCoords(900, Math.random() * Math.PI * 0.47, Math.random() * Math.PI * 2)
+        sp.push(v.x, v.y, v.z)
+      }
+      starGeo.setAttribute('position', new THREE.Float32BufferAttribute(sp, 3))
+      const stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: '#ffffff', size: 1.6, sizeAttenuation: false, fog: false }))
+      scene.add(stars)
+      nightStuff.push(stars)
+      const moon = new THREE.Mesh(new THREE.SphereGeometry(18, 24, 16), new THREE.MeshBasicMaterial({ color: '#f6f1dc', fog: false }))
+      moon.position.copy(sun).multiplyScalar(700)
+      scene.add(moon)
+      const halo = new THREE.Mesh(new THREE.SphereGeometry(34, 24, 16), new THREE.MeshBasicMaterial({ color: '#8fa6ff', transparent: true, opacity: 0.12, fog: false }))
+      halo.position.copy(moon.position)
+      scene.add(halo)
+      nightStuff.push(moon, halo)
+    }
 
     const sunLight = new THREE.DirectionalLight(A.sun, A.sunI)
     sunLight.position.copy(sun).multiplyScalar(G * 2)
@@ -204,7 +250,9 @@ export default function City3D({ city, onClose }: Props) {
     sunLight.shadow.bias = -0.0008
     scene.add(sunLight)
     scene.add(new THREE.HemisphereLight(A.sky, A.ground, A.hemi))
-    scene.fog = new THREE.Fog(A.fog, G * 2.2, G * 8)
+    // brume : l'île reste nette, les montagnes lointaines se fondent dans le ciel
+    // la nuit, les montagnes restent visibles en silhouettes sombres sous la lune
+    scene.fog = new THREE.Fog(A.fog, G * 2.5, light === 'nuit' ? 900 : 420)
 
     // ---------- mer ----------
     const waterNormals = makeWaterNormals()
@@ -215,7 +263,7 @@ export default function City3D({ city, onClose }: Props) {
       sunDirection: sun.clone().normalize(),
       sunColor: A.sunColor,
       waterColor: A.water,
-      distortionScale: 1.3,
+      distortionScale: 0.85,
       fog: true,
     })
     water.rotation.x = -Math.PI / 2
@@ -353,7 +401,8 @@ export default function City3D({ city, onClose }: Props) {
       let top = 0
       for (let dy = 0; dy < s; dy++) for (let dx = 0; dx < s; dx++) top = Math.max(top, topOf(p.x + dx, p.y + dy))
       const g = buildMesh(b)
-      g.scale.setScalar(s)
+      // l'emprise étire au sol ; la hauteur, elle, est déjà réaliste
+      g.scale.set(g.scale.x * s, g.scale.y, g.scale.z * s)
       g.position.set(X(p.x) + (s - 1) / 2, top, Z(p.y) + (s - 1) / 2)
       if (p.flip) g.rotation.y = Math.PI / 2
       g.userData.name = b.name
@@ -362,20 +411,70 @@ export default function City3D({ city, onClose }: Props) {
       pickables.push(g)
     }
 
-    // ---------- décor : collines au loin et nuages ----------
-    const hills = new THREE.Group()
-    for (let i = 0; i < 9; i++) {
-      const a = (i / 9) * Math.PI * 2 + 0.3
-      const r = G * (2.6 + (i % 3) * 0.7)
-      const hgt = 4 + (i % 4) * 2.5
-      const hill = new THREE.Mesh(new THREE.ConeGeometry(G * 0.5 + (i % 2) * 3, hgt, 6), mat(i % 3 ? '#4f7c3a' : '#6a7d5c'))
-      hill.position.set(Math.cos(a) * r, WATER_Y + hgt / 2 - 0.5, Math.sin(a) * r)
-      hills.add(hill)
+    // ---------- lampadaires le long des routes ----------
+    const lampPositions: THREE.Vector3[] = []
+    for (let y = 0; y < G; y++)
+      for (let x = 0; x < G; x++) {
+        if (groundAt(x, y) !== 'route' || (x * 7 + y * 3) % 4 !== 0) continue
+        // sur le bord de la route, côté herbe si possible
+        const top = topOf(x, y)
+        const p = new THREE.Vector3(X(x) + 0.42, top, Z(y) + 0.42)
+        if (occupied.has(`${x},${y}`)) continue
+        const pole = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.7, 6), mat('#3a3f4b', { metal: 0.6, rough: 0.4 }))
+        pole.position.set(p.x, top + 0.35, p.z)
+        pole.castShadow = true
+        const bulb = new THREE.Mesh(
+          new THREE.SphereGeometry(0.06, 8, 6),
+          isNight ? new THREE.MeshBasicMaterial({ color: '#ffd38a' }) : mat('#e9ecef', { rough: 0.3 }),
+        )
+        bulb.position.set(p.x, top + 0.74, p.z)
+        scene.add(pole, bulb)
+        lampPositions.push(new THREE.Vector3(p.x, top + 0.74, p.z))
+      }
+    // de vraies lumières pour quelques lampadaires seulement (sinon trop lourd pour un téléphone)
+    if (isNight) {
+      lampPositions.slice(0, pretty ? 10 : 4).forEach((p) => {
+        const l = new THREE.PointLight('#ffb866', 3.2, 3.2, 1.6)
+        l.position.copy(p)
+        scene.add(l)
+      })
     }
-    scene.add(hills)
+
+    // ---------- phare : faisceau tournant la nuit ----------
+    let lighthouseBeam: THREE.Object3D | null = null
+    const phare = city.placed.find((p) => p.id === 'phare')
+    if (isNight && phare) {
+      const top = topOf(phare.x, phare.y) + 3.9
+      const pivot = new THREE.Group()
+      pivot.position.set(X(phare.x), top, Z(phare.y))
+      const cone = new THREE.Mesh(
+        new THREE.ConeGeometry(1.6, 9, 20, 1, true),
+        new THREE.MeshBasicMaterial({ color: '#fff3c4', transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false, fog: false }),
+      )
+      cone.rotation.z = Math.PI / 2
+      cone.position.x = 4.5
+      pivot.add(cone)
+      const spot = new THREE.SpotLight('#fff1c2', 40, 30, 0.25, 0.6, 1.2)
+      spot.position.set(0, 0, 0)
+      spot.target.position.set(10, -1.5, 0)
+      pivot.add(spot, spot.target)
+      scene.add(pivot)
+      lighthouseBeam = pivot
+      nightStuff.push(cone)
+    }
+
+    // ---------- décor : chaînes de montagnes tout autour ----------
+    const mountains = createMountains(G / 2, WATER_Y)
+    scene.add(mountains)
 
     const clouds: THREE.Group[] = []
-    const cloudMat = new THREE.MeshStandardMaterial({ color: '#ffffff', flatShading: true, roughness: 1, transparent: true, opacity: 0.92 })
+    const cloudMat = new THREE.MeshStandardMaterial({
+      color: isNight ? '#5a6488' : '#ffffff',
+      flatShading: true,
+      roughness: 1,
+      transparent: true,
+      opacity: isNight ? 0.55 : 0.92,
+    })
     for (let i = 0; i < 10; i++) {
       const c = new THREE.Group()
       for (let k = 0; k < 5; k++) {
@@ -420,6 +519,7 @@ export default function City3D({ city, onClose }: Props) {
     renderer.setAnimationLoop(() => {
       const dt = Math.min(clock.getDelta(), 0.1)
       water.material.uniforms['time'].value += dt * 0.6
+      if (lighthouseBeam) lighthouseBeam.rotation.y += dt * 0.7
       for (const c of clouds) {
         c.position.x += dt * 0.35
         if (c.position.x > G * 3) c.position.x = -G * 3
@@ -446,7 +546,11 @@ export default function City3D({ city, onClose }: Props) {
       })
       geos.forEach((g) => g.dispose())
       waterNormals.dispose()
-      envRT.dispose()
+      envRT?.dispose()
+      ;(mountains.material as THREE.Material).dispose()
+      nightStuff.forEach((o) => {
+        if (o instanceof THREE.Mesh || o instanceof THREE.Points) (o.material as THREE.Material).dispose()
+      })
       pmrem.dispose()
       cloudMat.dispose()
       disposeMaterials()
@@ -476,6 +580,9 @@ export default function City3D({ city, onClose }: Props) {
           </button>
           <button type="button" className={light === 'jour' ? 'on' : ''} onClick={() => setLight('jour')}>
             ☀️ Jour
+          </button>
+          <button type="button" className={light === 'nuit' ? 'on' : ''} onClick={() => setLight('nuit')}>
+            🌙 Nuit
           </button>
         </div>
         <div className="seg">

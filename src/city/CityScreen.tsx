@@ -109,7 +109,7 @@ export function CityScreen({ city, onCity }: Props) {
 
   const banner =
     mode.type === 'place'
-      ? `Touche une case en surbrillance pour poser : ${buildingById(mode.id)?.name}${sizeOf(buildingById(mode.id)!) > 1 ? ' (2 × 2 cases, case du haut)' : ''}`
+      ? `Touche une case en surbrillance pour poser : ${buildingById(mode.id)?.name}${sizeOf(buildingById(mode.id)!) > 1 ? ` (${sizeOf(buildingById(mode.id)!)} × ${sizeOf(buildingById(mode.id)!)} cases, case du haut)` : ''}`
       : mode.type === 'move'
         ? 'Touche une case en surbrillance pour le déplacer'
         : null
@@ -264,7 +264,7 @@ export function CityScreen({ city, onCity }: Props) {
               <b>{selectedB.name}</b>
               <span className="rarity" style={{ color: RARITIES[selectedB.rarity].color }}>
                 {RARITIES[selectedB.rarity].label} · +{RARITIES[selectedB.rarity].pop} habitants
-                {sizeOf(selectedB) > 1 ? ' · 2 × 2 cases' : ''}
+                {sizeOf(selectedB) > 1 ? ` · ${sizeOf(selectedB)} × ${sizeOf(selectedB)} cases` : ''}
               </span>
             </div>
             <button type="button" className="round" aria-label="Fermer" onClick={() => setSelected(null)}>
@@ -327,7 +327,11 @@ export function CityScreen({ city, onCity }: Props) {
                 >
                   <BuildingThumb b={b} size={58} />
                   <span className="inv-name">{b.name}</span>
-                  {sizeOf(b) > 1 && <span className="inv-size">2×2</span>}
+                  {sizeOf(b) > 1 && (
+                    <span className="inv-size">
+                      {sizeOf(b)}×{sizeOf(b)}
+                    </span>
+                  )}
                   {n > 1 && <span className="inv-count">×{n}</span>}
                 </button>
               )
