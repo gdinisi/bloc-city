@@ -5140,3 +5140,21 @@ img.photo-doigts.card {
 .card > .seg.wide + .invite-note {
   margin-top: 14px;
 }
+
+/* --- fiche ami : les blocs ne rétrécissent jamais (sinon les onglets disparaissent quand les stats sont longues) --- */
+.friend-view > *,
+.friend-view-body > * {
+  flex-shrink: 0;
+}
+
+/* les onglets restent visibles en haut pendant qu'on fait défiler */
+.friend-tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+}
+
+.friend-tabs {
+  top: env(safe-area-inset-top);
+  box-shadow: 0 -12px 0 6px var(--bg), 0 6px 14px var(--bg);
+}
