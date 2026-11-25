@@ -10,7 +10,7 @@ import { BuildingSprite, GroundTile, TH, TW, shade } from './iso'
  * - rotation de la vue par quarts de tour (on « tourne autour » de la ville)
  * - relief : chaque case a une hauteur (0 à 3 marches)
  * - routes, eau et ponts se raccordent automatiquement à leurs voisins
- * - caméra : glisser pour se déplacer, pincer (ou molette / boutons) pour zoomer
+ * - caméra : glisser pour se déplacer, pincer avec deux doigts pour zoomer (molette sur ordinateur)
  * - ordre d'affichage par diagonales, puis tri topologique des emprises
  */
 
@@ -45,7 +45,8 @@ interface Props {
 
 export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, ghost, movingUid, className }: Props) {
   const G = gridOf(city)
-  const [rot, setRot] = useState(0)
+  // vue fixe (plus de rotation autour de la ville)
+  const rot = 0 as number
   const [cam, setCam] = useState({ s: 1, x: 0, y: 0 })
   const svgRef = useRef<SVGSVGElement>(null)
   const pointers = useRef(new Map<number, P>())
@@ -352,23 +353,6 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
       </svg>
       {!readOnly && (
         <div className="map-controls">
-          <button type="button" className="round" aria-label="Zoomer" onClick={() => zoomBy(1.3)}>
-            +
-          </button>
-          <button type="button" className="round" aria-label="Dézoomer" onClick={() => zoomBy(1 / 1.3)}>
-            −
-          </button>
-          <button
-            type="button"
-            className="round"
-            aria-label="Tourner la vue"
-            onClick={() => {
-              setRot((r) => (r + 1) % 4)
-              setCam({ s: 1, x: 0, y: 0 })
-            }}
-          >
-            ⟳
-          </button>
           <button type="button" className="round" aria-label="Recentrer" onClick={() => setCam({ s: 1, x: 0, y: 0 })}>
             ⌖
           </button>

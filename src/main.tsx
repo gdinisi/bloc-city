@@ -5,8 +5,13 @@ import App from './App'
 import { Gallery } from './workout/Gallery'
 import { BuildingGallery } from './city/BuildingGallery'
 import './styles.css'
+import { applyTheme, savedTheme } from './lib/theme'
 
 registerSW({ immediate: true })
+applyTheme(savedTheme())
+
+// Demande au navigateur de ne jamais effacer les données de l'app (connexion, séances)
+void navigator.storage?.persist?.().catch(() => undefined)
 
 const q = new URLSearchParams(location.search)
 const showGallery = import.meta.env.DEV && q.has('galerie')

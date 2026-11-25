@@ -10,6 +10,7 @@ import { chestReadyAt } from './city/economy'
 import { useClaimable } from './city/QuestsPanel'
 import { FriendsScreen, NewPassword } from './screens/FriendsScreen'
 import { Icon } from './ui/Icon'
+import { useTheme } from './lib/theme'
 import type { IconName } from './ui/Icon'
 import { cloudEnabled, takeInviteFromUrl, useAuth } from './lib/cloud'
 import { useCloudSync, useProfile } from './lib/sync'
@@ -32,6 +33,7 @@ export default function App() {
   const auth = useAuth()
   const me = useProfile(auth.userId)
   const sync = useCloudSync(data, auth.userId, Boolean(me.profile))
+  const [theme, setTheme] = useTheme()
   // packs à ouvrir + coffre du jour prêt
   const cityBadge = data.city.packs.length + (Date.now() >= chestReadyAt(data.city) ? 1 : 0)
   // quêtes terminées à récupérer
@@ -47,6 +49,14 @@ export default function App() {
       <header className="topbar">
         <img className="app-logo" src={`${import.meta.env.BASE_URL}pwa-64x64.png`} alt="" width={32} height={32} />
         <h1>Bloc City</h1>
+        <button
+          type="button"
+          className="theme-btn"
+          aria-label={theme === 'sombre' ? 'Passer en mode clair' : 'Passer en mode sombre'}
+          onClick={() => setTheme(theme === 'sombre' ? 'clair' : 'sombre')}
+        >
+          <Icon name={theme === 'sombre' ? 'sun' : 'moon'} size={19} />
+        </button>
         {cloudEnabled && (
           <button type="button" className={`friends-btn ${tab === 'amis' ? 'on' : ''}`} onClick={() => go('amis')}>
             <Icon name={auth.userId ? 'trophy' : 'users'} size={17} />

@@ -35,6 +35,16 @@ export function Player({ plan, onSave, onClose }: Props) {
   const [quitAsk, setQuitAsk] = useState<{ resume: boolean } | null>(null)
 
   const elapsed = useRef(0)
+  const pausedRef = useRef(paused)
+  pausedRef.current = paused
+  /** Anti double-tape : une seule action par tape, même si l'écran est touché deux fois */
+  const lastTap = useRef(0)
+  const once = (fn: () => void) => () => {
+    const now = performance.now()
+    if (now - lastTap.current < 400) return
+    lastTap.current = now
+    fn()
+  }
   const lastTick = useRef(performance.now())
   const lastBeep = useRef<number | null>(null)
 
@@ -49,6 +59,25 @@ export function Player({ plan, onSave, onClose }: Props) {
     nav.wakeLock?.request('screen').then((l) => (lock = l)).catch(() => {})
     return () => {
       void lock?.release().catch(() => {})
+    }
+  }, [])
+
+  // Le geste « retour » (ou le bouton retour d'Android) demande confirmation au lieu de quitter
+  useEffect(() => {
+    history.pushState({ blocPlayer: true }, '')
+    const since = performance.now()
+    const onPop = () => {
+      // ignore le retour déclenché par un démontage/remontage immédiat (mode développement)
+      if (performance.now() - since < 600) return
+      setQuitAsk((q) => q ?? { resume: !pausedRef.current })
+      setPaused(true)
+      history.pushState({ blocPlayer: true }, '')
+    }
+    window.addEventListener('popstate', onPop)
+    return () => {
+      window.removeEventListener('popstate', onPop)
+      // fermeture réelle (pas le double montage du mode développement) : on retire l'entrée ajoutée
+      if (performance.now() - since > 600 && (history.state as { blocPlayer?: boolean } | null)?.blocPlayer) history.back()
     }
   }, [])
 
@@ -168,11 +197,11 @@ export function Player({ plan, onSave, onClose }: Props) {
           type="button"
           className="round quit-btn"
           aria-label="Quitter la séance"
-          onClick={() => {
+          onClick={once(() => {
             // la séance se met en pause pendant qu'on décide
             setQuitAsk({ resume: !paused })
             setPaused(true)
-          }}
+          })}
         >
           ✕
         </button>
@@ -187,7 +216,7 @@ export function Player({ plan, onSave, onClose }: Props) {
       <div className="player-body">
         <div className="player-kind">{step.kind === 'work' ? step.label || 'À toi !' : step.label}</div>
         <h2 className="player-title">{step.kind === 'work' ? step.title : step.next ?? step.title}</h2>
-        <button type="button" className="how-btn" onClick={openInfo}>
+        <button type="button" className="how-btn" onClick={once(openInfo)}>
           <span className="info-btn">i</span> Comment faire ?
         </button>
         {showFigure && <ExerciseFigure id={ex.id} size="small" />}
@@ -232,19 +261,19 @@ export function Player({ plan, onSave, onClose }: Props) {
       )}
 
       <div className="player-controls">
-        <button type="button" className="round big" aria-label="Étape précédente" onClick={() => goTo(idx - 1)}>
+        <button type="button" className="round big" aria-label="Étape précédente" onClick={once(() => goTo(idx - 1))}>
           ⏮
         </button>
         {step.seconds === undefined ? (
-          <button type="button" className="btn primary huge" onClick={() => goTo(idx + 1)}>
+          <button type="button" className="btn primary huge" onClick={once(() => goTo(idx + 1))}>
             ✓ Fait
           </button>
         ) : (
-          <button type="button" className="btn primary huge" onClick={() => setPaused((p) => !p)}>
+          <button type="button" className="btn primary huge" onClick={once(() => setPaused((p) => !p))}>
             {paused ? '▶ Reprendre' : '⏸ Pause'}
           </button>
         )}
-        <button type="button" className="round big" aria-label="Étape suivante" onClick={() => goTo(idx + 1)}>
+        <button type="button" className="round big" aria-label="Étape suivante" onClick={once(() => goTo(idx + 1))}>
           ⏭
         </button>
       </div>

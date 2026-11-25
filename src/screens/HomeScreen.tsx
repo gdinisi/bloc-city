@@ -6,9 +6,7 @@ import { addDays, startOfWeek, toKey } from '../lib/dates'
 import { countsByWeek, weeklyStreak } from '../lib/stats'
 import { weekKey } from '../lib/dates'
 import type { CityState } from '../city/economy'
-import { chestReadyAt, population } from '../city/economy'
-import { cityLevel } from '../city/buildings'
-import { CityMap } from '../city/CityMap'
+import { chestReadyAt } from '../city/economy'
 import { QuestsMini } from '../city/QuestsPanel'
 import { formatWait, useNow } from '../city/CityScreen'
 import { computeLevel, levelLabel } from '../workout/level'
@@ -69,7 +67,6 @@ export function HomeScreen({ sessions, settings, city, pseudo, onCity, onSave, o
   const lvl = computeLevel(sessions, settings.home.fatigue)
   const chestAt = chestReadyAt(city)
   const chestReady = now >= chestAt
-  const pop = population(city)
   const focuses = availableFocuses(settings.equipment)
   const pct = Math.round((done / goal) * 100)
 
@@ -80,31 +77,25 @@ export function HomeScreen({ sessions, settings, city, pseudo, onCity, onSave, o
 
   return (
     <div className="screen home">
-      <header className="home-hero">
-        <img className="home-hero-img" src={`${import.meta.env.BASE_URL}img/peak-wide.webp`} alt="" />
-        <div className="home-hero-text">
-          <p className="home-date">{today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-          <h2>
-            {greeting(today.getHours())}
-            {pseudo ? `, ${pseudo}` : ''}
-          </h2>
-          <p className="muted">{done >= goal ? 'Objectif de la semaine atteint. Bravo !' : 'Prêt à grimper aujourd’hui ?'}</p>
-        </div>
-      </header>
-
       <section className="card activity" onClick={() => onGo('calendrier')}>
-        <div className="activity-head">
-          <h3>Activité de la semaine</h3>
-          <span className="pill">Cette semaine</span>
+        <div className="activity-photo" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/peak-wide.webp)` }}>
+          <div>
+            <p className="home-date">{today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+            <h2>
+              {greeting(today.getHours())}
+              {pseudo ? `, ${pseudo}` : ''}
+            </h2>
+          </div>
+          <span className="pill on-photo">{done >= goal ? 'Objectif atteint' : 'Cette semaine'}</span>
         </div>
         <div className="activity-body">
-          <Ring value={done / goal} size={124}>
+          <Ring value={done / goal} size={96} stroke={10}>
             <b>{pct}%</b>
-            <span>de l’objectif</span>
+            <span>objectif</span>
           </Ring>
           <ul className="activity-stats">
             <li>
-              <Icon name="hold" />
+              <Icon name="hold" size={19} />
               <span>
                 <small>Séances</small>
                 <b>
@@ -113,28 +104,26 @@ export function HomeScreen({ sessions, settings, city, pseudo, onCity, onSave, o
               </span>
             </li>
             <li>
-              <Icon name="clock" />
+              <Icon name="clock" size={19} />
               <span>
                 <small>Temps actif</small>
                 <b>{fmtTime(weekMinutes)}</b>
               </span>
             </li>
             <li>
-              <Icon name="flame" />
+              <Icon name="flame" size={19} />
               <span>
                 <small>Série</small>
-                <b>
-                  {streak} sem.
-                </b>
+                <b>{streak} sem.</b>
               </span>
             </li>
           </ul>
         </div>
-        <div className="week-strip">
+        <div className="week-dots">
           {week.map((d, i) => (
             <span
               key={d.k}
-              className={`wday ${d.k === todayKey ? 'today' : ''} ${d.main ? 'has' : ''} ${d.future ? 'future' : ''}`}
+              className={`${d.k === todayKey ? 'today' : ''} ${d.main ? 'has' : ''} ${d.future ? 'future' : ''}`}
               style={d.main ? ({ '--tc': typeInfo(d.main.type).color } as CSSProperties) : undefined}
             >
               <i>{DAYS[i]}</i>
@@ -210,21 +199,7 @@ export function HomeScreen({ sessions, settings, city, pseudo, onCity, onSave, o
         </button>
       </div>
 
-      <QuestsMini sessions={sessions} weeklyGoal={goal} city={city} onCity={onCity} />
-
-      <section className="card home-city" onClick={() => onGo('ville')}>
-        <CityMap city={city} readOnly className="mini" />
-        <div className="home-city-info">
-          <small className="muted">Ta ville</small>
-          <b>Niveau {cityLevel(pop)}</b>
-          <span className="muted">
-            <Icon name="users" size={15} /> {pop} habitants
-          </span>
-          <span className="link-btn">
-            Ouvrir <Icon name="chevron" size={14} />
-          </span>
-        </div>
-      </section>
+      <QuestsMini sessions={sessions} weeklyGoal={goal} city={city} onCity={onCity} max={2} />
 
       {adding && (
         <SessionForm

@@ -243,7 +243,7 @@ export function CityScreen({ city, onCity }: Props) {
           ghost={editingGround}
           movingUid={mode.type === 'move' ? mode.uid : null}
         />
-        <p className="muted small-text center map-hint">Glisse pour te déplacer · pince ou +/− pour zoomer · ⟳ pour tourner autour</p>
+        <p className="muted small-text center map-hint">Glisse pour te déplacer · pince avec deux doigts pour zoomer</p>
         {city.placed.length === 0 && mode.type === 'idle' && (
           <p className="muted small-text center">Ta ville est vide : ouvre tes packs puis pose tes bâtiments depuis l'inventaire.</p>
         )}

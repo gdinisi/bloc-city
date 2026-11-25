@@ -96,7 +96,7 @@ function QuestsOverlay({ quests, city, onClaim, onClose, toast }: { quests: Ques
  * Version compacte pour l'accueil : les 3 quêtes les plus utiles maintenant
  * (d'abord celles à récupérer, puis les plus avancées).
  */
-export function QuestsMini({ sessions, weeklyGoal, city, onCity }: Props) {
+export function QuestsMini({ sessions, weeklyGoal, city, onCity, max = 3 }: Props & { max?: number }) {
   const [all, setAll] = useState(false)
   const { toast, claim } = useClaim(onCity)
   const quests = computeQuests(sessions, weeklyGoal, city)
@@ -104,12 +104,12 @@ export function QuestsMini({ sessions, weeklyGoal, city, onCity }: Props) {
   const shown = quests
     .filter((q) => !isClaimed(q, city))
     .sort((a, b) => Number(isDone(b)) - Number(isDone(a)) || b.progress / b.target - a.progress / a.target)
-    .slice(0, 3)
+    .slice(0, max)
 
   return (
     <section className="card home-quests">
       <div className="day-head">
-        <h2>🗺️ Quêtes</h2>
+        <h2>Quêtes</h2>
         <button type="button" className="link-btn" onClick={() => setAll(true)}>
           {ready > 0 ? `${ready} à récupérer · ` : ''}Tout voir ›
         </button>
