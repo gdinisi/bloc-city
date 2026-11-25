@@ -4884,3 +4884,48 @@ textarea {
 .home-add > span:last-child {
   font-size: 0.98rem;
 }
+
+/* --- accueil : les deux boutons restent dans l'écran, quelle que soit sa largeur --- */
+.home-actions {
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+}
+
+.home-actions .btn {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.home-add > span:last-child,
+.home-go > span {
+  min-width: 0;
+  font-size: 0.92rem;
+}
+
+.home-add > span:last-child,
+.home-add small,
+.home-go small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.home-add {
+  padding: 10px 10px !important;
+  gap: 8px;
+}
+
+.home-add-icon {
+  width: 26px;
+  height: 26px;
+}
+
+/* --- séances proposées : la première carte garde une marge à gauche --- */
+.reco-scroll {
+  scroll-padding-inline: 16px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+.reco-scroll::after {
+  content: '';
+  flex: 0 0 4px;
+}
