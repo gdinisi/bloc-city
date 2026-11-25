@@ -1,6 +1,7 @@
 import type { Session } from '../types'
 import { GRADES_XP, experience, fmtHours } from '../lib/xp'
 import { Icon } from './Icon'
+import { GradeLogo } from './GradeLogo'
 
 /** Barre d'expérience : niveau de grimpeur selon les heures de sport réalisées */
 export function XpBar({ sessions }: { sessions: Session[] }) {
@@ -8,10 +9,7 @@ export function XpBar({ sessions }: { sessions: Session[] }) {
   return (
     <section className="card xp-card">
       <div className="xp-head">
-        <span className="xp-badge">
-          <Icon name="mountain" size={16} stroke={2} />
-          <b>{xp.level}</b>
-        </span>
+        <GradeLogo level={xp.level} size={46} />
         <span className="xp-title">
           <small>Niveau {xp.level}</small>
           <b>{xp.title}</b>
@@ -36,9 +34,7 @@ export function TopXp({ sessions, onOpen }: { sessions: Session[]; onOpen: () =>
   const xp = experience(sessions)
   return (
     <button type="button" className="top-xp" onClick={onOpen} aria-label={`Niveau ${xp.level}, ${xp.title}. Voir les grades`}>
-      <span className="xp-badge small">
-        <b>{xp.level}</b>
-      </span>
+      <GradeLogo level={xp.level} size={38} />
       <span className="top-xp-body">
         <span className="top-xp-line">
           <b>{xp.title}</b>
@@ -55,8 +51,15 @@ export function TopXp({ sessions, onOpen }: { sessions: Session[]; onOpen: () =>
 export function XpGrades({ sessions }: { sessions: Session[] }) {
   const xp = experience(sessions)
   return (
-    <section className="card xp-grades">
-      <h2>Grades d'expérience</h2>
+    <details className="card fold xp-grades">
+      <summary>
+        <GradeLogo level={xp.level} size={44} />
+        <span className="fold-title">
+          <small>Grade · niveau {xp.level}</small>
+          <b>{xp.title}</b>
+        </span>
+        <Icon name="chevron" size={18} className="fold-chevron" />
+      </summary>
       <p className="muted small-text">Ton grade monte avec les heures de sport (salle, maison, extérieur). Chaque grade demande un peu plus d'heures que le précédent.</p>
       <XpBar sessions={sessions} />
       <ol className="grade-list">
@@ -64,17 +67,18 @@ export function XpGrades({ sessions }: { sessions: Session[] }) {
           const state = g.level < xp.level ? 'done' : g.level === xp.level ? 'current' : 'locked'
           return (
             <li key={g.level} className={state}>
-              <span className="grade-num">{state === 'done' ? <Icon name="check" size={15} stroke={2.4} /> : g.level}</span>
+              <GradeLogo level={g.level} size={36} locked={state === 'locked'} />
               <span className="grade-name">
                 <b>{g.title}</b>
                 <small>{g.hours === 0 ? 'Dès le départ' : `à partir de ${fmtHours(g.hours)}`}</small>
               </span>
               {state === 'current' && <span className="pill">Toi</span>}
+              {state === 'done' && <Icon name="check" size={16} stroke={2.4} className="grade-check" />}
               {state === 'locked' && <span className="grade-left">encore {fmtHours(g.hours - xp.hours)}</span>}
             </li>
           )
         })}
       </ol>
-    </section>
+    </details>
   )
 }

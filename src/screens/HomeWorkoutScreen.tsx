@@ -138,11 +138,19 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
         </div>
       </section>
 
-      <section className="card">
-        <div className="day-head">
-          <h2>Ta séance</h2>
-          <span className="pill">≈ {Math.round(plan.estimated / 60)} min</span>
-        </div>
+      <details className="card fold">
+        <summary>
+          <span className="fold-icon">
+            <Icon name="hold" size={20} />
+          </span>
+          <span className="fold-title">
+            <b>Ta séance</b>
+            <small>
+              {plan.items.length} exercices · ≈ {Math.round(plan.estimated / 60)} min
+            </small>
+          </span>
+          <Icon name="chevron" size={18} className="fold-chevron" />
+        </summary>
         <button type="button" className="level-card" onClick={() => setWhy((w) => !w)} aria-expanded={why}>
           <span className="level-top">
             <span>
@@ -201,7 +209,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
             <Icon name="play" fill size={15} /> C'est parti
           </button>
         </div>
-      </section>
+      </details>
 
       <button type="button" className="card library-link" onClick={() => setLibrary(true)}>
         <span className="library-link-emoji">
@@ -214,8 +222,17 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
         <span className="library-link-arrow">›</span>
       </button>
 
-      <section className="card">
-        <h2>Ton matériel</h2>
+      <details className="card fold">
+        <summary>
+          <span className="fold-icon">
+            <Icon name="settings" size={20} />
+          </span>
+          <span className="fold-title">
+            <b>Ton matériel</b>
+            <small>{equipment.length ? EQUIPMENT.filter((e) => equipment.includes(e.id)).map((e) => e.label).join(', ') : 'Poids du corps'}</small>
+          </span>
+          <Icon name="chevron" size={18} className="fold-chevron" />
+        </summary>
         <p className="muted small-text">Les séances s'adaptent à ce que tu as. Rien de coché = poids du corps.</p>
         <div className="chips">
           {EQUIPMENT.map((e) => (
@@ -224,7 +241,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
             </button>
           ))}
         </div>
-      </section>
+      </details>
 
       {info && <ExerciseSheet ex={info} onClose={() => setInfo(null)} />}
 

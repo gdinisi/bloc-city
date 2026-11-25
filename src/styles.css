@@ -4480,3 +4480,104 @@ textarea {
 .grade-list .locked .grade-name b {
   color: var(--muted);
 }
+
+/* =====================================================================
+   Menus déroulants (Ta séance, Ton matériel, Grades)
+   ===================================================================== */
+.fold {
+  padding: 0 !important;
+  overflow: hidden;
+}
+
+.fold > summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.fold > summary::-webkit-details-marker {
+  display: none;
+}
+
+.fold > :not(summary) {
+  margin-left: 16px;
+  margin-right: 16px;
+}
+
+.fold > :last-child {
+  margin-bottom: 16px;
+}
+
+.fold-icon {
+  width: 40px;
+  height: 40px;
+  flex: none;
+  border-radius: 13px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fold-title {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.fold-title b {
+  font-size: 1.02rem;
+  font-weight: 700;
+}
+
+.fold-title small {
+  color: var(--muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fold-chevron {
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.fold[open] .fold-chevron {
+  transform: rotate(90deg);
+}
+
+.fold[open] > summary {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 12px;
+}
+
+.grade-logo {
+  flex: none;
+  display: block;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.25));
+}
+
+.grade-check {
+  color: var(--accent);
+}
+
+.grade-list .locked .grade-logo {
+  opacity: 0.6;
+}
+
+.top-xp .grade-logo {
+  filter: none;
+}
+
+.xp-grades .xp-card {
+  margin: 10px 16px 12px;
+}
