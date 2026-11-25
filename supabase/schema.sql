@@ -132,3 +132,27 @@ revoke execute on function public.is_friend(uuid) from public, anon;
 grant execute on function public.add_friend(text) to authenticated;
 grant execute on function public.remove_friend(uuid) to authenticated;
 grant execute on function public.is_friend(uuid) to authenticated;
+
+-- =====================================================================
+-- Séances visibles par les amis (calendrier et statistiques)
+-- Copie allégée envoyée par l'app : sans les notes personnelles.
+-- =====================================================================
+create table if not exists public.shared_sessions (
+  user_id uuid primary key references public.profiles (id) on delete cascade,
+  sessions jsonb not null default '[]'::jsonb,
+  weekly_goal int not null default 3,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.shared_sessions enable row level security;
+grant select, insert, update on public.shared_sessions to authenticated;
+
+drop policy if exists "séances : moi et mes amis" on public.shared_sessions;
+create policy "séances : moi et mes amis" on public.shared_sessions
+  for select to authenticated using (user_id = auth.uid() or public.is_friend(user_id));
+drop policy if exists "séances : création" on public.shared_sessions;
+create policy "séances : création" on public.shared_sessions
+  for insert to authenticated with check (user_id = auth.uid());
+drop policy if exists "séances : modification" on public.shared_sessions;
+create policy "séances : modification" on public.shared_sessions
+  for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());

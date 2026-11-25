@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import type { Session } from "../types";
-import type { CityState } from "../city/economy";
-import { migrateCity } from "../city/economy";
-import { CityMap } from "../city/CityMap";
 import type { Profile } from "../lib/cloud";
 import {
   addFriend,
@@ -11,11 +8,9 @@ import {
   cloudEnabled,
   computeStats,
   createProfile,
-  getCity,
   inviteLink,
   listPlayers,
   pendingInvite,
-  removeFriend,
   renameProfile,
   resetPassword,
   score,
@@ -25,6 +20,7 @@ import {
   updatePassword,
 } from "../lib/cloud";
 import type { SyncStatus } from "../lib/sync";
+import { FriendView } from "./FriendView";
 
 interface Props {
   userId: string | null;
@@ -483,7 +479,7 @@ function Friends({
         )}
         {friendsCount > 0 && (
           <p className="muted small-text">
-            Touche un ami pour visiter sa ville.
+            Touche un ami pour voir ses stats, son calendrier et sa ville.
           </p>
         )}
       </section>
@@ -577,8 +573,10 @@ function Friends({
       </section>
 
       {visit && (
-        <VisitCity
+        <FriendView
           friend={visit}
+          mySessions={sessions}
+          myGoal={weeklyGoal}
           onClose={() => setVisit(null)}
           onRemoved={() => {
             setVisit(null);
@@ -597,82 +595,6 @@ function syncLabel(s: SyncStatus, last: number | null) {
   if (s === "ok" && last)
     return `✅ Sauvegardé dans le cloud à ${new Date(last).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}`;
   return "☁️ Synchronisation…";
-}
-
-/* ---------- visite de la ville d'un ami ---------- */
-
-function VisitCity({
-  friend,
-  onClose,
-  onRemoved,
-}: {
-  friend: Profile;
-  onClose: () => void;
-  onRemoved: () => void;
-}) {
-  const [city, setCity] = useState<CityState | null | "vide">(null);
-  const [confirm, setConfirm] = useState(false);
-  useEffect(() => {
-    getCity(friend.id)
-      .then((c) => setCity(c ? migrateCity(c) : "vide"))
-      .catch(() => setCity("vide"));
-  }, [friend.id]);
-
-  return (
-    <div className="sheet-backdrop" onClick={onClose}>
-      <div
-        className="sheet"
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-label={`Ville de ${friend.pseudo}`}
-      >
-        <div className="sheet-handle" />
-        <h2>🏙️ La ville de {friend.pseudo}</h2>
-        {city === null && <p className="muted">Chargement…</p>}
-        {city === "vide" && (
-          <p className="muted">
-            {friend.pseudo} n'a pas encore construit sa ville.
-          </p>
-        )}
-        {city && city !== "vide" && (
-          <>
-            <CityMap city={city} className="visit-map" />
-            <p className="muted small-text">
-              {city.placed.length} bâtiment{city.placed.length > 1 ? "s" : ""} ·
-              🔥 série de {friend.stats.streak ?? 0} semaine
-              {(friend.stats.streak ?? 0) > 1 ? "s" : ""}
-            </p>
-          </>
-        )}
-        <div className="sheet-actions">
-          {confirm ? (
-            <button
-              type="button"
-              className="btn danger"
-              onClick={() =>
-                removeFriend(friend.id)
-                  .then(onRemoved)
-                  .catch(() => setConfirm(false))
-              }
-            >
-              Confirmer : retirer {friend.pseudo}
-            </button>
-          ) : (
-            <button
-              type="button"
-              className="btn ghost"
-              onClick={() => setConfirm(true)}
-            >
-              Retirer de mes amis
-            </button>
-          )}
-          <button type="button" className="btn primary" onClick={onClose}>
-            Fermer
-          </button>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 /* ---------- nouveau mot de passe (arrivée par le lien reçu par e-mail) ---------- */

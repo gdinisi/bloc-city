@@ -200,7 +200,15 @@ export async function pullData<T>(userId: string): Promise<Saved<T> | null> {
 }
 
 /** Envoie la sauvegarde, la ville (pour les visites) et les chiffres du classement */
-export async function pushAll(userId: string, payload: unknown, updatedAt: number, city: CityState, stats: Stats, hasProfile: boolean) {
+export async function pushAll(
+  userId: string,
+  payload: unknown,
+  updatedAt: number,
+  city: CityState,
+  stats: Stats,
+  hasProfile: boolean,
+  shared: { sessions: Session[]; weeklyGoal: number },
+) {
   const at = new Date(updatedAt).toISOString()
   const jobs: PromiseLike<{ error: unknown }>[] = [supabase!.from('user_data').upsert({ user_id: userId, data: payload, updated_at: at })]
   if (hasProfile) {
@@ -210,6 +218,26 @@ export async function pushAll(userId: string, payload: unknown, updatedAt: numbe
   const res = await Promise.all(jobs)
   const err = res.find((r) => r.error)?.error
   if (err) throw err
+  // séances visibles par les amis (sans les notes) ; un échec ici ne bloque pas la sauvegarde
+  if (hasProfile) {
+    const light = shared.sessions.map(({ note: _note, ...rest }) => rest)
+    await supabase!
+      .from('shared_sessions')
+      .upsert({ user_id: userId, sessions: light, weekly_goal: shared.weeklyGoal, updated_at: at })
+      .then(
+        () => undefined,
+        () => undefined,
+      )
+  }
+}
+
+/** Séances et objectif d'un ami (null s'il n'a encore rien partagé) */
+export async function getFriendSessions(userId: string) {
+  const { data, error } = await supabase!.from('shared_sessions').select('sessions, weekly_goal').eq('user_id', userId).maybeSingle()
+  if (error) throw error
+  if (!data) return null
+  const sessions = ((data.sessions ?? []) as Omit<Session, 'note'>[]).map((x) => ({ ...x, note: '', climbs: x.climbs ?? [] })) as Session[]
+  return { sessions, weeklyGoal: (data.weekly_goal as number) ?? 3 }
 }
 
 /* ---------- invitation par lien ---------- */

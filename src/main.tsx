@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, Suspense, lazy } from 'react'
 import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
@@ -16,6 +16,8 @@ void navigator.storage?.persist?.().catch(() => undefined)
 const q = new URLSearchParams(location.search)
 const showGallery = import.meta.env.DEV && q.has('galerie')
 const showBuildings = import.meta.env.DEV && q.has('batiments')
+const showFriendDemo = import.meta.env.DEV && q.has('amidemo')
+const FriendDemo = lazy(() => import('./screens/FriendDemo'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -23,6 +25,10 @@ createRoot(document.getElementById('root')!).render(
       <Gallery />
     ) : showBuildings ? (
       <BuildingGallery />
+    ) : showFriendDemo ? (
+      <Suspense fallback={null}>
+        <FriendDemo />
+      </Suspense>
     ) : (
       <App />
     )}

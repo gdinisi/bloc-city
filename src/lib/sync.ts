@@ -75,7 +75,10 @@ export function useCloudSync(app: App, userId: string | null, hasProfile: boolea
     const t = setTimeout(() => {
       const d = latest.current
       const payload: SavedData = { sessions: d.sessions, settings: d.settings, city: d.city }
-      pushAll(userId, payload, d.updatedAt || Date.now(), d.city, computeStats(d.sessions, d.settings.weeklyGoal), hasProfile)
+      pushAll(userId, payload, d.updatedAt || Date.now(), d.city, computeStats(d.sessions, d.settings.weeklyGoal), hasProfile, {
+        sessions: d.sessions,
+        weeklyGoal: d.settings.weeklyGoal,
+      })
         .then(() => {
           setStatus('ok')
           setLastSync(Date.now())
