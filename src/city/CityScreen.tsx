@@ -12,11 +12,13 @@ import {
   place,
   population,
   rotate,
+  sculpt,
   store,
   unlockedGrounds,
 } from './economy'
 import { BUILDINGS, CATS, CITY_LEVELS, GROUNDS, RARITIES, buildingById, cityLevel, gridSizeFor, nextGrowthLevel, nextLevelAt, sizeOf } from './buildings'
-import { BuildingSprite, BuildingThumb, GroundTile, TH, TW } from './iso'
+import { BuildingThumb, GroundTile } from './iso'
+import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
 
@@ -25,12 +27,14 @@ interface Props {
   onCity: (fn: (c: CityState) => CityState) => void
 }
 
-type Mode = { type: 'idle' } | { type: 'place'; id: string } | { type: 'move'; uid: string } | { type: 'paint'; ground: string }
+type Mode =
+  | { type: 'idle' }
+  | { type: 'place'; id: string }
+  | { type: 'move'; uid: string }
+  | { type: 'paint'; ground: string }
+  | { type: 'relief'; delta: 1 | -1 }
 
-const tileCenter = (x: number, y: number): [number, number] => [((x - y) * TW) / 2, ((x + y) * TH) / 2]
-const ZOOMS = [1, 1.6, 2.3]
-
-function useNow(every = 30000) {
+export function useNow(every = 30000) {
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), every)
@@ -39,7 +43,7 @@ function useNow(every = 30000) {
   return now
 }
 
-const formatWait = (ms: number) => {
+export const formatWait = (ms: number) => {
   const m = Math.max(1, Math.floor(ms / 60000))
   const h = Math.floor(m / 60)
   return h > 0 ? `${h} h ${String(m % 60).padStart(2, '0')}` : `${m} min`
@@ -50,7 +54,6 @@ export function CityScreen({ city, onCity }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [opening, setOpening] = useState<Pack[] | null>(null)
   const [shop, setShop] = useState(false)
-  const [zoom, setZoom] = useState(0)
   const now = useNow()
 
   const pop = population(city)
@@ -66,16 +69,7 @@ export function CityScreen({ city, onCity }: Props) {
   const selectedB = selectedP ? buildingById(selectedP.id) : undefined
   const grounds = unlockedGrounds(city)
   const fragments = BUILDINGS.filter((b) => isFragmented(b) && (city.fragments[b.id] ?? 0) > 0)
-
-  const sortedPlaced = useMemo(
-    () =>
-      [...city.placed].sort((a, b) => {
-        const sa = sizeOf(buildingById(a.id)!)
-        const sb = sizeOf(buildingById(b.id)!)
-        return a.x + a.y + 2 * (sa - 1) - (b.x + b.y + 2 * (sb - 1)) || a.x - b.x
-      }),
-    [city.placed],
-  )
+  const editingGround = mode.type === 'paint' || mode.type === 'relief'
 
   /** Cases où l'on peut poser / déplacer le bâtiment en cours (coin du haut de son emprise) */
   const valid = useMemo(() => {
@@ -88,10 +82,8 @@ export function CityScreen({ city, onCity }: Props) {
   }, [mode, city, grid])
 
   const onTile = (x: number, y: number) => {
-    if (mode.type === 'paint') {
-      onCity((c) => paint(c, x, y, mode.ground))
-      return
-    }
+    if (mode.type === 'paint') return onCity((c) => paint(c, x, y, mode.ground))
+    if (mode.type === 'relief') return onCity((c) => sculpt(c, x, y, mode.delta))
     if (mode.type === 'place') {
       if (!valid.has(`${x},${y}`)) return
       onCity((c) => place(c, mode.id, x, y) ?? c)
@@ -111,48 +103,17 @@ export function CityScreen({ city, onCity }: Props) {
     setSelected(hit ? hit.uid : null)
   }
 
-  // cadrage : assez haut pour les bâtiments les plus grands
-  const half = (grid * TW) / 2 + 6
-  const top = Math.min(
-    -50,
-    ...city.placed.map((p) => {
-      const b = buildingById(p.id)!
-      const s = sizeOf(b)
-      const [, cy] = tileCenter(p.x + (s - 1) / 2, p.y + (s - 1) / 2)
-      return cy - (b.h + 34) * s
-    }),
-  )
-  const bottom = grid * TH - TH / 2 + 14
-  const placing = mode.type === 'place' || mode.type === 'move'
-
-  const tiles = []
-  for (let y = 0; y < grid; y++)
-    for (let x = 0; x < grid; x++) {
-      const [cx, cy] = tileCenter(x, y)
-      const k = `${x},${y}`
-      tiles.push(
-        <g key={k} onClick={() => onTile(x, y)} style={{ cursor: 'pointer' }}>
-          <GroundTile id={city.ground[k] ?? 'herbe'} cx={cx} cy={cy} alt={(x + y) % 2 === 1} />
-          {placing && valid.has(k) && (
-            <polygon
-              points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`}
-              fill="#ffffff"
-              fillOpacity={0.45}
-              stroke="#5b6cff"
-              strokeWidth={1.4}
-              strokeDasharray="3 2"
-            />
-          )}
-        </g>,
-      )
-    }
-
   const banner =
     mode.type === 'place'
       ? `Touche une case en surbrillance pour poser : ${buildingById(mode.id)?.name}${sizeOf(buildingById(mode.id)!) > 1 ? ' (2 × 2 cases, case du haut)' : ''}`
       : mode.type === 'move'
         ? 'Touche une case en surbrillance pour le déplacer'
         : null
+
+  const toggleTool = (m: Mode) => {
+    setSelected(null)
+    setMode(mode.type === m.type ? { type: 'idle' } : m)
+  }
 
   return (
     <div className="screen">
@@ -184,7 +145,7 @@ export function CityScreen({ city, onCity }: Props) {
         )}
         <p className="muted small-text">
           Carte {grid} × {grid}
-          {growAt !== null ? ` · elle passe à ${gridSizeFor(growAt)} × ${gridSizeFor(growAt)} au niveau ${growAt}` : ' · taille maximale'}
+          {growAt !== null ? ` · ${gridSizeFor(growAt)} × ${gridSizeFor(growAt)} au niveau ${growAt}` : ' · taille maximale'}
           {nextAt !== null ? ` · niveau ${level + 1} à ${nextAt} habitants` : ''}
         </p>
       </section>
@@ -208,49 +169,60 @@ export function CityScreen({ city, onCity }: Props) {
 
       <section className="card city-card">
         <div className="city-tools">
-          <button
-            type="button"
-            className={`chip ${mode.type === 'paint' ? 'on' : ''}`}
-            onClick={() => {
-              setSelected(null)
-              setMode(mode.type === 'paint' ? { type: 'idle' } : { type: 'paint', ground: 'route' })
-            }}
-          >
-            🖌️ {mode.type === 'paint' ? 'Terminer le sol' : 'Sol'}
+          <button type="button" className={`chip ${mode.type === 'paint' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'paint', ground: 'route' })}>
+            🖌️ Sol
           </button>
-          <span className="zoom">
-            <button type="button" className="round" aria-label="Dézoomer" disabled={zoom === 0} onClick={() => setZoom((z) => Math.max(0, z - 1))}>
-              −
+          <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
+            ⛰️ Relief
+          </button>
+          {editingGround && (
+            <button type="button" className="btn small" onClick={() => setMode({ type: 'idle' })}>
+              Terminer
             </button>
-            <button type="button" className="round" aria-label="Zoomer" disabled={zoom === ZOOMS.length - 1} onClick={() => setZoom((z) => Math.min(ZOOMS.length - 1, z + 1))}>
-              +
-            </button>
-          </span>
+          )}
         </div>
 
         {mode.type === 'paint' && (
-          <div className="ground-palette">
-            {GROUNDS.map((g) => {
-              const ok = grounds.some((u) => u.id === g.id)
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  disabled={!ok}
-                  className={`ground-chip ${mode.ground === g.id ? 'on' : ''}`}
-                  onClick={() => setMode({ type: 'paint', ground: g.id })}
-                  title={ok ? g.name : g.quest ? 'Débloqué par une quête' : `Débloqué au niveau ${g.level}`}
-                >
-                  <svg viewBox="-21 -11 42 22" width={42} height={22} aria-hidden="true">
-                    <GroundTile id={g.id} cx={0} cy={0} alt={false} />
-                  </svg>
-                  <span>{ok ? g.name : g.quest ? '🔒 quête' : `🔒 niv. ${g.level}`}</span>
-                </button>
-              )
-            })}
-          </div>
+          <>
+            <div className="ground-palette">
+              {GROUNDS.map((g) => {
+                const ok = grounds.some((u) => u.id === g.id)
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    disabled={!ok}
+                    className={`ground-chip ${mode.ground === g.id ? 'on' : ''}`}
+                    onClick={() => setMode({ type: 'paint', ground: g.id })}
+                    title={ok ? g.name : g.quest ? 'Débloqué par une quête' : `Débloqué au niveau ${g.level}`}
+                  >
+                    <svg viewBox="-21 -11 42 22" width={42} height={22} aria-hidden="true">
+                      <GroundTile id={g.id === 'pont' ? 'planches' : g.id} cx={0} cy={0} alt={false} />
+                    </svg>
+                    <span>{ok ? g.name : g.quest ? '🔒 quête' : `🔒 niv. ${g.level}`}</span>
+                  </button>
+                )
+              })}
+            </div>
+            <p className="muted small-text">
+              Touche les cases à peindre. Les routes et les ponts se raccordent tout seuls à leurs voisins ; un pont se pose sur l'eau pour relier deux routes. « Herbe » efface.
+            </p>
+          </>
         )}
-        {mode.type === 'paint' && <p className="muted small-text">Touche les cases pour peindre le sol. « Herbe » efface.</p>}
+
+        {mode.type === 'relief' && (
+          <>
+            <div className="seg wide relief-seg">
+              <button type="button" className={mode.delta === 1 ? 'on' : ''} onClick={() => setMode({ type: 'relief', delta: 1 })}>
+                ⬆️ Monter
+              </button>
+              <button type="button" className={mode.delta === -1 ? 'on' : ''} onClick={() => setMode({ type: 'relief', delta: -1 })}>
+                ⬇️ Creuser
+              </button>
+            </div>
+            <p className="muted small-text">Touche une case pour la monter ou la creuser (3 marches maximum). Les bâtiments suivent le terrain.</p>
+          </>
+        )}
 
         {banner && (
           <div className="place-banner">
@@ -261,42 +233,16 @@ export function CityScreen({ city, onCity }: Props) {
           </div>
         )}
 
-        <div className={`city-scroll ${zoom > 0 ? 'zoomed' : ''}`}>
-          <svg
-            className="city-svg"
-            style={{ width: `${ZOOMS[zoom] * 100}%` }}
-            viewBox={`${-half} ${top} ${half * 2} ${bottom - top}`}
-            role="img"
-            aria-label="Ta ville"
-          >
-            <rect x={-half} y={top} width={half * 2} height={bottom - top} fill="#fff6e2" />
-            {/* bord de terre sous la grille */}
-            <polygon points={`${(-grid * TW) / 2},${(grid * TH) / 2 - TH / 2} 0,${grid * TH - TH / 2} 0,${grid * TH - TH / 2 + 10} ${(-grid * TW) / 2},${(grid * TH) / 2 - TH / 2 + 10}`} fill="#b07a4a" />
-            <polygon points={`0,${grid * TH - TH / 2} ${(grid * TW) / 2},${(grid * TH) / 2 - TH / 2} ${(grid * TW) / 2},${(grid * TH) / 2 - TH / 2 + 10} 0,${grid * TH - TH / 2 + 10}`} fill="#8c5f37" />
-            <g>{tiles}</g>
-            {sortedPlaced.map((p) => {
-              const b = buildingById(p.id)
-              if (!b) return null
-              const s = sizeOf(b)
-              const [cx, cy] = tileCenter(p.x + (s - 1) / 2, p.y + (s - 1) / 2)
-              const isSel = p.uid === selected
-              const isMoving = mode.type === 'move' && mode.uid === p.uid
-              return (
-                <g
-                  key={p.uid}
-                  transform={`translate(${cx} ${cy})`}
-                  onClick={() => mode.type === 'idle' && setSelected(isSel ? null : p.uid)}
-                  style={{ cursor: 'pointer', opacity: isMoving ? 0.4 : 1, pointerEvents: mode.type === 'idle' ? 'auto' : 'none' }}
-                >
-                  {isSel && <polygon points={`${(-TW * s) / 2},0 0,${(TH * s) / 2} ${(TW * s) / 2},0 0,${(-TH * s) / 2}`} fill="#ffe066" stroke="#f2994a" strokeWidth={2} />}
-                  <g transform={s > 1 ? `scale(${s})` : undefined}>
-                    <BuildingSprite b={b} flip={p.flip} />
-                  </g>
-                </g>
-              )
-            })}
-          </svg>
-        </div>
+        <CityMap
+          city={city}
+          onTile={onTile}
+          onBuilding={(uid) => setSelected(selected === uid ? null : uid)}
+          selected={selected}
+          valid={mode.type === 'place' || mode.type === 'move' ? valid : undefined}
+          ghost={editingGround}
+          movingUid={mode.type === 'move' ? mode.uid : null}
+        />
+        <p className="muted small-text center map-hint">Glisse pour te déplacer · pince ou +/− pour zoomer · ⟳ pour tourner autour</p>
         {city.placed.length === 0 && mode.type === 'idle' && (
           <p className="muted small-text center">Ta ville est vide : ouvre tes packs puis pose tes bâtiments depuis l'inventaire.</p>
         )}
@@ -380,7 +326,7 @@ export function CityScreen({ city, onCity }: Props) {
             })}
           </div>
         )}
-        <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser.</p>
+        <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser. Pas de construction sur l'eau ni sur les ponts.</p>
       </section>
 
       {fragments.length > 0 && (
@@ -428,7 +374,7 @@ export function CityScreen({ city, onCity }: Props) {
             )
           })}
         </div>
-        <p className="muted small-text">Certains bâtiments ne s'obtiennent qu'avec les quêtes (onglet Calendrier). Les séances en salle ou en extérieur rapportent plus souvent des bâtiments d'escalade, les séances maison des parcs.</p>
+        <p className="muted small-text">Certains bâtiments ne s'obtiennent qu'avec les quêtes (accueil). Les séances en salle ou en extérieur rapportent plus souvent des bâtiments d'escalade, les séances maison des parcs.</p>
       </section>
 
       {opening && <PackOpening packs={opening} city={city} onCity={onCity} onClose={() => setOpening(null)} />}

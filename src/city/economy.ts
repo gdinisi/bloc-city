@@ -1,6 +1,6 @@
 import type { Session, SessionType } from '../types'
 import type { Building, BuildingCat, Rarity } from './buildings'
-import { BUILDINGS, BY_FRAGMENTS, DROPPABLE, GROUNDS, RARITIES, buildingById, cityLevel, gridSizeFor, sizeOf } from './buildings'
+import { BUILDINGS, BY_FRAGMENTS, DROPPABLE, GROUNDS, MAX_ELEVATION, RARITIES, UNBUILDABLE, buildingById, cityLevel, gridSizeFor, sizeOf } from './buildings'
 
 export type PackKind = 'seance' | 'bonus' | 'coffre' | 'bienvenue'
 
@@ -36,6 +36,8 @@ export interface CityState {
   discovered: string[]
   /** Sol peint, clé "x,y" -> texture */
   ground: Record<string, string>
+  /** Relief, clé "x,y" -> hauteur (0 à MAX_ELEVATION) */
+  elevation: Record<string, number>
   /** Textures débloquées par des quêtes */
   textures: string[]
   /** Quêtes déjà récupérées (clés uniques) */
@@ -68,6 +70,7 @@ export const newCity = (): CityState => ({
   rewarded: [],
   discovered: [],
   ground: {},
+  elevation: {},
   textures: [],
   claimed: [],
 })
@@ -308,7 +311,18 @@ export function canPlace(city: CityState, id: string, x: number, y: number, exce
   const grid = gridOf(city)
   if (x < 0 || y < 0 || x + size > grid || y + size > grid) return false
   const occ = occupiedTiles(city, exceptUid)
-  return footprint(x, y, size).every((k) => !occ.has(k))
+  // ni sur un bâtiment, ni sur l'eau ou un pont
+  return footprint(x, y, size).every((k) => !occ.has(k) && !UNBUILDABLE.includes(city.ground[k] ?? 'herbe'))
+}
+
+/** Monte (+1) ou creuse (-1) le terrain d'une case */
+export function sculpt(city: CityState, x: number, y: number, delta: 1 | -1): CityState {
+  const k = `${x},${y}`
+  const v = Math.max(0, Math.min(MAX_ELEVATION, (city.elevation[k] ?? 0) + delta))
+  const next = { ...city.elevation }
+  if (v === 0) delete next[k]
+  else next[k] = v
+  return { ...city, elevation: next }
 }
 
 export function place(city: CityState, id: string, x: number, y: number): CityState | null {
@@ -343,6 +357,8 @@ export function store(city: CityState, puid: string): CityState {
 
 export function paint(city: CityState, x: number, y: number, ground: string): CityState {
   const k = `${x},${y}`
+  // pas d'eau ni de pont sous un bâtiment
+  if (UNBUILDABLE.includes(ground) && occupiedTiles(city).has(k)) return city
   const next = { ...city.ground }
   if (ground === 'herbe') delete next[k]
   else next[k] = ground

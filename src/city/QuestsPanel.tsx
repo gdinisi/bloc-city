@@ -19,24 +19,24 @@ const GROUPS: { id: QuestGroup; label: string; hint: string }[] = [
   { id: 'succes', label: 'Succès', hint: 'Une seule fois, avec des bâtiments exclusifs' },
 ]
 
-function QuestRow({ q, city, onClaim }: { q: Quest; city: CityState; onClaim: (q: Quest) => void }) {
+function QuestRow({ q, city, onClaim, compact }: { q: Quest; city: CityState; onClaim: (q: Quest) => void; compact?: boolean }) {
   const done = isDone(q)
   const claimed = isClaimed(q, city)
   return (
-    <li className={`quest ${claimed ? 'claimed' : done ? 'done' : ''}`}>
+    <li className={`quest ${claimed ? 'claimed' : done ? 'done' : ''} ${compact ? 'compact' : ''}`}>
       <span className="quest-emoji">{q.emoji}</span>
       <span className="quest-body">
         <b>{q.title}</b>
         <span className="quest-bar">
           <i style={{ width: `${(q.progress / q.target) * 100}%` }} />
         </span>
-        <span className={`quest-reward ${q.exclusive ? 'excl' : ''}`}>{q.rewardLabel}</span>
+        {!compact && <span className={`quest-reward ${q.exclusive ? 'excl' : ''}`}>{q.rewardLabel}</span>}
       </span>
       {claimed ? (
         <span className="quest-state">✓</span>
       ) : done ? (
         <button type="button" className="btn primary small" onClick={() => onClaim(q)}>
-          Récupérer
+          {compact ? 'Prendre' : 'Récupérer'}
         </button>
       ) : (
         <span className="quest-state muted">
@@ -47,15 +47,9 @@ function QuestRow({ q, city, onClaim }: { q: Quest; city: CityState; onClaim: (q
   )
 }
 
-/** Carte des quêtes sur l'accueil : quêtes du jour et de la semaine, et accès aux succès */
-export function QuestsCard({ sessions, weeklyGoal, city, onCity }: Props) {
-  const [all, setAll] = useState(false)
+/** Récupération d'une quête, avec petit message et son */
+function useClaim(onCity: Props['onCity']) {
   const [toast, setToast] = useState<string | null>(null)
-  const quests = computeQuests(sessions, weeklyGoal, city)
-  const ready = claimableCount(quests, city)
-  const succes = quests.filter((q) => q.group === 'succes')
-  const succesDone = succes.filter((q) => isClaimed(q, city)).length
-
   const claim = (q: Quest) => {
     unlockAudio()
     onCity((c) => applyReward(c, q.reward, q.key))
@@ -65,57 +59,72 @@ export function QuestsCard({ sessions, weeklyGoal, city, onCity }: Props) {
     buzz(80)
     setTimeout(() => setToast(null), 2600)
   }
+  return { toast, claim }
+}
 
+function QuestsOverlay({ quests, city, onClaim, onClose, toast }: { quests: Quest[]; city: CityState; onClaim: (q: Quest) => void; onClose: () => void; toast: string | null }) {
+  const ready = claimableCount(quests, city)
   return (
-    <section className="card quests-card">
-      <div className="day-head">
-        <h2>🗺️ Quêtes</h2>
-        {ready > 0 && <span className="pill quest-ready">{ready} à récupérer</span>}
+    <div className="library" role="dialog" aria-label="Toutes les quêtes">
+      <div className="library-head">
+        <button type="button" className="round" aria-label="Retour" onClick={onClose}>
+          ‹
+        </button>
+        <h2>Quêtes</h2>
+        {ready > 0 && <span className="pill quest-ready">{ready}</span>}
       </div>
-      {(['jour', 'semaine'] as QuestGroup[]).map((g) => (
-        <div key={g}>
-          <div className="plan-phase quest-group">{GROUPS.find((x) => x.id === g)!.label}</div>
+      {GROUPS.map((g) => (
+        <section key={g.id}>
+          <div className="plan-phase quest-group">
+            {g.label} <span className="muted">· {g.hint}</span>
+          </div>
           <ul className="quest-list">
             {quests
-              .filter((q) => q.group === g)
+              .filter((q) => q.group === g.id)
               .map((q) => (
-                <QuestRow key={q.key} q={q} city={city} onClaim={claim} />
+                <QuestRow key={q.key} q={q} city={city} onClaim={onClaim} />
               ))}
           </ul>
-        </div>
+        </section>
       ))}
-      <button type="button" className="btn succes-btn" onClick={() => setAll(true)}>
-        🏆 Succès et bâtiments exclusifs · {succesDone}/{succes.length}
-        {succes.some((q) => isDone(q) && !isClaimed(q, city)) && <i className="dot" />}
-      </button>
       {toast && <div className="toast">{toast}</div>}
+    </div>
+  )
+}
 
-      {all && (
-        <div className="library" role="dialog" aria-label="Toutes les quêtes">
-          <div className="library-head">
-            <button type="button" className="round" aria-label="Retour" onClick={() => setAll(false)}>
-              ‹
-            </button>
-            <h2>Quêtes</h2>
-            {ready > 0 && <span className="pill quest-ready">{ready}</span>}
-          </div>
-          {GROUPS.map((g) => (
-            <section key={g.id}>
-              <div className="plan-phase quest-group">
-                {g.label} <span className="muted">· {g.hint}</span>
-              </div>
-              <ul className="quest-list">
-                {quests
-                  .filter((q) => q.group === g.id)
-                  .map((q) => (
-                    <QuestRow key={q.key} q={q} city={city} onClaim={claim} />
-                  ))}
-              </ul>
-            </section>
+/**
+ * Version compacte pour l'accueil : les 3 quêtes les plus utiles maintenant
+ * (d'abord celles à récupérer, puis les plus avancées).
+ */
+export function QuestsMini({ sessions, weeklyGoal, city, onCity }: Props) {
+  const [all, setAll] = useState(false)
+  const { toast, claim } = useClaim(onCity)
+  const quests = computeQuests(sessions, weeklyGoal, city)
+  const ready = claimableCount(quests, city)
+  const shown = quests
+    .filter((q) => !isClaimed(q, city))
+    .sort((a, b) => Number(isDone(b)) - Number(isDone(a)) || b.progress / b.target - a.progress / a.target)
+    .slice(0, 3)
+
+  return (
+    <section className="card home-quests">
+      <div className="day-head">
+        <h2>🗺️ Quêtes</h2>
+        <button type="button" className="link-btn" onClick={() => setAll(true)}>
+          {ready > 0 ? `${ready} à récupérer · ` : ''}Tout voir ›
+        </button>
+      </div>
+      {shown.length === 0 ? (
+        <p className="muted small-text">Toutes les quêtes du moment sont faites. Bravo !</p>
+      ) : (
+        <ul className="quest-list">
+          {shown.map((q) => (
+            <QuestRow key={q.key} q={q} city={city} onClaim={claim} compact />
           ))}
-          {toast && <div className="toast">{toast}</div>}
-        </div>
+        </ul>
       )}
+      {toast && <div className="toast">{toast}</div>}
+      {all && <QuestsOverlay quests={quests} city={city} onClaim={claim} onClose={() => setAll(false)} toast={toast} />}
     </section>
   )
 }

@@ -5,20 +5,16 @@ import { MONTHS, WEEKDAYS_SHORT, formatLongDate, monthGrid, toKey, weekKey } fro
 import { bestGrade, countsByWeek, recentBlocLevels, weeklyStreak } from '../lib/stats'
 import { formatHours } from '../lib/periodStats'
 import { SessionForm } from '../components/SessionForm'
-import type { CityState } from '../city/economy'
-import { QuestsCard } from '../city/QuestsPanel'
 
 interface Props {
   sessions: Session[]
-  city: CityState
-  onCity: (fn: (c: CityState) => CityState) => void
   weeklyGoal: number
   onGoalChange: (g: number) => void
   onSave: (s: Session) => void
   onDelete: (id: string) => void
 }
 
-export function CalendarScreen({ sessions, city, onCity, weeklyGoal, onGoalChange, onSave, onDelete }: Props) {
+export function CalendarScreen({ sessions, weeklyGoal, onGoalChange, onSave, onDelete }: Props) {
   const today = new Date()
   const todayKey = toKey(today)
   const [view, setView] = useState({ y: today.getFullYear(), m: today.getMonth() })
@@ -80,8 +76,6 @@ export function CalendarScreen({ sessions, city, onCity, weeklyGoal, onGoalChang
         </div>
         {thisWeek >= weeklyGoal && <div className="cheer">Objectif atteint, la série continue ! Les jours de repos ne la cassent pas.</div>}
       </section>
-
-      <QuestsCard sessions={sessions} weeklyGoal={weeklyGoal} city={city} onCity={onCity} />
 
       <section className="card">
         <div className="month-nav">

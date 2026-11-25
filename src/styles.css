@@ -990,6 +990,202 @@ input[type='range'] {
   color: var(--ink);
 }
 
+/* ---------- Accueil (tout sur un écran) ---------- */
+.screen.home {
+  gap: 10px;
+  padding-top: 0;
+}
+
+.home-date {
+  margin: 0;
+  font-weight: 800;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.home-date::first-letter {
+  text-transform: uppercase;
+}
+
+.home .card {
+  padding: 12px 14px;
+}
+
+.home-week {
+  cursor: pointer;
+}
+
+.home-week .big {
+  font-size: 2.1rem;
+}
+
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-top: 10px;
+}
+
+.wday {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.65);
+  padding: 3px 0 4px;
+  min-height: 42px;
+}
+
+.wday i {
+  font-style: normal;
+  font-size: 0.68rem;
+  font-weight: 900;
+  color: #6b5a2e;
+}
+
+.wday b {
+  font-size: 0.95rem;
+  line-height: 1.2;
+}
+
+.wday.has {
+  background: var(--tc);
+}
+
+.wday.has i {
+  color: #fff;
+}
+
+.wday.today {
+  box-shadow: inset 0 0 0 2.5px var(--ink);
+}
+
+.wday.future {
+  opacity: 0.55;
+}
+
+.home-actions {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 10px;
+}
+
+.home-actions .btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 9px 8px;
+  line-height: 1.2;
+}
+
+.home-actions small {
+  font-size: 0.72rem;
+  font-weight: 700;
+  opacity: 0.9;
+}
+
+.home-rewards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.mini-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  padding: 8px 4px;
+  border-radius: 14px;
+  border: 2.5px solid var(--line);
+  background: #fff;
+  box-shadow: 0 3px 0 var(--line);
+}
+
+.mini-tile b {
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.mini-tile span {
+  font-size: 0.68rem;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.mini-tile.hot {
+  background: #ffe8d6;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.home-quests .quest-list {
+  gap: 6px;
+}
+
+.quest.compact {
+  padding: 6px 10px;
+}
+
+.quest.compact .quest-emoji {
+  font-size: 1.2rem;
+}
+
+.quest.compact .quest-body {
+  font-size: 0.82rem;
+}
+
+.link-btn {
+  font-weight: 800;
+  font-size: 0.85rem;
+  color: var(--accent-2);
+}
+
+.home-city {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  padding: 8px 12px !important;
+}
+
+.city-map.mini {
+  flex: 1;
+  height: 112px;
+}
+
+.city-map.mini .city-svg {
+  height: 112px;
+}
+
+.home-city-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 0.85rem;
+  min-width: 108px;
+}
+
+.tabbar button.center .tab-emoji {
+  width: 50px;
+  height: 50px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 0 var(--line);
+}
+
+.tabbar button.center.on {
+  background: none;
+}
+
+.tabbar button.center.on .tab-emoji {
+  background: #ffd166;
+}
+
 /* ---------- Ville ---------- */
 .tab-emoji {
   position: relative;
@@ -1229,8 +1425,49 @@ input[type='range'] {
 
 .city-tools {
   display: flex;
-  justify-content: space-between;
+  gap: 8px;
   align-items: center;
+  margin-bottom: 6px;
+}
+
+.city-tools .btn {
+  margin-left: auto;
+}
+
+.city-map {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff6e2;
+}
+
+.city-map .city-svg {
+  display: block;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.map-controls {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.map-controls .round {
+  width: 36px;
+  height: 36px;
+  box-shadow: 0 2px 0 var(--line);
+}
+
+.map-hint {
+  margin: 6px 0 0;
+}
+
+.relief-seg {
   margin-bottom: 6px;
 }
 

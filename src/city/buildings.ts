@@ -157,11 +157,18 @@ export interface Ground {
 export const GROUNDS: Ground[] = [
   { id: 'herbe', name: 'Herbe', level: 1 },
   { id: 'route', name: 'Route', level: 1 },
+  { id: 'eau', name: 'Eau', level: 1 },
+  { id: 'pont', name: 'Pont', level: 2 },
   { id: 'terre', name: 'Terre', level: 2 },
   { id: 'paves', name: 'Pavés', level: 3 },
   { id: 'sable', name: 'Sable', level: 4 },
-  { id: 'eau', name: 'Eau', level: 5 },
   { id: 'planches', name: 'Planches', level: 6 },
   { id: 'neige', name: 'Neige', level: 7 },
   { id: 'fleurs', name: 'Prairie fleurie', quest: true },
 ]
+
+/** Sols sur lesquels on ne peut pas construire */
+export const UNBUILDABLE = ['eau', 'pont']
+
+/** Hauteur maximale du relief (en marches) */
+export const MAX_ELEVATION = 3
