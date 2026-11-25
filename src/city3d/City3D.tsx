@@ -6,7 +6,24 @@ import { Sky } from 'three/examples/jsm/objects/Sky.js'
 import type { CityState } from '../city/economy'
 import { gridOf } from '../city/economy'
 import { buildingById, sizeOf } from '../city/buildings'
-import { buildMesh, disposeMaterials, mat } from './buildings3d'
+import { buildMesh, disposeMaterials, mat, setTextures } from './buildings3d'
+import type { TexId } from './textures'
+import { disposeTextures, worldUV } from './textures'
+import { occupiedTiles } from '../city/economy'
+
+/** Texture du dessus de chaque type de sol */
+const GROUND_TEX: Record<string, TexId> = {
+  herbe: 'grass',
+  fleurs: 'grass',
+  route: 'asphalt',
+  terre: 'dirt',
+  paves: 'paving',
+  sable: 'sand',
+  planches: 'planks',
+  neige: 'snow',
+  eau: 'seabed',
+  pont: 'seabed',
+}
 
 /*
  * Prototype de vue 3D de la ville (Three.js / WebGL).
@@ -34,6 +51,47 @@ const GROUND_TOP: Record<string, string> = {
   pont: '#c9b98a',
   eau: '#c9b98a',
 }
+
+/** Réglages d'ambiance : coucher de soleil doré ou plein jour au ciel bleu profond */
+const AMBIANCE = {
+  couchant: {
+    elevation: 6,
+    azimuth: 200,
+    turbidity: 8,
+    rayleigh: 2.5,
+    mie: 0.005,
+    mieG: 0.85,
+    exposure: 0.55,
+    env: 0.6,
+    sun: '#ffb27a',
+    sunI: 2.4,
+    sky: '#bfe3ff',
+    ground: '#6b8f4e',
+    hemi: 0.5,
+    fog: '#e8b9a0',
+    water: 0x1e5f8a,
+    sunColor: 0xffc59a,
+  },
+  jour: {
+    // soleil assez haut mais pas au zénith : ombres franches, ciel bleu saturé
+    elevation: 30,
+    azimuth: 150,
+    turbidity: 2,
+    rayleigh: 0.7,
+    mie: 0.003,
+    mieG: 0.8,
+    exposure: 0.42,
+    env: 0.42,
+    sun: '#fff1d6',
+    sunI: 2.5,
+    sky: '#8fc3f0',
+    ground: '#55783a',
+    hemi: 0.5,
+    fog: '#a9cbe8',
+    water: 0x17689c,
+    sunColor: 0xfff4e0,
+  },
+} as const
 
 /** Texture de normales générée en code (pas d'image à télécharger) pour les vaguelettes */
 function makeWaterNormals() {
@@ -90,7 +148,8 @@ export default function City3D({ city, onClose }: Props) {
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, pretty ? 2 : 1.25))
     renderer.setSize(el.clientWidth, el.clientHeight)
     renderer.toneMapping = THREE.ACESFilmicToneMapping
-    renderer.toneMappingExposure = light === 'couchant' ? 0.55 : 0.3
+    const A = AMBIANCE[light]
+    renderer.toneMappingExposure = A.exposure
     renderer.shadowMap.enabled = pretty
     renderer.shadowMap.type = THREE.PCFSoftShadowMap
     el.appendChild(renderer.domElement)
@@ -112,17 +171,15 @@ export default function City3D({ city, onClose }: Props) {
 
     // ---------- ciel et soleil ----------
     const sun = new THREE.Vector3()
-    const elevation = light === 'couchant' ? 6 : 38
-    const azimuth = 200
-    sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth))
+    sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - A.elevation), THREE.MathUtils.degToRad(A.azimuth))
 
     const sky = new Sky()
     sky.scale.setScalar(1000)
     const su = sky.material.uniforms
-    su['turbidity'].value = light === 'couchant' ? 8 : 4
-    su['rayleigh'].value = light === 'couchant' ? 2.5 : 1.2
-    su['mieCoefficient'].value = 0.005
-    su['mieDirectionalG'].value = 0.85
+    su['turbidity'].value = A.turbidity
+    su['rayleigh'].value = A.rayleigh
+    su['mieCoefficient'].value = A.mie
+    su['mieDirectionalG'].value = A.mieG
     su['sunPosition'].value.copy(sun)
     scene.add(sky)
 
@@ -133,9 +190,9 @@ export default function City3D({ city, onClose }: Props) {
     const envRT = pmrem.fromScene(skyScene as unknown as THREE.Scene)
     scene.environment = envRT.texture
     // en plein jour le ciel éclaire beaucoup : on modère pour garder des couleurs franches
-    scene.environmentIntensity = light === 'couchant' ? 0.6 : 0.22
+    scene.environmentIntensity = A.env
 
-    const sunLight = new THREE.DirectionalLight(light === 'couchant' ? '#ffb27a' : '#fff4e0', light === 'couchant' ? 2.4 : 2.6)
+    const sunLight = new THREE.DirectionalLight(A.sun, A.sunI)
     sunLight.position.copy(sun).multiplyScalar(G * 2)
     sunLight.castShadow = pretty
     sunLight.shadow.mapSize.set(2048, 2048)
@@ -146,8 +203,8 @@ export default function City3D({ city, onClose }: Props) {
     sc.far = G * 6
     sunLight.shadow.bias = -0.0008
     scene.add(sunLight)
-    scene.add(new THREE.HemisphereLight('#bfe3ff', '#6b8f4e', 0.5))
-    scene.fog = new THREE.Fog(light === 'couchant' ? '#e8b9a0' : '#cfe3f3', G * 2.2, G * 8)
+    scene.add(new THREE.HemisphereLight(A.sky, A.ground, A.hemi))
+    scene.fog = new THREE.Fog(A.fog, G * 2.2, G * 8)
 
     // ---------- mer ----------
     const waterNormals = makeWaterNormals()
@@ -156,8 +213,8 @@ export default function City3D({ city, onClose }: Props) {
       textureHeight: pretty ? 512 : 256,
       waterNormals,
       sunDirection: sun.clone().normalize(),
-      sunColor: light === 'couchant' ? 0xffc59a : 0xffffff,
-      waterColor: 0x1e5f8a,
+      sunColor: A.sunColor,
+      waterColor: A.water,
       distortionScale: 1.3,
       fog: true,
     })
@@ -167,14 +224,21 @@ export default function City3D({ city, onClose }: Props) {
     scene.add(water)
 
     // fond marin sableux
-    const seabed = new THREE.Mesh(new THREE.PlaneGeometry(600, 600), mat('#b8a878'))
+    const seabedGeo = new THREE.PlaneGeometry(600, 600)
+    const suv = seabedGeo.getAttribute('uv') as THREE.BufferAttribute
+    for (let i = 0; i < suv.count; i++) suv.setXY(i, suv.getX(i) * 150, suv.getY(i) * 150)
+    const seabed = new THREE.Mesh(seabedGeo, mat(pretty ? '#ffffff' : '#b8a878', { tex: 'seabed' }))
     seabed.rotation.x = -Math.PI / 2
     seabed.position.y = BOTTOM
     scene.add(seabed)
 
     // ---------- île : une colonne par case ----------
-    const side = mat('#8a5a35')
+    setTextures(pretty)
+    const side = mat(pretty ? '#ffffff' : '#8a5a35', { tex: 'dirt', bump: 1.2 })
+    const lipSide = mat('#ffffff', { tex: 'grassSide', bump: 1 })
     const geos: THREE.BufferGeometry[] = []
+    const tufts: THREE.Matrix4[] = []
+    const occupied = occupiedTiles(city)
     const groundAt = (x: number, y: number) => (x < 0 || y < 0 || x >= G || y >= G ? null : (city.ground[`${x},${y}`] ?? 'herbe'))
     const topOf = (x: number, y: number) => {
       const gid = groundAt(x, y)
@@ -189,13 +253,37 @@ export default function City3D({ city, onClose }: Props) {
         const gid = groundAt(x, y)!
         const top = topOf(x, y)
         const h = top - BOTTOM
-        const geo = new THREE.BoxGeometry(1, h, 1)
+        const geo = worldUV(new THREE.BoxGeometry(1, h, 1), 1, h, 1, 1)
         geos.push(geo)
         // damier léger pour distinguer les cases
-        const baseColor = GROUND_TOP[gid] ?? GROUND_TOP.herbe
-        const topColor = (x + y) % 2 && gid !== 'route' ? `#${new THREE.Color(baseColor).offsetHSL(0, 0, -0.035).getHexString()}` : baseColor
-        const topMat = mat(topColor, { rough: gid === 'route' ? 0.7 : 0.95 })
+        const tex = GROUND_TEX[gid] ?? 'grass'
+        const baseColor = pretty ? '#ffffff' : (GROUND_TOP[gid] ?? GROUND_TOP.herbe)
+        const topColor = (x + y) % 2 && gid !== 'route' ? `#${new THREE.Color(baseColor).offsetHSL(0, 0, -0.04).getHexString()}` : baseColor
+        const topMat = mat(topColor, { rough: gid === 'route' ? 0.75 : 0.95, tex, bump: gid === 'paves' || gid === 'planches' ? 1.3 : 1 })
         const m = new THREE.Mesh(geo, [side, side, topMat, side, side, side])
+        const grassy = gid === 'herbe' || gid === 'fleurs'
+        // rebord d'herbe sur les flancs (aspect « bloc »)
+        if (pretty && grassy) {
+          const lipGeo = new THREE.BoxGeometry(1.004, 0.16, 1.004)
+          geos.push(lipGeo)
+          const lip = new THREE.Mesh(lipGeo, [lipSide, lipSide, topMat, side, lipSide, lipSide])
+          lip.position.set(X(x), top - 0.08 + 0.002, Z(y))
+          lip.receiveShadow = true
+          scene.add(lip)
+        }
+        // touffes d'herbe en relief
+        if (pretty && grassy && !occupied.has(`${x},${y}`)) {
+          for (let k = 0; k < 5; k++) {
+            const mtx = new THREE.Matrix4()
+            const s = 0.6 + Math.random() * 0.8
+            mtx.compose(
+              new THREE.Vector3(X(x) + (Math.random() - 0.5) * 0.86, top + 0.05 * s, Z(y) + (Math.random() - 0.5) * 0.86),
+              new THREE.Quaternion().setFromEuler(new THREE.Euler((Math.random() - 0.5) * 0.4, Math.random() * Math.PI, (Math.random() - 0.5) * 0.4)),
+              new THREE.Vector3(s, s, s),
+            )
+            tufts.push(mtx)
+          }
+        }
         m.position.set(X(x), BOTTOM + h / 2, Z(y))
         m.receiveShadow = true
         m.castShadow = pretty
@@ -213,7 +301,8 @@ export default function City3D({ city, onClose }: Props) {
           ).filter(([dx, dy]) => ['route', 'pont'].includes(groundAt(x + dx, y + dy) ?? ''))
           if (gid === 'pont') {
             const along = links.some(([dx]) => dx !== 0) || !links.length
-            const deck = new THREE.Mesh(new THREE.BoxGeometry(along ? 1 : 0.6, 0.08, along ? 0.6 : 1), mat('#b07a45'))
+            const deckGeo = worldUV(new THREE.BoxGeometry(along ? 1 : 0.6, 0.08, along ? 0.6 : 1), along ? 1 : 0.6, 0.08, along ? 0.6 : 1, 1)
+            const deck = new THREE.Mesh(deckGeo, mat(pretty ? '#e8c9a0' : '#b07a45', { tex: 'planks', bump: 1.2 }))
             deck.position.set(X(x), WATER_Y + 0.22, Z(y))
             deck.castShadow = deck.receiveShadow = true
             scene.add(deck)
@@ -239,6 +328,21 @@ export default function City3D({ city, onClose }: Props) {
           }
         }
       }
+
+    // touffes d'herbe : un seul objet instancié pour des centaines de brins (léger)
+    let tuftMesh: THREE.InstancedMesh | null = null
+    if (tufts.length) {
+      const tuftGeo = new THREE.ConeGeometry(0.035, 0.14, 3)
+      geos.push(tuftGeo)
+      tuftMesh = new THREE.InstancedMesh(tuftGeo, new THREE.MeshStandardMaterial({ color: '#5fa843', roughness: 1, flatShading: true }), tufts.length)
+      const c = new THREE.Color()
+      tufts.forEach((m, i) => {
+        tuftMesh!.setMatrixAt(i, m)
+        tuftMesh!.setColorAt(i, c.setHSL(0.25 + Math.random() * 0.06, 0.48, 0.42 + Math.random() * 0.14))
+      })
+      tuftMesh.receiveShadow = true
+      scene.add(tuftMesh)
+    }
 
     // ---------- bâtiments ----------
     const pickables: THREE.Object3D[] = []
@@ -346,6 +450,8 @@ export default function City3D({ city, onClose }: Props) {
       pmrem.dispose()
       cloudMat.dispose()
       disposeMaterials()
+      disposeTextures()
+      tuftMesh?.dispose()
       renderer.dispose()
       el.removeChild(renderer.domElement)
     }
