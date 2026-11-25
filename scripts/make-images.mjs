@@ -14,4 +14,8 @@ await sharp(SRC).extract({ left: 300, top: 450, width: 436, height: 330 }).resiz
 await sharp('assets/home-source.webp').resize(1200).webp({ quality: 80 }).toFile('public/img/home-banner.webp')
 // Séance « Complet » : grimpeur au sommet sous la lune (assets/focus-complet-source.png)
 await sharp('assets/focus-complet-source.png').resize(700).webp({ quality: 80 }).toFile('public/img/focus-complet.webp')
+// Séance « Gainage » : grimpeuse en veste rouge sur l'arête (assets/focus-gainage-source.webp)
+await sharp('assets/focus-gainage-source.webp').resize(700).webp({ quality: 80 }).toFile('public/img/focus-gainage.webp')
+// … et un recadrage serré sur la grimpeuse pour les petites cartes
+await sharp('assets/focus-gainage-source.webp').extract({ left: 110, top: 430, width: 470, height: 600 }).resize(470).webp({ quality: 80 }).toFile('public/img/focus-gainage-card.webp')
 console.log('images ok')

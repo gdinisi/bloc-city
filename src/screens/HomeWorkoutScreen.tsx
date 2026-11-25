@@ -127,7 +127,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
                   className={`focus-btn ${focus === f.id ? 'on' : ''}`}
                   onClick={() => setHome({ focus: f.id })}
                 >
-                  <FocusArt focus={f.id} seed={3} className="focus-art" />
+                  <FocusArt focus={f.id} seed={3} className="focus-art" card />
                   <b>{f.label}</b>
                   <span>{enabled ? f.hint : 'Poutre ou élastique requis'}</span>
                 </button>

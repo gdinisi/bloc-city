@@ -5022,3 +5022,25 @@ img.focus-photo {
 .workout-hero img.focus-photo {
   object-position: 42% 62%;
 }
+
+/* cadrage de la photo « Gainage » : la grimpeuse est en bas de l'image */
+img.photo-gainage {
+  object-position: 48% 72%;
+}
+
+.workout-hero img.photo-gainage,
+.focus-btn img.photo-gainage {
+  object-position: 48% 92%;
+}
+
+img.photo-gainage.card {
+  object-position: 50% 30%;
+}
+
+.focus-btn img.photo-gainage.card {
+  object-position: 50% 45%;
+}
+
+.workout-hero img.photo-gainage {
+  object-position: 48% 100%;
+}

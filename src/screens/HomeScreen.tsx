@@ -150,7 +150,7 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
         <div className="reco-scroll">
           {focuses.map((f, i) => (
             <button key={f.id} type="button" className="reco-card" onClick={() => startFocus(f.id)}>
-              <FocusArt focus={f.id} seed={i + 3} />
+              <FocusArt focus={f.id} seed={i + 3} card />
               <span className="reco-body">
                 <b>{f.label}</b>
                 <small>{f.hint}</small>
