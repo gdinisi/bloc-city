@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session, Settings } from '../types'
+import type { CityState } from '../city/economy'
+import { newCity, rewardSessions } from '../city/economy'
 
 /**
- * Étape 1 : les données sont gardées sur le téléphone (localStorage).
+ * Les données sont gardées sur le téléphone (localStorage).
  * À l'étape "comptes et amis", elles seront synchronisées avec Supabase.
  */
 const KEY = 'blocCity.v1'
@@ -10,29 +12,28 @@ const KEY = 'blocCity.v1'
 interface Data {
   sessions: Session[]
   settings: Settings
+  city: CityState
 }
 
-const DEFAULT: Data = {
-  sessions: [],
-  settings: { weeklyGoal: 3, equipment: [], home: { minutes: 30, fatigue: 'normal', focus: 'complet' } },
-}
+const DEFAULT_SETTINGS: Settings = { weeklyGoal: 3, equipment: [], home: { minutes: 30, fatigue: 'normal', focus: 'complet' } }
 
 const load = (): Data => {
+  let sessions: Session[] = []
+  let settings = DEFAULT_SETTINGS
+  let city = newCity()
   try {
     const raw = localStorage.getItem(KEY)
-    if (!raw) return DEFAULT
-    const parsed = JSON.parse(raw) as Partial<Data>
-    return {
-      sessions: Array.isArray(parsed.sessions) ? parsed.sessions : [],
-      settings: {
-        ...DEFAULT.settings,
-        ...parsed.settings,
-        home: { ...DEFAULT.settings.home, ...parsed.settings?.home },
-      },
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<Data>
+      sessions = Array.isArray(parsed.sessions) ? parsed.sessions : []
+      settings = { ...DEFAULT_SETTINGS, ...parsed.settings, home: { ...DEFAULT_SETTINGS.home, ...parsed.settings?.home } }
+      if (parsed.city) city = { ...newCity(), ...parsed.city, packs: parsed.city.packs ?? [] }
     }
   } catch {
-    return DEFAULT
+    /* données illisibles : on repart de zéro */
   }
+  // chaque séance déjà enregistrée rapporte son pack (une seule fois)
+  return { sessions, settings, city: rewardSessions(city, sessions) }
 }
 
 const save = (d: Data) => {
@@ -57,7 +58,8 @@ export function useAppData() {
     setData((d) => {
       const exists = d.sessions.some((x) => x.id === s.id)
       const sessions = exists ? d.sessions.map((x) => (x.id === s.id ? s : x)) : [...d.sessions, s]
-      return { ...d, sessions }
+      // une nouvelle séance d'entraînement rapporte un pack
+      return { ...d, sessions, city: rewardSessions(d.city, sessions) }
     })
   }, [])
 
@@ -73,5 +75,9 @@ export function useAppData() {
     setData((d) => ({ ...d, settings: { ...d.settings, ...patch } }))
   }, [])
 
-  return { ...data, upsertSession, deleteSession, setWeeklyGoal, updateSettings }
+  const updateCity = useCallback((fn: (c: CityState) => CityState) => {
+    setData((d) => ({ ...d, city: fn(d.city) }))
+  }, [])
+
+  return { ...data, upsertSession, deleteSession, setWeeklyGoal, updateSettings, updateCity }
 }

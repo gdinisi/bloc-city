@@ -27,7 +27,7 @@ Ouvrir l'adresse dans **Safari** → bouton Partager → **Sur l'écran d'accuei
 - [x] Étape 1 : calendrier, saisie des séances (type, durée, ressenti, cotations), objectif hebdo, série hebdo
 - [x] Étape 2 : séances maison guidées (15/30/45 min, forme, objectif), adaptées au matériel de chacun, minuteur avec bips, validation automatique
 - [x] Fiches d'exercices : bouton ⓘ (étapes, erreurs à éviter, variantes, lien vidéo) et animations SVG du bonhomme. Galerie de contrôle des animations en dev : `/bloc-city/?galerie`
-- [ ] Étape 3 : ville isométrique et packs de bâtiments
+- [x] Étape 3 : ville isométrique (8 × 8) et 28 bâtiments en 4 raretés, packs par séance (bonus si longue / intense), coffre du jour toutes les 6 h, doublons → pièces, boutique, population et niveau de ville. Galerie de contrôle en dev : `/bloc-city/?batiments`
 - [ ] Étape 4 : comptes Supabase, amis et classement
 
 Les icônes sont générées depuis `public/logo.svg` avec `npm run icons`.

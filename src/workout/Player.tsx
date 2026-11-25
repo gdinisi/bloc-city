@@ -272,7 +272,7 @@ function Finished({ session, onSave, onClose }: { session: Session; onSave: (s: 
         <p className="player-cue">
           {session.durationMin} min ajoutées à ton calendrier.
           <br />
-          Bientôt, chaque séance t'offrira un pack de bâtiments pour ta ville.
+          🎁 Un pack de bâtiments t'attend dans l'onglet Ville !
         </p>
         <label className="field finished-rpe">
           <span>

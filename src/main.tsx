@@ -3,12 +3,15 @@ import { createRoot } from 'react-dom/client'
 import { registerSW } from 'virtual:pwa-register'
 import App from './App'
 import { Gallery } from './workout/Gallery'
+import { BuildingGallery } from './city/BuildingGallery'
 import './styles.css'
 
 registerSW({ immediate: true })
 
-const showGallery = import.meta.env.DEV && new URLSearchParams(location.search).has('galerie')
+const q = new URLSearchParams(location.search)
+const showGallery = import.meta.env.DEV && q.has('galerie')
+const showBuildings = import.meta.env.DEV && q.has('batiments')
 
 createRoot(document.getElementById('root')!).render(
-  <StrictMode>{showGallery ? <Gallery /> : <App />}</StrictMode>,
+  <StrictMode>{showGallery ? <Gallery /> : showBuildings ? <BuildingGallery /> : <App />}</StrictMode>,
 )

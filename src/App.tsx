@@ -4,6 +4,8 @@ import { CalendarScreen } from './screens/CalendarScreen'
 import { ComingSoon } from './screens/ComingSoon'
 import { HomeWorkoutScreen } from './screens/HomeWorkoutScreen'
 import { StatsScreen } from './screens/StatsScreen'
+import { CityScreen } from './city/CityScreen'
+import { chestReadyAt } from './city/economy'
 
 type Tab = 'calendrier' | 'seances' | 'stats' | 'ville' | 'classement'
 
@@ -18,6 +20,8 @@ const TABS: { id: Tab; label: string; emoji: string }[] = [
 export default function App() {
   const [tab, setTab] = useState<Tab>('calendrier')
   const data = useAppData()
+  // packs à ouvrir + coffre du jour prêt
+  const cityBadge = data.city.packs.length + (Date.now() >= chestReadyAt(data.city) ? 1 : 0)
 
   return (
     <div className="app">
@@ -40,13 +44,7 @@ export default function App() {
           <HomeWorkoutScreen sessions={data.sessions} settings={data.settings} onSettings={data.updateSettings} onSave={data.upsertSession} />
         )}
         {tab === 'stats' && <StatsScreen sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} />}
-        {tab === 'ville' && (
-          <ComingSoon
-            emoji="🏙️"
-            title="Ta ville"
-            lines={['Un pack de bâtiments à chaque séance', 'Un coffre gratuit plusieurs fois par jour', 'Place tes bâtiments au doigt']}
-          />
-        )}
+        {tab === 'ville' && <CityScreen city={data.city} onCity={data.updateCity} />}
         {tab === 'classement' && (
           <ComingSoon
             emoji="🏆"
@@ -57,12 +55,18 @@ export default function App() {
       </main>
 
       <nav className="tabbar">
-        {TABS.map((t) => (
-          <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
-            <span className="tab-emoji">{t.emoji}</span>
-            <span>{t.label}</span>
-          </button>
-        ))}
+        {TABS.map((t) => {
+          const badge = t.id === 'ville' ? cityBadge : 0
+          return (
+            <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
+              <span className="tab-emoji">
+                {t.emoji}
+                {badge > 0 && <i className="tab-badge">{badge}</i>}
+              </span>
+              <span>{t.label}</span>
+            </button>
+          )
+        })}
       </nav>
     </div>
   )
