@@ -10,6 +10,8 @@ import * as THREE from 'three'
 
 export type TexId =
   | 'grass'
+  | 'meadow'
+  | 'soil'
   | 'grassSide'
   | 'dirt'
   | 'rock'
@@ -30,6 +32,8 @@ export type TexId =
 /** Répétitions de la texture par unité de longueur (taille d'une case = 1) */
 export const DENSITY: Record<TexId, number> = {
   grass: 1,
+  meadow: 1,
+  soil: 1,
   grassSide: 1,
   dirt: 1,
   rock: 1.2,
@@ -96,8 +100,303 @@ interface Paint {
   height: (x: number, y: number) => number
 }
 
+/* ---------- Détails dessinés au trait (brins, fleurs, gravillons, pavés…) ---------- */
+
+type Deco = (ctx: CanvasRenderingContext2D, r: () => number) => void
+
+/** Dessine une forme et ses copies de l'autre côté des bords (texture sans couture) */
+function each9(x: number, y: number, m: number, f: (x: number, y: number) => void) {
+  for (const dx of [0, -N, N])
+    for (const dy of [0, -N, N]) {
+      const X = x + dx
+      const Y = y + dy
+      if (X > -m && X < N + m && Y > -m && Y < N + m) f(X, Y)
+    }
+}
+
+const pick = <T,>(r: () => number, arr: T[]) => arr[Math.floor(r() * arr.length)]
+
+function grassBlades(ctx: CanvasRenderingContext2D, r: () => number, count: number) {
+  const blades = ['#3a7228', '#4e8f36', '#5c9c3f', '#76b84f', '#97cf6a', '#2f6322', '#b5e07f']
+  ctx.lineCap = 'round'
+  for (let i = 0; i < count; i++) {
+    const x = r() * N
+    const y = r() * N
+    const len = 5 + r() * 9
+    const ang = -Math.PI / 2 + (r() - 0.5) * 1.1
+    ctx.strokeStyle = pick(r, blades)
+    ctx.lineWidth = 1.3 + r() * 1.3
+    each9(x, y, 10, (X, Y) => {
+      ctx.beginPath()
+      ctx.moveTo(X, Y)
+      ctx.quadraticCurveTo(X + Math.cos(ang) * len * 0.5 + (r() - 0.5) * 2, Y + Math.sin(ang) * len * 0.5, X + Math.cos(ang) * len, Y + Math.sin(ang) * len)
+      ctx.stroke()
+    })
+  }
+}
+
+function flowers(ctx: CanvasRenderingContext2D, r: () => number, count: number, colors: string[], size: number) {
+  for (let i = 0; i < count; i++) {
+    const x = r() * N
+    const y = r() * N
+    const c = pick(r, colors)
+    const s = size * (0.7 + r() * 0.6)
+    each9(x, y, 6, (X, Y) => {
+      ctx.fillStyle = c
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2
+        ctx.beginPath()
+        ctx.arc(X + Math.cos(a) * s * 0.7, Y + Math.sin(a) * s * 0.7, s * 0.55, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.fillStyle = '#ffd34d'
+      ctx.beginPath()
+      ctx.arc(X, Y, s * 0.4, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  }
+}
+
+function dots(ctx: CanvasRenderingContext2D, r: () => number, count: number, colors: string[], min: number, max: number) {
+  for (let i = 0; i < count; i++) {
+    const x = r() * N
+    const y = r() * N
+    ctx.fillStyle = pick(r, colors)
+    const s = min + r() * (max - min)
+    each9(x, y, max + 1, (X, Y) => {
+      ctx.beginPath()
+      ctx.arc(X, Y, s, 0, Math.PI * 2)
+      ctx.fill()
+    })
+  }
+}
+
+/** Petits cailloux arrondis avec reflet */
+function pebbles(ctx: CanvasRenderingContext2D, r: () => number, count: number, colors: string[], min: number, max: number) {
+  for (let i = 0; i < count; i++) {
+    const x = r() * N
+    const y = r() * N
+    const w = min + r() * (max - min)
+    const h = w * (0.6 + r() * 0.3)
+    const c = pick(r, colors)
+    const rot = r() * Math.PI
+    each9(x, y, max + 2, (X, Y) => {
+      ctx.save()
+      ctx.translate(X, Y)
+      ctx.rotate(rot)
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'
+      ctx.beginPath()
+      ctx.ellipse(0.8, 1, w, h, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = c
+      ctx.beginPath()
+      ctx.ellipse(0, 0, w, h, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'
+      ctx.beginPath()
+      ctx.ellipse(-w * 0.3, -h * 0.35, w * 0.4, h * 0.3, 0, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.restore()
+    })
+  }
+}
+
+const DECO: Partial<Record<TexId, Deco>> = {
+  grass: (ctx, r) => {
+    dots(ctx, r, 70, ['#7a5a3a', '#8b6a45'], 0.5, 1)
+    grassBlades(ctx, r, 1500)
+    // trèfles
+    for (let i = 0; i < 26; i++) {
+      const x = r() * N
+      const y = r() * N
+      each9(x, y, 5, (X, Y) => {
+        ctx.fillStyle = '#4f9636'
+        for (let k = 0; k < 3; k++) {
+          const a = (k / 3) * Math.PI * 2 - Math.PI / 2
+          ctx.beginPath()
+          ctx.arc(X + Math.cos(a) * 1.7, Y + Math.sin(a) * 1.7, 1.6, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      })
+    }
+    flowers(ctx, r, 10, ['#ffffff', '#fff3a3'], 1.4)
+  },
+  meadow: (ctx, r) => {
+    grassBlades(ctx, r, 1300)
+    flowers(ctx, r, 95, ['#ff70a6', '#ffffff', '#9b5de5', '#ff8fab', '#ffd166', '#74c0fc'], 2)
+  },
+  soil: (ctx, r) => {
+    pebbles(ctx, r, 70, ['#6f4b2e', '#8a6040', '#a27450', '#5c3d24'], 2, 5)
+    pebbles(ctx, r, 22, ['#9a948c', '#b5afa6', '#80796f'], 1.5, 3.5)
+    // racines
+    ctx.strokeStyle = 'rgba(60,38,20,0.6)'
+    ctx.lineWidth = 1
+    for (let i = 0; i < 4; i++) {
+      let x = r() * N
+      let y = r() * N
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      for (let k = 0; k < 8; k++) {
+        x += (r() - 0.3) * 8
+        y += (r() - 0.5) * 8
+        ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+    grassBlades(ctx, r, 80)
+  },
+  asphalt: (ctx, r) => {
+    // rapiéçages
+    for (let i = 0; i < 3; i++) {
+      const x = r() * N
+      const y = r() * N
+      const w = 30 + r() * 50
+      const h = 20 + r() * 40
+      ctx.fillStyle = r() > 0.5 ? 'rgba(30,32,38,0.35)' : 'rgba(140,140,150,0.18)'
+      each9(x, y, 90, (X, Y) => ctx.fillRect(X, Y, w, h))
+    }
+    dots(ctx, r, 1600, ['#9a9ca5', '#5a5c64', '#7d7f88', '#b4b6bd'], 0.4, 1.1)
+    // fissures
+    ctx.strokeStyle = 'rgba(15,15,20,0.75)'
+    ctx.lineWidth = 1
+    for (let i = 0; i < 5; i++) {
+      let x = r() * N
+      let y = r() * N
+      ctx.beginPath()
+      ctx.moveTo(x, y)
+      for (let k = 0; k < 14; k++) {
+        x += (r() - 0.5) * 9
+        y += (r() - 0.5) * 9
+        ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+    // taches d'huile
+    for (let i = 0; i < 2; i++) {
+      const x = r() * N
+      const y = r() * N
+      each9(x, y, 30, (X, Y) => {
+        const g = ctx.createRadialGradient(X, Y, 1, X, Y, 22)
+        g.addColorStop(0, 'rgba(10,10,15,0.35)')
+        g.addColorStop(1, 'rgba(10,10,15,0)')
+        ctx.fillStyle = g
+        ctx.fillRect(X - 22, Y - 22, 44, 44)
+      })
+    }
+  },
+  paving: (ctx, r) => {
+    // vrais pavés arrondis posés en rangs décalés
+    ctx.fillStyle = '#5f574f'
+    ctx.fillRect(0, 0, N, N)
+    const rows = 8
+    const cell = N / rows
+    for (let row = 0; row < rows; row++)
+      for (let col = 0; col < rows; col++) {
+        const off = row % 2 ? cell / 2 : 0
+        const cx = col * cell + off + cell / 2 + (r() - 0.5) * 3
+        const cy = row * cell + cell / 2 + (r() - 0.5) * 3
+        const w = cell * (0.4 + r() * 0.06)
+        const h = cell * (0.4 + r() * 0.06)
+        const c = pick(r, ['#b9b0a5', '#a89f94', '#c9c0b4', '#9d9488', '#bdb2a2', '#b0a090'])
+        each9(cx, cy, cell, (X, Y) => {
+          const g = ctx.createLinearGradient(X - w, Y - h, X + w, Y + h)
+          g.addColorStop(0, '#ffffff')
+          g.addColorStop(0.25, c)
+          g.addColorStop(1, '#6d655c')
+          ctx.fillStyle = g
+          ctx.beginPath()
+          ctx.roundRect(X - w, Y - h, w * 2, h * 2, w * 0.45)
+          ctx.fill()
+        })
+      }
+    dots(ctx, r, 300, ['rgba(0,0,0,0.15)', 'rgba(255,255,255,0.15)'], 0.4, 0.9)
+  },
+  sand: (ctx, r) => {
+    dots(ctx, r, 1700, ['#f8ebc3', '#c9ab70', '#e2c88e', '#b99a62'], 0.4, 0.9)
+    pebbles(ctx, r, 9, ['#9a948c', '#b5afa6', '#d8d2c8'], 1.5, 3.2)
+    // coquillages
+    for (let i = 0; i < 5; i++) {
+      const x = r() * N
+      const y = r() * N
+      const rot = r() * Math.PI * 2
+      each9(x, y, 6, (X, Y) => {
+        ctx.save()
+        ctx.translate(X, Y)
+        ctx.rotate(rot)
+        ctx.fillStyle = pick(r, ['#fff4ea', '#ffd9cf', '#f7e6d2'])
+        ctx.beginPath()
+        ctx.moveTo(0, 2.5)
+        ctx.arc(0, 0, 3.2, Math.PI * 1.1, Math.PI * 1.9)
+        ctx.closePath()
+        ctx.fill()
+        ctx.strokeStyle = 'rgba(160,110,90,0.5)'
+        ctx.lineWidth = 0.5
+        for (let k = -1; k <= 1; k++) {
+          ctx.beginPath()
+          ctx.moveTo(0, 2.5)
+          ctx.lineTo(k * 2, -2.6)
+          ctx.stroke()
+        }
+        ctx.restore()
+      })
+    }
+  },
+  planks: (ctx, r) => {
+    const bh = N / 6
+    // nœuds du bois
+    for (let i = 0; i < 6; i++) {
+      const x = r() * N
+      const y = Math.floor(r() * 6) * bh + bh / 2
+      each9(x, y, 10, (X, Y) => {
+        ctx.strokeStyle = 'rgba(80,45,20,0.6)'
+        ctx.lineWidth = 0.8
+        for (let k = 1; k <= 3; k++) {
+          ctx.beginPath()
+          ctx.ellipse(X, Y, k * 2.2, k * 1.1, 0, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+      })
+    }
+    // clous en bout de planche
+    ctx.fillStyle = '#3b3530'
+    for (let b = 0; b < 6; b++)
+      for (const x of [b % 2 ? N * 0.25 : N * 0.75]) {
+        for (const dy of [0.3, 0.7]) {
+          ctx.beginPath()
+          ctx.arc(x, b * bh + bh * dy, 1.3, 0, Math.PI * 2)
+          ctx.fill()
+        }
+      }
+  },
+  snow: (ctx, r) => {
+    // congères : ombres bleutées très douces
+    for (let i = 0; i < 7; i++) {
+      const x = r() * N
+      const y = r() * N
+      const s = 25 + r() * 35
+      each9(x, y, s, (X, Y) => {
+        const g = ctx.createRadialGradient(X, Y, 1, X, Y, s)
+        g.addColorStop(0, 'rgba(150,175,215,0.28)')
+        g.addColorStop(1, 'rgba(150,175,215,0)')
+        ctx.fillStyle = g
+        ctx.fillRect(X - s, Y - s, s * 2, s * 2)
+      })
+    }
+    dots(ctx, r, 160, ['#ffffff'], 0.4, 1)
+  },
+}
+
 function painter(id: TexId): Paint {
   switch (id) {
+    case 'meadow':
+      return painter('grass')
+    case 'soil': {
+      const n = fbm(37)
+      return {
+        color: (x, y) => mix([108, 74, 44], [150, 104, 64], n(x, y)),
+        height: (x, y) => n(x, y),
+      }
+    }
     case 'grass': {
       const n = fbm(11)
       const blades = makeNoise(128, 12)
@@ -339,6 +638,17 @@ export function texture(id: TexId) {
       heights[y * N + x] = p.height(x, y)
     }
   cctx.putImageData(cimg, 0, 0)
+
+  // détails dessinés par-dessus ; le relief suit leur luminosité
+  const deco = DECO[id]
+  if (deco) {
+    deco(cctx, rng(id.length * 7919 + id.charCodeAt(0) * 131))
+    const d = cctx.getImageData(0, 0, N, N).data
+    for (let k = 0; k < N * N; k++) {
+      const lum = (d[k * 4] * 0.3 + d[k * 4 + 1] * 0.55 + d[k * 4 + 2] * 0.15) / 255
+      heights[k] = heights[k] * 0.35 + lum * 0.65
+    }
+  }
 
   const normalCanvas = document.createElement('canvas')
   normalCanvas.width = normalCanvas.height = N

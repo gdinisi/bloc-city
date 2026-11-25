@@ -15,9 +15,9 @@ import { createMountains } from './mountains'
 /** Texture du dessus de chaque type de sol */
 const GROUND_TEX: Record<string, TexId> = {
   herbe: 'grass',
-  fleurs: 'grass',
+  fleurs: 'meadow',
   route: 'asphalt',
-  terre: 'dirt',
+  terre: 'soil',
   paves: 'paving',
   sable: 'sand',
   planches: 'planks',
@@ -208,6 +208,8 @@ export default function City3D({ city, onClose }: Props) {
       su['mieCoefficient'].value = A.mie
       su['mieDirectionalG'].value = A.mieG
       su['sunPosition'].value.copy(sun)
+      su['cloudCoverage'].value = 0 // ciel dégagé, sans nuages
+      su['cloudDensity'].value = 0
       scene.add(sky)
       // lumière d'ambiance tirée du ciel
       const skyScene = new THREE.Scene()
@@ -263,7 +265,7 @@ export default function City3D({ city, onClose }: Props) {
       sunDirection: sun.clone().normalize(),
       sunColor: A.sunColor,
       waterColor: A.water,
-      distortionScale: 0.85,
+      distortionScale: 0.45,
       fog: true,
     })
     water.rotation.x = -Math.PI / 2
@@ -303,10 +305,11 @@ export default function City3D({ city, onClose }: Props) {
         const h = top - BOTTOM
         const geo = worldUV(new THREE.BoxGeometry(1, h, 1), 1, h, 1, 1)
         geos.push(geo)
-        // damier léger pour distinguer les cases
+        // légère variation naturelle d'une case à l'autre (4 nuances, pas de damier)
         const tex = GROUND_TEX[gid] ?? 'grass'
         const baseColor = pretty ? '#ffffff' : (GROUND_TOP[gid] ?? GROUND_TOP.herbe)
-        const topColor = (x + y) % 2 && gid !== 'route' ? `#${new THREE.Color(baseColor).offsetHSL(0, 0, -0.04).getHexString()}` : baseColor
+        const tint = (((x * 73856093) ^ (y * 19349663)) >>> 0) % 4
+        const topColor = gid === 'route' ? baseColor : `#${new THREE.Color(baseColor).offsetHSL([0, 0.008, -0.01, 0.004][tint], 0, [0, -0.035, 0.02, -0.018][tint]).getHexString()}`
         const topMat = mat(topColor, { rough: gid === 'route' ? 0.75 : 0.95, tex, bump: gid === 'paves' || gid === 'planches' ? 1.3 : 1 })
         const m = new THREE.Mesh(geo, [side, side, topMat, side, side, side])
         const grassy = gid === 'herbe' || gid === 'fleurs'
@@ -361,6 +364,14 @@ export default function City3D({ city, onClose }: Props) {
               scene.add(rail)
             }
           } else {
+            // bordures de trottoir là où la route ne continue pas
+            for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+              if (links.some(([lx, ly]) => lx === dx && ly === dy)) continue
+              const curb = new THREE.Mesh(new THREE.BoxGeometry(dx ? 0.07 : 1, 0.06, dy ? 0.07 : 1), mat('#c9cbd0', { rough: 0.9, tex: 'paving' }))
+              curb.position.set(X(x) + dx * 0.465, top + 0.03, Z(y) + dy * 0.465)
+              curb.castShadow = curb.receiveShadow = pretty
+              scene.add(curb)
+            }
             for (const [dx, dy] of links) {
               const dash = new THREE.Mesh(new THREE.BoxGeometry(dx ? 0.22 : 0.05, 0.01, dy ? 0.22 : 0.05), mat('#f1f3f5'))
               dash.position.set(X(x) + dx * 0.28, top + 0.006, Z(y) + dy * 0.28)
@@ -467,30 +478,6 @@ export default function City3D({ city, onClose }: Props) {
     const mountains = createMountains(G / 2, WATER_Y)
     scene.add(mountains)
 
-    const clouds: THREE.Group[] = []
-    const cloudMat = new THREE.MeshStandardMaterial({
-      color: isNight ? '#5a6488' : '#ffffff',
-      flatShading: true,
-      roughness: 1,
-      transparent: true,
-      opacity: isNight ? 0.55 : 0.92,
-    })
-    for (let i = 0; i < 10; i++) {
-      const c = new THREE.Group()
-      for (let k = 0; k < 5; k++) {
-        const puff = new THREE.Mesh(new THREE.IcosahedronGeometry(1 + Math.random() * 1.2, 0), cloudMat)
-        puff.position.set(k * 1.4 - 2.8, Math.random() * 0.6, Math.random() * 1.2)
-        c.add(puff)
-      }
-      // haut dans le ciel et autour de l'île, jamais devant la caméra
-      const a = Math.random() * Math.PI * 2
-      const r = G * (1.6 + Math.random() * 1.6)
-      c.position.set(Math.cos(a) * r, G * 1.7 + Math.random() * 6, Math.sin(a) * r)
-      c.scale.setScalar(0.9 + Math.random() * 0.9)
-      scene.add(c)
-      clouds.push(c)
-    }
-
     // ---------- toucher un bâtiment : son nom ----------
     const ray = new THREE.Raycaster()
     let downAt: [number, number] | null = null
@@ -520,10 +507,6 @@ export default function City3D({ city, onClose }: Props) {
       const dt = Math.min(clock.getDelta(), 0.1)
       water.material.uniforms['time'].value += dt * 0.6
       if (lighthouseBeam) lighthouseBeam.rotation.y += dt * 0.7
-      for (const c of clouds) {
-        c.position.x += dt * 0.35
-        if (c.position.x > G * 3) c.position.x = -G * 3
-      }
       controls.update()
       renderer.render(scene, camera)
       frames++
@@ -552,7 +535,6 @@ export default function City3D({ city, onClose }: Props) {
         if (o instanceof THREE.Mesh || o instanceof THREE.Points) (o.material as THREE.Material).dispose()
       })
       pmrem.dispose()
-      cloudMat.dispose()
       disposeMaterials()
       disposeTextures()
       tuftMesh?.dispose()

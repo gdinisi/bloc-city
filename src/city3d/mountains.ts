@@ -1,10 +1,12 @@
 import * as THREE from 'three'
 
 /*
- * Chaînes de montagnes autour de l'île : un grand anneau de relief généré par du
- * bruit « en crêtes » (ridged noise). Les couleurs suivent l'altitude : plage,
- * forêt, prairie d'altitude, roche, neige. La brume de la scène fait le reste
- * (les montagnes lointaines se fondent en bleu, comme dans la réalité).
+ * Chaînes de montagnes autour de l'île.
+ * Un anneau de relief lissé (pas de facettes), généré par un bruit « en crêtes »
+ * calculé sur des coordonnées cartésiennes (donc sans couture). Les couleurs
+ * suivent l'altitude et la pente, avec des transitions fondues : plage, forêt,
+ * alpage, roche, neige. Le premier plan reste bas et loin de l'île ; les grands
+ * sommets sont derrière et la brume les bleute.
  */
 
 function hash(x: number, y: number) {
@@ -17,8 +19,8 @@ function noise(x: number, y: number) {
   const yi = Math.floor(y)
   const xf = x - xi
   const yf = y - yi
-  const u = xf * xf * (3 - 2 * xf)
-  const v = yf * yf * (3 - 2 * yf)
+  const u = xf * xf * xf * (xf * (xf * 6 - 15) + 10)
+  const v = yf * yf * yf * (yf * (yf * 6 - 15) + 10)
   const a = hash(xi, yi)
   const b = hash(xi + 1, yi)
   const c = hash(xi, yi + 1)
@@ -26,16 +28,31 @@ function noise(x: number, y: number) {
   return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v
 }
 
-/** Bruit en crêtes : arêtes vives typiques des chaînes de montagnes */
+function fbm(x: number, y: number, oct = 4) {
+  let s = 0
+  let a = 0.5
+  let f = 1
+  for (let o = 0; o < oct; o++) {
+    s += noise(x * f, y * f) * a
+    f *= 2
+    a *= 0.5
+  }
+  return s
+}
+
+/** Bruit en crêtes : arêtes nettes, versants réguliers */
 function ridged(x: number, y: number) {
   let sum = 0
-  let amp = 0.55
+  let amp = 0.6
   let freq = 1
+  let weight = 1
   for (let o = 0; o < 5; o++) {
-    const n = 1 - Math.abs(noise(x * freq, y * freq) * 2 - 1)
-    sum += n * n * amp
-    freq *= 2.1
-    amp *= 0.5
+    let n = 1 - Math.abs(noise(x * freq, y * freq) * 2 - 1)
+    n = n * n * weight
+    weight = Math.min(1, n * 2)
+    sum += n * amp
+    freq *= 2
+    amp *= 0.45
   }
   return sum
 }
@@ -46,65 +63,77 @@ const smooth = (a: number, b: number, t: number) => {
 }
 
 export function createMountains(islandRadius: number, waterY: number) {
-  const A = 320 // segments autour
-  const R = 46 // anneaux du proche au lointain
-  const r0 = islandRadius * 2.3
-  const r1 = r0 + 300
+  const A = 400 // segments autour
+  const R = 70 // anneaux
+  const r0 = Math.max(islandRadius * 4.2, 34) // le relief démarre loin de l'île
+  const r1 = r0 + 330
   const pos: number[] = []
-  const col: number[] = []
-  const idx: number[] = []
-  const c = new THREE.Color()
-
-  const SAND = new THREE.Color('#d8c48e')
-  const FOREST = new THREE.Color('#2f5d34')
-  const FOREST2 = new THREE.Color('#3f7a3c')
-  const MEADOW = new THREE.Color('#7d9a55')
-  const ROCK = new THREE.Color('#7b7368')
-  const ROCK2 = new THREE.Color('#5f5a54')
-  const SNOW = new THREE.Color('#f4f7fb')
+  const heights: number[] = []
 
   for (let j = 0; j <= R; j++) {
-    // anneaux plus serrés près de l'île (plus de détail là où on regarde)
-    const t = Math.pow(j / R, 1.35)
+    const t = Math.pow(j / R, 1.25)
     const r = r0 + (r1 - r0) * t
     for (let i = 0; i <= A; i++) {
       const a = (i / A) * Math.PI * 2
       const x = Math.cos(a) * r
       const z = Math.sin(a) * r
-      // relief : contreforts bas devant, grands sommets derrière
-      const env = smooth(0.02, 0.3, t) * (0.25 + 0.75 * smooth(0.15, 0.7, t))
-      const big = ridged(x / 70 + 13, z / 70 + 7)
-      const detail = noise(x / 12, z / 12)
-      // une vallée s'ouvre dans une direction pour laisser voir l'horizon
-      const valley = 0.35 + 0.65 * smooth(0.15, 0.55, Math.abs(Math.sin(a * 0.5 + 0.4)))
-      let h = env * valley * (big * 95 + detail * 8) - 2
-      h = Math.max(h, -3)
+      // collines douces devant, grandes chaînes derrière
+      const near = smooth(0.0, 0.22, t) * (fbm(x / 40, z / 40) * 14)
+      const range = smooth(0.22, 0.6, t) * (ridged(x / 95 + 21, z / 95 - 4) * 78)
+      const fade = 1 - smooth(0.9, 1, t) * 0.4
+      const h = (near + range) * fade - 1.5
       pos.push(x, waterY + h, z)
-
-      // couleur selon l'altitude, avec un peu de variation
-      const snowLine = 52 + noise(x / 30, z / 30) * 18
-      const treeLine = 22 + noise(x / 25 + 5, z / 25) * 10
-      if (h < 1.2) c.copy(SAND)
-      else if (h < treeLine) c.copy(noise(x / 6, z / 6) > 0.5 ? FOREST : FOREST2)
-      else if (h < treeLine + 8) c.copy(MEADOW).lerp(ROCK, (h - treeLine) / 8)
-      else if (h < snowLine) c.copy(noise(x / 8, z / 8) > 0.5 ? ROCK : ROCK2)
-      else c.copy(ROCK).lerp(SNOW, Math.min(1, (h - snowLine) / 6))
-      col.push(c.r, c.g, c.b)
+      heights.push(h)
     }
   }
+  const idx: number[] = []
   for (let j = 0; j < R; j++)
     for (let i = 0; i < A; i++) {
       const p = j * (A + 1) + i
       const q = p + A + 1
-      idx.push(p, q, p + 1, p + 1, q, q + 1)
+      // sens des triangles : faces tournées vers le ciel
+      idx.push(p, p + 1, q, p + 1, q + 1, q)
     }
 
   const geo = new THREE.BufferGeometry()
   geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3))
-  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
   geo.setIndex(idx)
   geo.computeVertexNormals()
-  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 1 }))
+
+  // couleurs fondues selon l'altitude et la pente
+  const nrm = geo.getAttribute('normal') as THREE.BufferAttribute
+  const col: number[] = []
+  const c = new THREE.Color()
+  const tmp = new THREE.Color()
+  const SAND = new THREE.Color('#cdbb86')
+  const FOREST = new THREE.Color('#2e5a33')
+  const FOREST_LIGHT = new THREE.Color('#4a7d40')
+  const ALPINE = new THREE.Color('#8a9a5c')
+  const ROCK = new THREE.Color('#7a7268')
+  const ROCK_DARK = new THREE.Color('#5c5650')
+  const SNOW = new THREE.Color('#f3f6fa')
+  for (let k = 0; k < heights.length; k++) {
+    const h = heights[k]
+    const x = pos[k * 3]
+    const z = pos[k * 3 + 2]
+    const steep = 1 - nrm.getY(k) // 0 = plat, 1 = vertical
+    const v = fbm(x / 18, z / 18, 3)
+    const treeLine = 20 + v * 10
+    const snowLine = 46 + v * 12
+    c.copy(SAND)
+    c.lerp(tmp.copy(FOREST).lerp(FOREST_LIGHT, v), smooth(0.5, 2.5, h))
+    c.lerp(ALPINE, smooth(treeLine - 4, treeLine + 4, h))
+    c.lerp(tmp.copy(ROCK).lerp(ROCK_DARK, v), smooth(treeLine + 4, treeLine + 14, h))
+    // pentes raides : la roche affleure
+    c.lerp(ROCK, smooth(0.45, 0.75, steep) * smooth(6, 14, h))
+    // neige, moins présente sur les pentes très raides
+    c.lerp(SNOW, smooth(snowLine - 3, snowLine + 5, h) * (1 - smooth(0.55, 0.85, steep) * 0.7))
+    col.push(c.r, c.g, c.b)
+  }
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(col, 3))
+
+  const mesh = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.95, metalness: 0 }))
   mesh.receiveShadow = false
+  mesh.castShadow = false
   return mesh
 }
