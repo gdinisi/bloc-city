@@ -25,7 +25,6 @@ const FOCUS_PHOTO_CARD: Partial<Record<Focus, string>> = {
   gainage: 'img/focus-gainage-card.webp',
   haut: 'img/focus-haut-card.webp',
   mobilite: 'img/focus-mobilite-card.webp',
-  doigts: 'img/focus-doigts-card.webp',
 }
 
 /** Image d'une séance : photo si on en a une, sinon illustration de montagne */

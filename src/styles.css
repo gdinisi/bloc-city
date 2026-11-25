@@ -5107,3 +5107,8 @@ img.photo-doigts.card {
 .workout-hero img.photo-doigts {
   object-position: 45% 70%;
 }
+
+/* « Doigts » : photo entière (dézoomée) dans les cartes et les tuiles */
+img.photo-doigts.card {
+  object-position: 45% 50%;
+}
