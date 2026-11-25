@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
+import { typeInfo } from '../types'
 import type { Session, Settings } from '../types'
-import { startOfWeek, toKey } from '../lib/dates'
+import { addDays, startOfWeek, toKey } from '../lib/dates'
 import { countsByWeek, weeklyStreak } from '../lib/stats'
 import { weekKey } from '../lib/dates'
 import { computeLevel, levelLabel } from '../workout/level'
@@ -33,6 +35,8 @@ export const FOCUS_ART: Record<Focus, ArtVariant> = {
   mobilite: 'dawn',
 }
 
+const DAYS = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
+
 const greeting = (h: number) => (h < 5 ? 'Bonne nuit' : h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir')
 
 const fmtTime = (min: number) => (min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`)
@@ -48,7 +52,15 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
   const goal = settings.weeklyGoal
   const done = countsByWeek(sessions).get(weekKey(today)) ?? 0
   const streak = weeklyStreak(sessions, goal, today)
-  const monday = toKey(startOfWeek(today))
+  const mondayDate = startOfWeek(today)
+  const monday = toKey(mondayDate)
+  const week = Array.from({ length: 7 }, (_, i) => {
+    const d = addDays(mondayDate, i)
+    const k = toKey(d)
+    const list = sessions.filter((x) => x.date === k)
+    const main = list.find((x) => x.type !== 'repos') ?? list[0]
+    return { k, n: d.getDate(), main, future: k > todayKey }
+  })
   const weekMinutes = sessions.filter((s) => s.type !== 'repos' && s.date >= monday && s.date <= todayKey).reduce((t, s) => t + s.durationMin, 0)
   const lvl = computeLevel(sessions, settings.home.fatigue)
   const focuses = FOCUSES.filter((f) => availableFocuses(settings.equipment).some((x) => x.id === f.id))
@@ -62,7 +74,7 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
   return (
     <div className="screen home">
       <section className="card activity" onClick={() => onGo('calendrier')}>
-        <div className="activity-photo" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/peak-wide.webp)` }}>
+        <div className="activity-photo" style={{ backgroundImage: `url(${import.meta.env.BASE_URL}img/home-banner.webp)` }}>
           <div>
             <p className="home-date">{today.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
             <h2>
@@ -101,6 +113,19 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
               </span>
             </li>
           </ul>
+        </div>
+        <div className="week-row">
+          {week.map((d, i) => (
+            <span
+              key={d.k}
+              className={`${d.k === todayKey ? 'today' : ''} ${d.main ? 'has' : ''} ${d.future ? 'future' : ''}`}
+              style={d.main ? ({ '--tc': typeInfo(d.main.type).color } as CSSProperties) : undefined}
+              title={d.main ? typeInfo(d.main.type).label : undefined}
+            >
+              <i>{DAYS[i]}</i>
+              <b>{d.n}</b>
+            </span>
+          ))}
         </div>
       </section>
 

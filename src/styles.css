@@ -4106,3 +4106,65 @@ textarea {
 .activity-photo {
   background-position: center 62%;
 }
+
+/* --- accueil : bandeau du sommet et semaine --- */
+.activity-photo {
+  height: 108px;
+  background-position: center 40%;
+}
+
+.week-row {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  padding: 0 12px 14px;
+}
+
+.week-row span {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 6px 0 7px;
+  border-radius: 12px;
+  background: var(--card-2);
+  border: 1px solid transparent;
+}
+
+.week-row i {
+  font-style: normal;
+  font-size: 0.64rem;
+  font-weight: 650;
+  color: var(--muted);
+}
+
+.week-row b {
+  font-size: 0.92rem;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.week-row .has {
+  background: color-mix(in srgb, var(--tc) 22%, var(--card-2));
+  border-color: color-mix(in srgb, var(--tc) 55%, transparent);
+}
+
+.week-row .has i {
+  color: var(--ink);
+}
+
+.week-row .today {
+  border-color: var(--accent);
+}
+
+.week-row .today b {
+  color: var(--accent);
+}
+
+.week-row .future {
+  opacity: 0.55;
+}
+
+.activity .activity-body {
+  padding: 14px 16px 12px;
+}
