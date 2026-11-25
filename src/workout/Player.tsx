@@ -31,6 +31,8 @@ export function Player({ plan, onSave, onClose }: Props) {
   const [tooShort, setTooShort] = useState(false)
   /** Fiche ouverte ; on retient si le minuteur tournait pour le relancer à la fermeture */
   const [info, setInfo] = useState<{ resume: boolean } | null>(null)
+  /** Demande de confirmation avant de quitter (on retient si le minuteur tournait) */
+  const [quitAsk, setQuitAsk] = useState<{ resume: boolean } | null>(null)
 
   const elapsed = useRef(0)
   const lastTick = useRef(performance.now())
@@ -164,10 +166,12 @@ export function Player({ plan, onSave, onClose }: Props) {
       <div className="player-top">
         <button
           type="button"
-          className="round"
+          className="round quit-btn"
           aria-label="Quitter la séance"
           onClick={() => {
-            if (confirm('Quitter la séance ? Elle ne sera pas enregistrée.')) onClose()
+            // la séance se met en pause pendant qu'on décide
+            setQuitAsk({ resume: !paused })
+            setPaused(true)
           }}
         >
           ✕
@@ -244,6 +248,31 @@ export function Player({ plan, onSave, onClose }: Props) {
           ⏭
         </button>
       </div>
+
+      {quitAsk && (
+        <div className="confirm-backdrop" role="alertdialog" aria-label="Quitter la séance ?">
+          <div className="confirm-box">
+            <div className="confirm-emoji">⏸️</div>
+            <h3>Quitter la séance ?</h3>
+            <p>La séance est en pause. Si tu quittes maintenant, elle ne sera pas enregistrée et ne rapportera pas de pack.</p>
+            <div className="confirm-actions">
+              <button
+                type="button"
+                className="btn primary"
+                onClick={() => {
+                  if (quitAsk.resume) setPaused(false)
+                  setQuitAsk(null)
+                }}
+              >
+                Continuer la séance
+              </button>
+              <button type="button" className="btn danger-solid" onClick={onClose}>
+                Quitter sans enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

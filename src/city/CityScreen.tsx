@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Suspense, lazy, useEffect, useMemo, useState } from 'react'
 import type { CityState, Pack } from './economy'
 import {
   canPlace,
@@ -21,6 +21,9 @@ import { BuildingThumb, GroundTile } from './iso'
 import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
+
+// la 3D (Three.js) n'est chargée que si on ouvre la vue 3D
+const City3D = lazy(() => import('../city3d/City3D'))
 
 interface Props {
   city: CityState
@@ -54,6 +57,7 @@ export function CityScreen({ city, onCity }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [opening, setOpening] = useState<Pack[] | null>(null)
   const [shop, setShop] = useState(false)
+  const [view3d, setView3d] = useState(false)
   const now = useNow()
 
   const pop = population(city)
@@ -175,9 +179,13 @@ export function CityScreen({ city, onCity }: Props) {
           <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
             ⛰️ Relief
           </button>
-          {editingGround && (
+          {editingGround ? (
             <button type="button" className="btn small" onClick={() => setMode({ type: 'idle' })}>
               Terminer
+            </button>
+          ) : (
+            <button type="button" className="btn small btn-3d" onClick={() => setView3d(true)}>
+              🧊 Vue 3D
             </button>
           )}
         </div>
@@ -377,6 +385,11 @@ export function CityScreen({ city, onCity }: Props) {
         <p className="muted small-text">Certains bâtiments ne s'obtiennent qu'avec les quêtes (accueil). Les séances en salle ou en extérieur rapportent plus souvent des bâtiments d'escalade, les séances maison des parcs.</p>
       </section>
 
+      {view3d && (
+        <Suspense fallback={<div className="city3d loading">Chargement de la 3D…</div>}>
+          <City3D city={city} onClose={() => setView3d(false)} />
+        </Suspense>
+      )}
       {opening && <PackOpening packs={opening} city={city} onCity={onCity} onClose={() => setOpening(null)} />}
       {shop && <Shop city={city} onCity={onCity} onClose={() => setShop(false)} />}
     </div>

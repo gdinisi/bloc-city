@@ -726,6 +726,64 @@ input[type='range'] {
   background: linear-gradient(160deg, #ffe08a, #ffb547);
 }
 
+.quit-btn {
+  position: relative;
+  z-index: 2;
+  width: 44px;
+  height: 44px;
+  flex: none;
+}
+
+.confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  background: rgba(43, 45, 66, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  animation: fade 0.2s ease;
+}
+
+.confirm-box {
+  width: 100%;
+  max-width: 340px;
+  background: #fff;
+  border: 2.5px solid var(--line);
+  border-radius: 22px;
+  box-shadow: 0 5px 0 var(--line);
+  padding: 20px 18px 16px;
+  text-align: center;
+}
+
+.confirm-box h3 {
+  margin: 4px 0 6px;
+  font-size: 1.25rem;
+}
+
+.confirm-box p {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.4;
+}
+
+.confirm-emoji {
+  font-size: 2.2rem;
+}
+
+.confirm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.btn.danger-solid {
+  background: #fff0ef;
+  color: #c0392b;
+}
+
 .player-top {
   display: flex;
   align-items: center;
@@ -1432,6 +1490,93 @@ input[type='range'] {
 
 .city-tools .btn {
   margin-left: auto;
+}
+
+/* ---------- Vue 3D ---------- */
+.btn-3d {
+  background: #2b2d42;
+  color: #fff;
+}
+
+.city3d {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: #9cc7e8;
+}
+
+.city3d.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 900;
+  background: #3b4a6b;
+}
+
+.city3d-canvas {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+}
+
+.city3d-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.city3d-top {
+  position: absolute;
+  top: calc(env(safe-area-inset-top) + 10px);
+  left: 12px;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.city3d-top > * {
+  pointer-events: auto;
+}
+
+.city3d-title,
+.city3d-fps {
+  background: rgba(43, 45, 66, 0.75);
+  color: #fff;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+.city3d-fps {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.city3d-bottom {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: calc(env(safe-area-inset-bottom) + 14px);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.city3d-hint {
+  width: 100%;
+  margin: 0;
+  text-align: center;
+  background: rgba(43, 45, 66, 0.75);
+  color: #fff;
+  border-radius: 12px;
+  padding: 6px 10px;
+  font-weight: 700;
+  font-size: 0.8rem;
 }
 
 .city-map {
