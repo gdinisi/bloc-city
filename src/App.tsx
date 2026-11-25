@@ -8,6 +8,12 @@ import type { TabId } from './screens/HomeScreen'
 import { CityScreen } from './city/CityScreen'
 import { chestReadyAt } from './city/economy'
 import { useClaimable } from './city/QuestsPanel'
+import { FriendsScreen } from './screens/FriendsScreen'
+import { cloudEnabled, takeInviteFromUrl, useAuth } from './lib/cloud'
+import { useCloudSync, useProfile } from './lib/sync'
+
+// lien d'invitation (?ami=CODE) : on le met de côté et on ouvre l'écran Amis
+const invited = takeInviteFromUrl()
 
 /** L'accueil est au centre de la barre et s'ouvre au lancement */
 const TABS: { id: TabId; label: string; emoji: string }[] = [
@@ -19,8 +25,11 @@ const TABS: { id: TabId; label: string; emoji: string }[] = [
 ]
 
 export default function App() {
-  const [tab, setTab] = useState<TabId>('accueil')
+  const [tab, setTab] = useState<TabId>(invited ? 'amis' : 'accueil')
   const data = useAppData()
+  const auth = useAuth()
+  const me = useProfile(auth.userId)
+  const sync = useCloudSync(data, auth.userId, Boolean(me.profile))
   // packs à ouvrir + coffre du jour prêt
   const cityBadge = data.city.packs.length + (Date.now() >= chestReadyAt(data.city) ? 1 : 0)
   // quêtes terminées à récupérer
@@ -36,6 +45,13 @@ export default function App() {
       <header className="topbar">
         <img src={`${import.meta.env.BASE_URL}logo.svg`} alt="" width={32} height={32} />
         <h1>Bloc City</h1>
+        {cloudEnabled && (
+          <button type="button" className={`friends-btn ${tab === 'amis' ? 'on' : ''}`} onClick={() => go('amis')}>
+            <span aria-hidden>{auth.userId ? '🏆' : '👥'}</span>
+            {me.profile ? me.profile.pseudo : 'Amis'}
+            {sync.status === 'erreur' && <i className="sync-dot" title="Sauvegarde en attente" />}
+          </button>
+        )}
       </header>
 
       <main>
@@ -56,6 +72,19 @@ export default function App() {
         )}
         {tab === 'stats' && <StatsScreen sessions={data.sessions} weeklyGoal={data.settings.weeklyGoal} />}
         {tab === 'ville' && <CityScreen city={data.city} onCity={data.updateCity} />}
+        {tab === 'amis' && (
+          <FriendsScreen
+            userId={auth.userId}
+            email={auth.email}
+            authReady={auth.ready}
+            profile={me.profile}
+            profileLoaded={me.loaded}
+            onProfile={me.setProfile}
+            sync={sync}
+            sessions={data.sessions}
+            weeklyGoal={data.settings.weeklyGoal}
+          />
+        )}
       </main>
 
       <nav className="tabbar">

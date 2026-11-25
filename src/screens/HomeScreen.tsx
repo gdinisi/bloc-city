@@ -14,7 +14,7 @@ import { computeLevel, levelLabel } from '../workout/level'
 import { SessionForm } from '../components/SessionForm'
 import { recentBlocLevels } from '../lib/stats'
 
-export type TabId = 'calendrier' | 'seances' | 'accueil' | 'ville' | 'stats'
+export type TabId = 'calendrier' | 'seances' | 'accueil' | 'ville' | 'stats' | 'amis'
 
 interface Props {
   sessions: Session[]
