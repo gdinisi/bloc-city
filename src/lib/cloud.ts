@@ -18,7 +18,7 @@ const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined
 export const cloudEnabled = Boolean(url && key)
 
 export const supabase = cloudEnabled
-  ? createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false, storageKey: 'blocCity.auth' } })
+  ? createClient(url!, key!, { auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'blocCity.auth' } })
   : null
 
 /* ---------- compte ---------- */
@@ -38,13 +38,21 @@ export function useAuth() {
   return { session, ready, userId: session?.user.id ?? null, email: session?.user.email ?? null }
 }
 
-export async function sendCode(email: string) {
-  const { error } = await supabase!.auth.signInWithOtp({ email: email.trim(), options: { shouldCreateUser: true } })
+/** Crée le compte ; renvoie true s'il faut d'abord confirmer l'adresse (lien reçu par e-mail) */
+export async function signUp(email: string, password: string) {
+  const { data, error } = await supabase!.auth.signUp({
+    email: email.trim(),
+    password,
+    options: { emailRedirectTo: `${location.origin}${import.meta.env.BASE_URL}` },
+  })
   if (error) throw new Error(frenchError(error.message))
+  // adresse déjà utilisée : Supabase renvoie un compte sans identité
+  if (data.user && data.user.identities?.length === 0) throw new Error('Un compte existe déjà avec cette adresse : connecte-toi.')
+  return !data.session
 }
 
-export async function verifyCode(email: string, token: string) {
-  const { error } = await supabase!.auth.verifyOtp({ email: email.trim(), token: token.trim(), type: 'email' })
+export async function signIn(email: string, password: string) {
+  const { error } = await supabase!.auth.signInWithPassword({ email: email.trim(), password })
   if (error) throw new Error(frenchError(error.message))
 }
 
@@ -55,7 +63,9 @@ export async function signOut() {
 function frenchError(msg: string) {
   const m = msg.toLowerCase()
   if (m.includes('rate limit') || m.includes('security purposes')) return 'Trop de demandes de code : réessaie dans quelques minutes.'
-  if (m.includes('expired') || m.includes('invalid')) return 'Code incorrect ou expiré. Redemande un code.'
+  if (m.includes('not confirmed')) return "Adresse pas encore confirmée : clique sur le lien reçu par e-mail, puis reconnecte-toi."
+  if (m.includes('invalid login') || m.includes('invalid credentials')) return 'E-mail ou mot de passe incorrect.'
+  if (m.includes('password')) return 'Le mot de passe doit faire au moins 6 caractères.'
   if (m.includes('email')) return 'Adresse e-mail invalide.'
   if (m.includes('fetch') || m.includes('network')) return 'Pas de connexion internet.'
   return msg

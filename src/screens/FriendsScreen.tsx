@@ -18,9 +18,9 @@ import {
   removeFriend,
   renameProfile,
   score,
-  sendCode,
+  signIn,
   signOut,
-  verifyCode,
+  signUp,
 } from '../lib/cloud'
 import type { SyncStatus } from '../lib/sync'
 
@@ -54,23 +54,31 @@ export function FriendsScreen(p: Props) {
   return <Friends {...p} profile={p.profile} userId={p.userId} />
 }
 
-/* ---------- connexion par code reçu par e-mail ---------- */
+/* ---------- connexion : e-mail + mot de passe ---------- */
 
 function Login() {
+  const [mode, setMode] = useState<'connexion' | 'creation'>('creation')
   const [email, setEmail] = useState('')
-  const [code, setCode] = useState('')
-  const [step, setStep] = useState<'email' | 'code'>('email')
+  const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [checkMail, setCheckMail] = useState(false)
   const invite = pendingInvite()
 
-  const run = async (fn: () => Promise<void>) => {
+  const submit = async (e: FormEvent) => {
+    e.preventDefault()
     setBusy(true)
     setError(null)
     try {
-      await fn()
-    } catch (e) {
-      setError((e as Error).message)
+      if (mode === 'creation') {
+        const mustConfirm = await signUp(email, password)
+        if (mustConfirm) {
+          setCheckMail(true)
+          setMode('connexion')
+        }
+      } else await signIn(email, password)
+    } catch (err) {
+      setError((err as Error).message)
     } finally {
       setBusy(false)
     }
@@ -90,57 +98,39 @@ function Login() {
       </section>
 
       <section className="card">
-        {step === 'email' ? (
-          <form
-            className="login-form"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void run(async () => {
-                await sendCode(email)
-                setStep('code')
-              })
-            }}
-          >
-            <label className="field">
-              <span>Ton adresse e-mail</span>
-              <input type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@exemple.fr" />
-            </label>
-            <button type="submit" className="btn primary" disabled={busy || !email.includes('@')}>
-              {busy ? 'Envoi…' : 'Recevoir un code'}
-            </button>
-            <p className="muted small-text">Pas de mot de passe : on t'envoie un code à usage unique.</p>
-          </form>
-        ) : (
-          <form
-            className="login-form"
-            onSubmit={(e) => {
-              e.preventDefault()
-              void run(() => verifyCode(email, code))
-            }}
-          >
-            <p>
-              Code envoyé à <b>{email}</b>. Regarde tes e-mails (et les indésirables).
-            </p>
-            <label className="field">
-              <span>Code reçu</span>
-              <input
-                className="code-input"
-                inputMode="numeric"
-                autoComplete="one-time-code"
-                maxLength={10}
-                value={code}
-                onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="123456"
-              />
-            </label>
-            <button type="submit" className="btn primary" disabled={busy || code.length < 6}>
-              {busy ? 'Vérification…' : 'Se connecter'}
-            </button>
-            <button type="button" className="btn ghost" onClick={() => setStep('email')}>
-              Changer d'adresse
-            </button>
-          </form>
+        <div className="seg wide">
+          <button type="button" className={mode === 'creation' ? 'on' : ''} onClick={() => setMode('creation')}>
+            Créer un compte
+          </button>
+          <button type="button" className={mode === 'connexion' ? 'on' : ''} onClick={() => setMode('connexion')}>
+            Se connecter
+          </button>
+        </div>
+        {checkMail && (
+          <p className="invite-note">
+            📬 Un e-mail de confirmation a été envoyé à <b>{email}</b>. Clique sur le lien (regarde aussi les indésirables), puis reviens ici et connecte-toi.
+          </p>
         )}
+        <form className="login-form" onSubmit={(e) => void submit(e)}>
+          <label className="field">
+            <span>Adresse e-mail</span>
+            <input type="email" inputMode="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="toi@exemple.fr" />
+          </label>
+          <label className="field">
+            <span>Mot de passe{mode === 'creation' ? ' (6 caractères minimum)' : ''}</span>
+            <input
+              type="password"
+              autoComplete={mode === 'creation' ? 'new-password' : 'current-password'}
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          <button type="submit" className="btn primary" disabled={busy || !email.includes('@') || password.length < 6}>
+            {busy ? '…' : mode === 'creation' ? 'Créer mon compte' : 'Se connecter'}
+          </button>
+        </form>
         {error && <p className="form-error">{error}</p>}
       </section>
     </div>
