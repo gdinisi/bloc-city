@@ -322,6 +322,140 @@ function draw(b: Building): ReactNode {
           <Poly p={[[0, -h - 12], [7, -h - 10], [0, -h - 8]]} fill="#e63946" sw={0.8} />
         </g>
       )
+    case 'pyramid': {
+      const apex: P = [0, -h - 6]
+      return (
+        <g>
+          <Shadow />
+          <Poly p={[[-HW, 0], [0, HH], apex]} fill={shade(color, -0.18)} />
+          <Poly p={[[0, HH], [HW, 0], apex]} fill={color} />
+          {[0.25, 0.5, 0.75].map((k) => (
+            <g key={k} stroke={shade(color, -0.35)} strokeWidth={0.7}>
+              <line x1={-HW * (1 - k)} y1={-(h + 6) * k} x2={0} y2={HH * (1 - k) - (h + 6) * k} />
+              <line x1={0} y1={HH * (1 - k) - (h + 6) * k} x2={HW * (1 - k)} y2={-(h + 6) * k} />
+            </g>
+          ))}
+          <Poly p={[[-2.5, -h - 1], [0, -h + 0.2], [2.5, -h - 1], apex]} fill="#ffe066" sw={0.8} />
+        </g>
+      )
+    }
+    case 'eiffel': {
+      const leg = (s: 1 | -1) => `M${s * (HW - 2)} 0 Q${s * 6} ${-h * 0.35} ${s * 1.2} ${-h}`
+      return (
+        <g>
+          <Shadow />
+          <path d={leg(-1)} stroke={accent} strokeWidth={3} fill="none" />
+          <path d={leg(1)} stroke={accent} strokeWidth={3} fill="none" />
+          <path d={`M${-(HW - 6)} ${-2} Q0 ${-h * 0.18} ${HW - 6} ${-2}`} stroke={accent} strokeWidth={2} fill="none" />
+          {/* croisillons */}
+          {[0.12, 0.3, 0.5, 0.7].map((k, i) => {
+            const w = (HW - 2) * (1 - k) * (1 - k) + 1.5
+            return (
+              <g key={i} stroke={color} strokeWidth={0.9}>
+                <line x1={-w} y1={-h * k} x2={w * 0.6} y2={-h * (k + 0.1)} />
+                <line x1={w} y1={-h * k} x2={-w * 0.6} y2={-h * (k + 0.1)} />
+              </g>
+            )
+          })}
+          <rect x={-8} y={-h * 0.3 - 2} width={16} height={3} fill={accent} stroke={INK} strokeWidth={0.8} />
+          <rect x={-4.5} y={-h * 0.62 - 2} width={9} height={2.5} fill={accent} stroke={INK} strokeWidth={0.8} />
+          <line x1={0} y1={-h} x2={0} y2={-h - 9} stroke={accent} strokeWidth={1.6} />
+        </g>
+      )
+    }
+    case 'colosseum':
+      return (
+        <g>
+          <Shadow />
+          <ellipse cx={0} cy={0} rx={HW} ry={HH} fill={shade(color, -0.25)} stroke={INK} strokeWidth={1.3} />
+          <path d={`M${-HW} 0 A${HW} ${HH} 0 0 0 ${HW} 0 L${HW} ${-h} A${HW} ${HH} 0 0 1 ${-HW} ${-h} Z`} fill={color} stroke={INK} strokeWidth={1.3} />
+          <ellipse cx={0} cy={-h} rx={HW} ry={HH} fill={shade(color, 0.15)} stroke={INK} strokeWidth={1.3} />
+          <ellipse cx={0} cy={-h + 1} rx={HW - 4} ry={HH - 2} fill="#e9d5a6" stroke={shade(color, -0.3)} strokeWidth={1} />
+          {/* arcades sur deux étages */}
+          {[-0.75, -0.45, -0.15, 0.15, 0.45, 0.75].map((u, i) => {
+            const x = u * HW
+            const yb = Math.sqrt(Math.max(0, 1 - u * u)) * HH
+            return (
+              <g key={i} fill={shade(color, -0.45)}>
+                <rect x={x - 1.6} y={yb - 8} width={3.2} height={5.5} rx={1.6} />
+                <rect x={x - 1.6} y={yb - h + 5} width={3.2} height={5.5} rx={1.6} />
+              </g>
+            )
+          })}
+        </g>
+      )
+    case 'glass':
+      return (
+        <g>
+          <Shadow />
+          <Box hw={13} hh={6.5} h={h} color={color} />
+          <Windows h={h - 4} y0={4} floors={9} hw={13} hh={6.5} color="#e8f6ff" />
+          <Box hw={9} hh={4.5} h={10} color={shade(color, 0.1)} y0={h} />
+          <line x1={0} y1={-h - 10} x2={0} y2={-h - 24} stroke={INK} strokeWidth={1.4} />
+          <circle cx={0} cy={-h - 24} r={1.8} fill="#ff006e" />
+        </g>
+      )
+    case 'temple': {
+      const cols = [0.12, 0.37, 0.62, 0.87]
+      const R = (u: number, v: number): P => [u * HW, HH - u * HH - v]
+      const Lf = (u: number, v: number): P => [-HW + u * HW, u * HH - v]
+      return (
+        <g>
+          <Shadow />
+          <Box h={4} color={accent} />
+          {cols.map((u) => (
+            <g key={u}>
+              <Poly p={[R(u - 0.04, 4), R(u + 0.04, 4), R(u + 0.04, h), R(u - 0.04, h)]} fill={color} sw={0.8} />
+              <Poly p={[Lf(u - 0.04, 4), Lf(u + 0.04, 4), Lf(u + 0.04, h), Lf(u - 0.04, h)]} fill={shade(color, -0.12)} sw={0.8} />
+            </g>
+          ))}
+          <Box hw={HW + 1} hh={HH + 0.5} h={3} color={accent} y0={h} />
+          <PyramidRoof h={h + 3} r={7} color={color} hw={HW + 1} hh={HH + 0.5} />
+        </g>
+      )
+    }
+    case 'moai':
+      return (
+        <g>
+          <Shadow />
+          <Box hw={10} hh={5} h={5} color={accent} />
+          <Poly p={[[-8, -5], [8, -5], [7, -h * 0.7], [5, -h], [-6, -h], [-8, -h * 0.65]]} fill={color} />
+          {/* sourcils, nez, bouche */}
+          <line x1={-1} y1={-h + 8} x2={7} y2={-h + 8} stroke={INK} strokeWidth={2} strokeLinecap="round" />
+          <Poly p={[[4, -h + 9], [8.5, -h * 0.55], [4, -h * 0.52]]} fill={shade(color, 0.15)} sw={1} />
+          <line x1={1} y1={-h * 0.38} x2={7} y2={-h * 0.38} stroke={INK} strokeWidth={1.6} strokeLinecap="round" />
+          <rect x={-9} y={-h - 4} width={13} height={5} rx={2} fill="#b5603c" stroke={INK} strokeWidth={1} />
+        </g>
+      )
+    case 'rocket':
+      return (
+        <g>
+          <Shadow />
+          <Box h={4} color="#adb5bd" />
+          <circle cx={-12} cy={-2} r={4} fill="#e9ecef" opacity={0.9} />
+          <circle cx={10} cy={-1} r={5} fill="#e9ecef" opacity={0.9} />
+          <rect x={-6} y={-h} width={12} height={h - 6} rx={6} fill={color} stroke={INK} strokeWidth={1.4} />
+          <Poly p={[[-6, -h + 4], [6, -h + 4], [0, -h - 12]]} fill={accent} />
+          <Poly p={[[-6, -14], [-12, -6], [-6, -8]]} fill={accent} />
+          <Poly p={[[6, -14], [12, -6], [6, -8]]} fill={accent} />
+          <circle cx={0} cy={-h * 0.62} r={3.2} fill="#8ecae6" stroke={INK} strokeWidth={1.1} />
+          <Poly p={[[-3, -6], [3, -6], [0, 2]]} fill="#ffbe0b" sw={0.8} />
+        </g>
+      )
+    case 'arch':
+      return (
+        <g>
+          <Shadow />
+          <path
+            d={`M${-HW + 1} 2 L${-HW + 3} ${-h * 0.75} Q0 ${-h - 10} ${HW - 3} ${-h * 0.75} L${HW - 1} 2 L${HW - 8} 4 L${HW - 9} ${-h * 0.55} Q0 ${-h * 0.95} ${-HW + 9} ${-h * 0.55} L${-HW + 8} 4 Z`}
+            fill={color}
+            stroke={INK}
+            strokeWidth={1.4}
+            strokeLinejoin="round"
+          />
+          <Holds seed={17} n={7} area={(u, v) => (u < 0.5 ? [-HW + 4 + u * 6, 2 - v * h * 0.7] : [HW - 7 + (u - 0.5) * 6, 2 - v * h * 0.7])} />
+        </g>
+      )
     case 'observatory':
       return (
         <g>
@@ -336,10 +470,79 @@ function draw(b: Building): ReactNode {
   }
 }
 
+/* ---------- Textures de sol ---------- */
+
+export function GroundTile({ id, cx, cy, alt }: { id: string; cx: number; cy: number; alt: boolean }) {
+  const d: P[] = [
+    [cx - TW / 2, cy],
+    [cx, cy + TH / 2],
+    [cx + TW / 2, cy],
+    [cx, cy - TH / 2],
+  ]
+  const base: Record<string, string> = {
+    herbe: alt ? '#9fd67c' : '#93cd6f',
+    fleurs: alt ? '#a6db84' : '#9ad577',
+    route: '#5c5f6b',
+    terre: alt ? '#bd8b5e' : '#b58254',
+    paves: alt ? '#cfcac2' : '#c6c0b7',
+    sable: alt ? '#f3dfae' : '#eed79e',
+    eau: alt ? '#5bc0eb' : '#52b8e3',
+    planches: alt ? '#c99459' : '#c08a50',
+    neige: alt ? '#f7fbff' : '#eef5fc',
+  }
+  const fill = base[id] ?? base.herbe
+  const deco: ReactNode[] = []
+  if (id === 'route') deco.push(<line key="l" x1={cx - 6} y1={cy - 3} x2={cx + 6} y2={cy + 3} stroke="#f8f9fa" strokeWidth={1.4} strokeDasharray="3 3" />)
+  if (id === 'paves')
+    deco.push(
+      <g key="p" stroke="#a9a29a" strokeWidth={0.7}>
+        <line x1={cx - 10} y1={cy - 5} x2={cx + 10} y2={cy + 5} />
+        <line x1={cx - 10} y1={cy + 5} x2={cx + 10} y2={cy - 5} />
+      </g>,
+    )
+  if (id === 'planches')
+    deco.push(
+      <g key="b" stroke="#9c6b3a" strokeWidth={0.8}>
+        <line x1={cx - 15} y1={cy - 2.5} x2={cx + 5} y2={cy + 7.5} />
+        <line x1={cx - 5} y1={cy - 7.5} x2={cx + 15} y2={cy + 2.5} />
+      </g>,
+    )
+  if (id === 'eau') deco.push(<path key="w" d={`M${cx - 7} ${cy} q3 -2 6 0 t6 0`} stroke="#d6f3ff" strokeWidth={1.2} fill="none" />)
+  if (id === 'sable' || id === 'terre')
+    deco.push(
+      <g key="s" fill={id === 'sable' ? '#d9bd78' : '#8f6340'}>
+        <circle cx={cx - 5} cy={cy - 1} r={0.9} />
+        <circle cx={cx + 4} cy={cy + 2} r={0.9} />
+        <circle cx={cx + 1} cy={cy - 4} r={0.7} />
+      </g>,
+    )
+  if (id === 'neige')
+    deco.push(
+      <g key="n" fill="#c7dcf0">
+        <circle cx={cx - 4} cy={cy} r={1} />
+        <circle cx={cx + 5} cy={cy - 2} r={0.8} />
+      </g>,
+    )
+  if (id === 'fleurs')
+    deco.push(
+      <g key="f" stroke={INK} strokeWidth={0.4}>
+        <circle cx={cx - 6} cy={cy} r={1.6} fill="#ff70a6" />
+        <circle cx={cx + 3} cy={cy - 3} r={1.6} fill="#ffd166" />
+        <circle cx={cx + 6} cy={cy + 2} r={1.6} fill="#9b5de5" />
+      </g>,
+    )
+  return (
+    <g>
+      <polygon points={pts(d)} fill={fill} stroke={id === 'herbe' || id === 'fleurs' ? '#86c262' : shade(fill, -0.12)} strokeWidth={0.8} />
+      {deco}
+    </g>
+  )
+}
+
 /** Petite vignette autonome d'un bâtiment (cartes, inventaire, boutique) */
 export function BuildingThumb({ b, size = 64, dim = false }: { b: Building; size?: number; dim?: boolean }) {
   // cadrage adapté à la hauteur du bâtiment, pied du bâtiment en bas de la vignette
-  const top = Math.max(40, b.h + (b.roof === 'pyramid' || b.kind === 'clock' || b.kind === 'castle' ? 22 : 16))
+  const top = Math.max(40, b.h + (b.roof === 'pyramid' || ['clock', 'castle', 'rocket', 'glass', 'temple'].includes(b.kind) ? 24 : 16))
   return (
     <svg
       viewBox={`-28 ${-top} 56 ${top + 14}`}

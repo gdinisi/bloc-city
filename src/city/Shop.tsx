@@ -1,5 +1,5 @@
 import type { CityState } from './economy'
-import { buy, ownedCount } from './economy'
+import { buy, fragmentsNeeded, isFragmented, ownedCount, shopPrice } from './economy'
 import type { BuildingCat } from './buildings'
 import { BUILDINGS, CATS, RARITIES } from './buildings'
 import { BuildingThumb } from './iso'
@@ -20,7 +20,10 @@ export function Shop({ city, onCity, onClose }: Props) {
         <h2>Boutique</h2>
         <span className="pill">🪙 {city.coins}</span>
       </div>
-      <p className="muted small-text">Les doublons te donnent des pièces. Dépense-les ici pour choisir le bâtiment qui te manque.</p>
+      <p className="muted small-text">
+        Les doublons te donnent des pièces. Les bâtiments communs et rares s'achètent entiers ; les épiques et légendaires s'achètent fragment par fragment.
+        Les merveilles et les exclusivités de quêtes ne se vendent pas.
+      </p>
 
       {(Object.keys(CATS) as BuildingCat[]).map((cat) => (
         <section key={cat} className="shop-section">
@@ -32,20 +35,27 @@ export function Shop({ city, onCity, onClose }: Props) {
               const r = RARITIES[b.rarity]
               const owned = ownedCount(city, b.id)
               const maxed = owned >= r.max
-              const canBuy = !maxed && city.coins >= r.price
+              const price = shopPrice(b)
+              const frag = isFragmented(b)
+              const canBuy = price !== null && !maxed && city.coins >= price
               return (
                 <div key={b.id} className="shop-item" style={{ borderColor: r.color }}>
-                  <BuildingThumb b={b} size={64} />
+                  <BuildingThumb b={b} size={64} dim={!city.discovered.includes(b.id)} />
                   <b>{b.name}</b>
                   <span className="rarity" style={{ color: r.color }}>
                     {r.label}
+                    {b.size === 2 ? ' · 2×2' : ''}
                   </span>
                   <span className="muted shop-owned">
-                    {owned}/{r.max} possédé{owned > 1 ? 's' : ''}
+                    {frag && !maxed ? `🧩 ${city.fragments[b.id] ?? 0}/${fragmentsNeeded(b)}` : `${owned}/${r.max} possédé${owned > 1 ? 's' : ''}`}
                   </span>
-                  <button type="button" className="btn small" disabled={!canBuy} onClick={() => onCity((c) => buy(c, b.id) ?? c)}>
-                    {maxed ? 'Maximum' : `🪙 ${r.price}`}
-                  </button>
+                  {price === null ? (
+                    <span className="shop-lock">{b.source === 'quete' ? '🗺️ Quête' : '✨ Fragments'}</span>
+                  ) : (
+                    <button type="button" className="btn small" disabled={!canBuy} onClick={() => onCity((c) => buy(c, b.id) ?? c)}>
+                      {maxed ? 'Maximum' : frag ? `🧩 ${price} 🪙` : `🪙 ${price}`}
+                    </button>
+                  )}
                 </div>
               )
             })}

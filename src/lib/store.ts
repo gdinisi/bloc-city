@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { Session, Settings } from '../types'
 import type { CityState } from '../city/economy'
-import { newCity, rewardSessions } from '../city/economy'
+import { migrateCity, newCity, rewardSessions } from '../city/economy'
 
 /**
  * Les données sont gardées sur le téléphone (localStorage).
@@ -27,7 +27,7 @@ const load = (): Data => {
       const parsed = JSON.parse(raw) as Partial<Data>
       sessions = Array.isArray(parsed.sessions) ? parsed.sessions : []
       settings = { ...DEFAULT_SETTINGS, ...parsed.settings, home: { ...DEFAULT_SETTINGS.home, ...parsed.settings?.home } }
-      if (parsed.city) city = { ...newCity(), ...parsed.city, packs: parsed.city.packs ?? [] }
+      if (parsed.city) city = migrateCity(parsed.city)
     }
   } catch {
     /* données illisibles : on repart de zéro */

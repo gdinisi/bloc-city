@@ -78,17 +78,30 @@ export function PackOpening({ packs, city, onCity, onClose }: Props) {
       ) : (
         <div className="pack-stage">
           <h2 className="pack-title">{info.label}</h2>
-          <div className={`pack-cards n${cards.length}`}>
+          <div className={`pack-cards n${Math.min(cards.length, 4)}`}>
             {cards.map((c, i) => {
               const b = buildingById(c.id)!
               const r = RARITIES[b.rarity]
+              const frag = c.kind === 'fragment'
               return (
-                <div key={i} className="pack-card" style={{ animationDelay: `${i * 0.35}s`, '--rc': r.color, '--rg': r.glow } as React.CSSProperties}>
-                  <span className="pack-rarity">{r.label}</span>
-                  <BuildingThumb b={b} size={78} />
+                <div
+                  key={i}
+                  className={`pack-card ${frag && !c.assembled ? 'frag' : ''}`}
+                  style={{ animationDelay: `${i * 0.35}s`, '--rc': r.color, '--rg': r.glow } as React.CSSProperties}
+                >
+                  <span className="pack-rarity">{frag && !c.assembled ? `🧩 Fragment ${r.label.toLowerCase()}` : r.label}</span>
+                  <BuildingThumb b={b} size={78} dim={frag && !c.assembled} />
                   <b className="pack-name">{b.name}</b>
                   {c.coins > 0 ? (
-                    <span className="pack-tag dup">Doublon · +{c.coins} 🪙</span>
+                    <span className="pack-tag dup">Déjà complet · +{c.coins} 🪙</span>
+                  ) : frag ? (
+                    c.assembled ? (
+                      <span className="pack-tag new">Assemblé !</span>
+                    ) : (
+                      <span className="pack-tag">
+                        +{c.n} · {c.have}/{c.need}
+                      </span>
+                    )
                   ) : c.isNew ? (
                     <span className="pack-tag new">Nouveau !</span>
                   ) : (

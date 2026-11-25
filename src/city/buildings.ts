@@ -1,5 +1,5 @@
-export type Rarity = 'commun' | 'rare' | 'epique' | 'legendaire'
-export type BuildingCat = 'maisons' | 'commerces' | 'parcs' | 'escalade' | 'monuments'
+export type Rarity = 'commun' | 'rare' | 'epique' | 'legendaire' | 'merveille'
+export type BuildingCat = 'maisons' | 'commerces' | 'parcs' | 'escalade' | 'monuments' | 'merveilles'
 
 export type Kind =
   | 'house'
@@ -21,6 +21,14 @@ export type Kind =
   | 'clock'
   | 'castle'
   | 'observatory'
+  | 'pyramid'
+  | 'eiffel'
+  | 'colosseum'
+  | 'glass'
+  | 'temple'
+  | 'moai'
+  | 'rocket'
+  | 'arch'
 
 export interface Building {
   id: string
@@ -32,18 +40,29 @@ export interface Building {
   color: string
   /** Couleur du toit / détail */
   accent: string
-  /** Hauteur des murs (px) */
+  /** Hauteur des murs (px, à l'échelle d'une case) */
   h: number
   roof?: 'pyramid' | 'flat' | 'none'
   floors?: number
+  /** Emprise au sol : 1 = une case, 2 = 2 × 2 cases */
+  size?: 1 | 2
+  /** 'quete' : ne s'obtient que par une quête (jamais dans les packs ni la boutique) */
+  source?: 'quete'
 }
 
-export const RARITIES: Record<Rarity, { label: string; color: string; glow: string; pop: number; coins: number; price: number; max: number; weight: number }> = {
-  commun: { label: 'Commun', color: '#7a8597', glow: '#dfe5ee', pop: 5, coins: 5, price: 25, max: 4, weight: 70 },
-  rare: { label: 'Rare', color: '#2f80ed', glow: '#cfe3ff', pop: 12, coins: 15, price: 70, max: 2, weight: 22 },
-  epique: { label: 'Épique', color: '#9b51e0', glow: '#ead8ff', pop: 25, coins: 40, price: 160, max: 1, weight: 7 },
-  legendaire: { label: 'Légendaire', color: '#f2994a', glow: '#ffe6c7', pop: 60, coins: 100, price: 400, max: 1, weight: 1 },
+export const RARITIES: Record<
+  Rarity,
+  { label: string; color: string; glow: string; pop: number; coins: number; price: number; max: number; weight: number; fragments: number }
+> = {
+  commun: { label: 'Commun', color: '#7a8597', glow: '#dfe5ee', pop: 5, coins: 5, price: 25, max: 4, weight: 70, fragments: 1 },
+  rare: { label: 'Rare', color: '#2f80ed', glow: '#cfe3ff', pop: 12, coins: 15, price: 70, max: 2, weight: 22, fragments: 1 },
+  epique: { label: 'Épique', color: '#9b51e0', glow: '#ead8ff', pop: 25, coins: 30, price: 45, max: 1, weight: 7, fragments: 4 },
+  legendaire: { label: 'Légendaire', color: '#f2994a', glow: '#ffe6c7', pop: 60, coins: 60, price: 90, max: 1, weight: 1, fragments: 6 },
+  merveille: { label: 'Merveille', color: '#d4a106', glow: '#fff3b0', pop: 150, coins: 120, price: 0, max: 1, weight: 0, fragments: 10 },
 }
+
+/** Les raretés qui arrivent en fragments (à assembler) */
+export const BY_FRAGMENTS: Rarity[] = ['epique', 'legendaire', 'merveille']
 
 export const CATS: Record<BuildingCat, { label: string; emoji: string }> = {
   maisons: { label: 'Maisons', emoji: '🏠' },
@@ -51,6 +70,7 @@ export const CATS: Record<BuildingCat, { label: string; emoji: string }> = {
   parcs: { label: 'Parcs & nature', emoji: '🌳' },
   escalade: { label: 'Escalade', emoji: '🧗' },
   monuments: { label: 'Monuments', emoji: '🗼' },
+  merveilles: { label: 'Merveilles', emoji: '✨' },
 }
 
 export const BUILDINGS: Building[] = [
@@ -83,17 +103,31 @@ export const BUILDINGS: Building[] = [
   { id: 'refuge', name: 'Refuge', rarity: 'rare', cat: 'escalade', kind: 'house', color: '#8d99ae', accent: '#9d0208', h: 16, roof: 'pyramid' },
   { id: 'salle-bloc', name: 'Salle de bloc', rarity: 'epique', cat: 'escalade', kind: 'gym', color: '#3a86ff', accent: '#ffbe0b', h: 30 },
   { id: 'falaise', name: 'Falaise', rarity: 'epique', cat: 'escalade', kind: 'cliff', color: '#b08968', accent: '#ffca3a', h: 44 },
-  { id: 'grande-paroi', name: 'Grande paroi', rarity: 'legendaire', cat: 'escalade', kind: 'bigwall', color: '#a8a29e', accent: '#ff006e', h: 84 },
+  { id: 'grande-paroi', name: 'Grande paroi', rarity: 'legendaire', cat: 'escalade', kind: 'bigwall', color: '#a8a29e', accent: '#ff006e', h: 70, size: 2 },
+  { id: 'arche', name: 'Arche de pierre', rarity: 'rare', cat: 'escalade', kind: 'arch', color: '#c08552', accent: '#ffca3a', h: 30, source: 'quete' },
 
   // ---------- Monuments ----------
-  { id: 'statue', name: 'Statue du grimpeur', rarity: 'rare', cat: 'monuments', kind: 'statue', color: '#c9b79c', accent: '#ffd166', h: 26 },
+  { id: 'statue', name: 'Statue du grimpeur', rarity: 'rare', cat: 'monuments', kind: 'statue', color: '#c9b79c', accent: '#ffd166', h: 26, source: 'quete' },
   { id: 'tour-horloge', name: 'Tour de l\'horloge', rarity: 'epique', cat: 'monuments', kind: 'clock', color: '#e9d8a6', accent: '#9b2226', h: 56 },
   { id: 'phare', name: 'Phare', rarity: 'epique', cat: 'monuments', kind: 'lighthouse', color: '#ffffff', accent: '#e63946', h: 62 },
-  { id: 'chateau', name: 'Château', rarity: 'legendaire', cat: 'monuments', kind: 'castle', color: '#d6ccc2', accent: '#3d5a80', h: 36 },
+  { id: 'moai', name: 'Moaï', rarity: 'epique', cat: 'monuments', kind: 'moai', color: '#8d8579', accent: '#5e5549', h: 34, source: 'quete' },
+  { id: 'chateau', name: 'Château', rarity: 'legendaire', cat: 'monuments', kind: 'castle', color: '#d6ccc2', accent: '#3d5a80', h: 30, size: 2 },
   { id: 'observatoire', name: 'Observatoire', rarity: 'legendaire', cat: 'monuments', kind: 'observatory', color: '#e0e1dd', accent: '#415a77', h: 28 },
+  { id: 'temple', name: 'Temple grec', rarity: 'legendaire', cat: 'monuments', kind: 'temple', color: '#f1ece2', accent: '#c9b79c', h: 18, size: 2, source: 'quete' },
+
+  // ---------- Merveilles (fragments très rares) ----------
+  { id: 'pyramide', name: 'Pyramide', rarity: 'merveille', cat: 'merveilles', kind: 'pyramid', color: '#e9c46a', accent: '#c9a227', h: 30, size: 2 },
+  { id: 'tour-eiffel', name: 'Tour Eiffel', rarity: 'merveille', cat: 'merveilles', kind: 'eiffel', color: '#8d6e63', accent: '#5d4037', h: 64, size: 2 },
+  { id: 'colisee', name: 'Colisée', rarity: 'merveille', cat: 'merveilles', kind: 'colosseum', color: '#e3c9a0', accent: '#b5895a', h: 20, size: 2 },
+  { id: 'tour-verre', name: 'Tour de verre géante', rarity: 'merveille', cat: 'merveilles', kind: 'glass', color: '#9ad1f5', accent: '#2b2d42', h: 58, size: 2 },
+  { id: 'fusee', name: 'Fusée', rarity: 'merveille', cat: 'merveilles', kind: 'rocket', color: '#f8f9fa', accent: '#e63946', h: 50, size: 2, source: 'quete' },
 ]
 
 export const buildingById = (id: string) => BUILDINGS.find((b) => b.id === id)
+export const sizeOf = (b: Building) => b.size ?? 1
+
+/** Bâtiments qu'on peut tirer dans les packs (hors exclusivités de quêtes) */
+export const DROPPABLE = BUILDINGS.filter((b) => b.source !== 'quete')
 
 /** Niveau de la ville selon la population */
 export const CITY_LEVELS = [0, 20, 50, 100, 170, 260, 380, 520, 700, 900]
@@ -105,3 +139,29 @@ export const cityLevel = (pop: number) => {
   return l
 }
 export const nextLevelAt = (pop: number) => CITY_LEVELS.find((min) => min > pop) ?? null
+
+/** La carte s'agrandit avec le niveau : 8 × 8 au départ, jusqu'à 16 × 16 */
+export const gridSizeFor = (level: number) => Math.min(16, 8 + 2 * Math.floor((level - 1) / 2))
+export const nextGrowthLevel = (level: number) => (gridSizeFor(level) >= 16 ? null : level + (level % 2 === 1 ? 2 : 1))
+
+/* ---------- Textures de sol ---------- */
+
+export interface Ground {
+  id: string
+  name: string
+  /** Niveau de ville qui la débloque (sinon : via une quête) */
+  level?: number
+  quest?: boolean
+}
+
+export const GROUNDS: Ground[] = [
+  { id: 'herbe', name: 'Herbe', level: 1 },
+  { id: 'route', name: 'Route', level: 1 },
+  { id: 'terre', name: 'Terre', level: 2 },
+  { id: 'paves', name: 'Pavés', level: 3 },
+  { id: 'sable', name: 'Sable', level: 4 },
+  { id: 'eau', name: 'Eau', level: 5 },
+  { id: 'planches', name: 'Planches', level: 6 },
+  { id: 'neige', name: 'Neige', level: 7 },
+  { id: 'fleurs', name: 'Prairie fleurie', quest: true },
+]

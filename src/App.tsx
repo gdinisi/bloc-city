@@ -6,6 +6,7 @@ import { HomeWorkoutScreen } from './screens/HomeWorkoutScreen'
 import { StatsScreen } from './screens/StatsScreen'
 import { CityScreen } from './city/CityScreen'
 import { chestReadyAt } from './city/economy'
+import { useClaimable } from './city/QuestsPanel'
 
 type Tab = 'calendrier' | 'seances' | 'stats' | 'ville' | 'classement'
 
@@ -22,6 +23,8 @@ export default function App() {
   const data = useAppData()
   // packs à ouvrir + coffre du jour prêt
   const cityBadge = data.city.packs.length + (Date.now() >= chestReadyAt(data.city) ? 1 : 0)
+  // quêtes terminées à récupérer
+  const questBadge = useClaimable(data.sessions, data.settings.weeklyGoal, data.city)
 
   return (
     <div className="app">
@@ -34,6 +37,8 @@ export default function App() {
         {tab === 'calendrier' && (
           <CalendarScreen
             sessions={data.sessions}
+            city={data.city}
+            onCity={data.updateCity}
             weeklyGoal={data.settings.weeklyGoal}
             onGoalChange={data.setWeeklyGoal}
             onSave={data.upsertSession}
@@ -56,7 +61,7 @@ export default function App() {
 
       <nav className="tabbar">
         {TABS.map((t) => {
-          const badge = t.id === 'ville' ? cityBadge : 0
+          const badge = t.id === 'ville' ? cityBadge : t.id === 'calendrier' ? questBadge : 0
           return (
             <button key={t.id} type="button" className={tab === t.id ? 'on' : ''} onClick={() => setTab(t.id)}>
               <span className="tab-emoji">
