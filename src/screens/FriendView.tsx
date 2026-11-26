@@ -53,6 +53,8 @@ export function FriendView({ friend, mySessions, myGoal, onClose, onRemoved, dem
 
   return (
     <div className="friend-view" role="dialog" aria-label={`Profil de ${friend.pseudo}`}>
+      {/* en-tête (logo de niveau) et onglets restent ensemble en haut de l'écran */}
+      <div className="friend-sticky">
       <header className="friend-view-head">
         <button type="button" className="round" aria-label="Retour" onClick={onClose}>
           <Icon name="back" size={20} />
@@ -78,6 +80,7 @@ export function FriendView({ friend, mySessions, myGoal, onClose, onRemoved, dem
             {label}
           </button>
         ))}
+      </div>
       </div>
 
       <div className="friend-view-body">

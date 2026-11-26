@@ -156,6 +156,8 @@ CHEMINS = {f'{forme}-{t}': (forme, t) for t in MATS_CHEMIN for forme in RUES}
 # pour 1 à 3 marches de dénivelé (une marche = 0,857 unité = 7 px de la carte)
 MARCHE = 0.857
 FALAISES = {f'falaise-{f}-{h}': (f, h) for f in 'gd' for h in (1, 2, 3, 4)}
+# les deux faces ensemble (angle avant fermé), hauteurs indépendantes
+FALAISES_C = {f'falaise-c-{a}-{b}': (a, b) for a in (1, 2, 3, 4) for b in (1, 2, 3, 4)}
 
 
 def mat_roche():
@@ -232,7 +234,7 @@ def bloc_roche(centre, taille, rnd, m):
     return o
 
 
-def paroi(face, h, seed=1):
+def paroi(face, h, seed=1, u_fin=1.5):
     """Falaise de h marches : empilement de blocs rocheux à facettes (style low-poly des autres falaises)
     sur un fond de roche sombre, liseré d'herbe qui déborde en haut, éboulis au pied."""
     rnd = random.Random(seed * 13 + h * 7 + (0 if face == 'g' else 3))
@@ -246,7 +248,7 @@ def paroi(face, h, seed=1):
 
     # fond sombre continu (bouche les interstices entre les blocs)
     fond = bpy.data.meshes.new('fond')
-    c = [P(-1.5, 0.0, 0.0), P(1.75, 0.0, 0.0), P(1.75, 0.0, -H), P(-1.5, 0.0, -H)]
+    c = [P(-1.5, 0.0, 0.0), P(u_fin, 0.0, 0.0), P(u_fin, 0.0, -H), P(-1.5, 0.0, -H)]
     fond.from_pydata(c, [], [(0, 1, 2, 3)])
     fond.materials.append(_mat('rFond', '#3a3129', 0.95))
     fo = bpy.data.objects.new('fond', fond); bpy.context.scene.collection.objects.link(fo); objs.append(fo)
@@ -258,8 +260,8 @@ def paroi(face, h, seed=1):
         hz = H / rangs * rnd.uniform(0.9, 1.15)
         zc = min(zc, -hz * 0.68)  # le haut des blocs reste sous le liseré d'herbe
         u = -1.5 + (0.0 if r % 2 == 0 else 0.2) + rnd.uniform(0, 0.08)
-        while u < 1.75:
-            lu = rnd.uniform(0.3, 0.95)
+        while u < u_fin - 0.12:
+            lu = min(rnd.uniform(0.3, 0.95), u_fin - u + 0.02)
             prof = rnd.uniform(0.05, 0.22) + (0.08 if r == rangs - 1 else 0)  # gros blocs à la base
             # strate : bloc plus large que haut, saillie variable d'un bloc à l'autre
             o = bloc_roche(P(u + lu / 2, prof / 2 - 0.02, zc), (lu, 0.12 + prof, hz) if face == 'g' else (0.12 + prof, lu, hz), rnd, roche)
@@ -269,13 +271,13 @@ def paroi(face, h, seed=1):
             u += lu * rnd.uniform(0.92, 1.0)
     # liseré d'herbe qui déborde légèrement, avec des touffes qui pendent au bord
     if face == 'g':
-        lis = dalle(3.25, 0.2, mat_herbe(), 0.01, 0.1, 0.12, -1.56)
+        lis = dalle(u_fin + 1.5, 0.2, mat_herbe(), 0.01, 0.1, (u_fin - 1.5) / 2, -1.56)
     else:
-        lis = dalle(0.2, 3.25, mat_herbe(), 0.01, 0.1, 1.56, -0.12)
+        lis = dalle(0.2, u_fin + 1.5, mat_herbe(), 0.01, 0.1, 1.56, -(u_fin - 1.5) / 2)
     lis.name = 'herbe'
     objs.append(lis)
     for k in range(int(12 + 4 * h)):
-        t = rnd.uniform(-1.45, 1.65)
+        t = rnd.uniform(-1.45, u_fin - 0.08)
         me_t = maillage_touffe(*rnd.choice([('t1', '#3d8a2e'), ('t2', '#5aa83a'), ('t3', '#2f7426')]))
         tf = bpy.data.objects.new('touffe', me_t)
         tf.location = P(t, 0.16, 0.0)
@@ -285,17 +287,136 @@ def paroi(face, h, seed=1):
         objs.append(tf)
     # éboulis au pied
     for k in range(int(3 + 2 * h)):
-        t = rnd.uniform(-1.35, 1.6)
+        t = rnd.uniform(-1.35, u_fin - 0.15)
         sz = rnd.uniform(0.06, 0.14)
-        o = rocher(P(t, 0.2 + rnd.uniform(0, 0.12), -H), (sz, sz * 0.9, sz * 0.7), '#6e6253', seed=seed * 100 + k + h * 10, sub=1)
+        o = rocher(P(t, 0.12 + rnd.uniform(0, 0.06), -H), (sz, sz * 0.9, sz * 0.7), '#6e6253', seed=seed * 100 + k + h * 10, sub=1)
         o.data.materials[0] = roche
         objs.append(o)
     return objs
 
 
+def mat_mer_motif():
+    """Mer stylisée PÉRIODIQUE (période = une case de 3 unités en x et en y) : se raccorde sans couture.
+    Bleu profond, bandes de vagues plus claires, petites crêtes d'écume."""
+    m = bpy.data.materials.get('MerMotif')
+    if m:
+        return m
+    m = bpy.data.materials.new('MerMotif')
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N.get('Principled BSDF'); b.inputs['Roughness'].default_value = 0.18
+    geo = N.new('ShaderNodeNewGeometry')
+    sep = N.new('ShaderNodeSeparateXYZ'); L.new(geo.outputs['Position'], sep.inputs[0])
+    TAU = math.tau
+
+    def onde(ax, ay, periode, phase=0.0):
+        """sin(2π (ax·x + ay·y) / période + phase) — périodes choisies pour diviser 3."""
+        mx = N.new('ShaderNodeMath'); mx.operation = 'MULTIPLY'; mx.inputs[1].default_value = ax * TAU / periode
+        my = N.new('ShaderNodeMath'); my.operation = 'MULTIPLY'; my.inputs[1].default_value = ay * TAU / periode
+        L.new(sep.outputs[0], mx.inputs[0]); L.new(sep.outputs[1], my.inputs[0])
+        ad = N.new('ShaderNodeMath'); ad.operation = 'ADD'; L.new(mx.outputs[0], ad.inputs[0]); L.new(my.outputs[0], ad.inputs[1])
+        ph = N.new('ShaderNodeMath'); ph.operation = 'ADD'; ph.inputs[1].default_value = phase; L.new(ad.outputs[0], ph.inputs[0])
+        s_ = N.new('ShaderNodeMath'); s_.operation = 'SINE'; L.new(ph.outputs[0], s_.inputs[0])
+        return s_
+    # somme d'ondes de périodes 3, 1.5, 1, 0.75 dans plusieurs directions
+    ondes = [onde(1, 1, 3.0), onde(1, -1, 1.5, 1.3), onde(1, 0, 1.0, 0.7), onde(0, 1, 0.75, 2.1), onde(2, 1, 3.0, 0.4),
+             onde(3, -1, 1.5, 0.9), onde(1, 2, 0.5, 1.7)]
+    poids = [0.3, 0.25, 0.18, 0.14, 0.2, 0.15, 0.1]
+    acc = None
+    for o_, w in zip(ondes, poids):
+        mw = N.new('ShaderNodeMath'); mw.operation = 'MULTIPLY'; mw.inputs[1].default_value = w; L.new(o_.outputs[0], mw.inputs[0])
+        if acc is None:
+            acc = mw
+        else:
+            a2 = N.new('ShaderNodeMath'); a2.operation = 'ADD'; L.new(acc.outputs[0], a2.inputs[0]); L.new(mw.outputs[0], a2.inputs[1]); acc = a2
+    norm = N.new('ShaderNodeMapRange'); norm.inputs['From Min'].default_value = -1.0; norm.inputs['From Max'].default_value = 1.0
+    L.new(acc.outputs[0], norm.inputs['Value'])
+    r = N.new('ShaderNodeValToRGB')
+    el = r.color_ramp.elements
+    el[0].position = 0.0; el[0].color = (0.02, 0.16, 0.32, 1)
+    el[1].position = 0.78; el[1].color = (0.05, 0.33, 0.52, 1)
+    e2 = el.new(0.92); e2.color = (0.1, 0.45, 0.62, 1)
+    e3 = el.new(0.975); e3.color = (0.6, 0.82, 0.9, 1)  # fines crêtes d'écume
+    L.new(norm.outputs['Result'], r.inputs['Fac'])
+    L.new(r.outputs['Color'], b.inputs['Base Color'])
+    bump = N.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.35; bump.inputs['Distance'].default_value = 0.03
+    L.new(norm.outputs['Result'], bump.inputs['Height']); L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    return m
+
+
+PLAGES = {f'plage-{a}{b}{c}{d}': (a, b, c, d) for a in '01' for b in '01' for c in '01' for d in '01' if (a, b, c, d) != ('0', '0', '0', '0')}
+
+
+def plage(masque):
+    """Case d'herbe dont les bords donnant sur la mer descendent en pente douce de sable jusqu'à l'eau.
+    masque = (+x, +y, -x, -y) : '1' = bord de plage."""
+    H, W = MARCHE, 0.8
+    n = 72
+    actifs = [i for i, c in enumerate(masque) if c == '1']
+
+    def z_et_d(x, y):
+        dmin = 9.0
+        for i in actifs:
+            # masque en axes de l'appli : +x, +y appli (= -y Blender), -x, -y appli (= +y Blender)
+            d = [1.5 - x, y + 1.5, x + 1.5, 1.5 - y][i]
+            dmin = min(dmin, d)
+        t = max(0.0, min(1.0, 1 - dmin / W))
+        return -H * (t * t * (3 - 2 * t)), dmin
+    verts, faces, mats = [], [], []
+    for j in range(n + 1):
+        for i in range(n + 1):
+            x, y = -1.5 + 3 * i / n, -1.5 + 3 * j / n
+            verts.append((x, y, z_et_d(x, y)[0]))
+    for j in range(n):
+        for i in range(n):
+            a = j * (n + 1) + i
+            faces.append((a, a + 1, a + n + 2, a + n + 1))
+            cx, cy = -1.5 + 3 * (i + 0.5) / n, -1.5 + 3 * (j + 0.5) / n
+            d = z_et_d(cx, cy)[1]
+            mats.append(3 if d < 0.05 else 2 if d < 0.3 else 1 if d < W * 0.92 else 0)
+    me = bpy.data.meshes.new('plage')
+    me.from_pydata(verts, [], faces)
+    for m in (mat_herbe(), mat_bruit('SablePlage', '#d9bb7c', '#f2dca6', 3.0, 0.2), mat_bruit('SableMouille', '#a98d5c', '#c4a56d', 4.0, 0.15), _mat('Ecume', '#f4fbff', 0.6)):
+        me.materials.append(m)
+    for p, k in zip(me.polygons, mats):
+        p.material_index = k
+    o = bpy.data.objects.new('herbe', me)
+    bpy.context.scene.collection.objects.link(o)
+    tf = touffes(1.47, 170, seed=7)
+    for t in tf:
+        if t.location.z < -0.005:
+            bpy.data.objects.remove(t)
+    return o
+
+
+def paroi_combo(hg, hd, seed=1):
+    """Deux faces de falaise (gauche hg marches, droite hd marches) avec l'angle avant fermé."""
+    objs = []
+    if hg:
+        objs += paroi('g', hg, seed, u_fin=1.5 + (0.22 if hd else 0.0))
+    if hd:
+        objs += paroi('d', hd, seed + 1, u_fin=1.5 + (0.22 if hg else 0.0))
+    return objs
+
+
 def rendre(nom, out):
     sc = reset()
-    if nom in FALAISES:
+    if nom == 'mer-motif':
+        dalle(12, 12, mat_mer_motif(), 0.0, 0)
+        lo, hi = Vector((-1.5, -1.5, 0.0)), Vector((1.5, 1.5, 0.0))
+    elif nom in PLAGES:
+        plage(PLAGES[nom])
+        lo, hi = Vector((-1.5, -1.5, -MARCHE)), Vector((1.5, 1.5, 0.12))
+    elif nom in FALAISES_C:
+        a, b = FALAISES_C[nom]
+        paroi_combo(a, b)
+        for attr in ('use_raytracing', 'use_gtao'):
+            try:
+                setattr(sc.eevee, attr, True)
+            except AttributeError:
+                pass
+        lo, hi = Vector((-1.5, -1.5, -max(a, b) * MARCHE - 0.2)), Vector((1.5, 1.5, 0.05))
+    elif nom in FALAISES:
         f, h = FALAISES[nom]
         paroi(f, h)
         for attr in ('use_raytracing', 'use_gtao'):
@@ -335,5 +456,5 @@ def rendre(nom, out):
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 out = os.path.abspath(argv[0] if argv else os.path.join(ICI, 'out', 'sols'))
 os.makedirs(out, exist_ok=True)
-for nom in (argv[1:] or list(SOLS) + list(RUES) + list(CHEMINS) + list(FALAISES)):
+for nom in (argv[1:] or list(SOLS) + list(FALAISES) + list(FALAISES_C) + list(PLAGES) + ['mer-motif']):
     rendre(nom, out)

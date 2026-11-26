@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CityState } from './economy'
 import { landCandidates, landOf } from './economy'
@@ -10,7 +10,9 @@ import { SOLS, SPRITES } from './sprites'
  * Carte isométrique de la ville (rendus Blender : sols, falaises, mer, bâtiments).
  * - l'île est un ensemble libre de cases côte à côte (on peut en ajouter / enlever une par une)
  * - l'île est entourée par la mer, une marche plus bas que le sol (de quoi ajouter des ports plus tard)
- * - relief : 0 à 3 marches par case ; falaises rocheuses face à la mer ou à une case plus basse
+ * - au niveau 0, les bords qui donnent sur la mer sont des plages ; en hauteur, des falaises rocheuses
+ * - la mer est un motif continu (texture périodique) sous toute la carte : visible à tous les zooms
+ * - les images ne captent pas le toucher : chaque case a une zone en losange exacte (pose, terrain, relief)
  * - caméra : glisser pour se déplacer, pincer pour zoomer (×0,5 à ×14, molette sur ordinateur) ;
  *   au départ, elle cadre la partie construite. Seule la partie visible est dessinée.
  */
@@ -46,6 +48,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
   const land = useMemo(() => landOf(city), [city])
   const candidats = useMemo(() => (onAddCase ? landCandidates(city) : []), [city, onAddCase])
   const [cam, setCam] = useState({ s: 1, x: 0, y: 0 })
+  const idMer = `mer${useId().replace(/:/g, '')}`
   const svgRef = useRef<SVGSVGElement>(null)
   const pointers = useRef(new Map<number, P>())
   const gesture = useRef<{ dist: number; s: number; moved: boolean }>({ dist: 0, s: 1, moved: false })
@@ -185,43 +188,31 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
     const sp = SOLS[nom]
     if (!sp) return null
     // `agrandi` : léger recouvrement (cases de mer) pour qu'aucune jointure ne se voie
-    return <image href={solUrl(nom)} x={cx - sp.ox * agrandi} y={cy - sp.oy * agrandi} width={sp.w * agrandi} height={sp.h * agrandi} preserveAspectRatio="none" />
+    return <image href={solUrl(nom)} x={cx - sp.ox * agrandi} y={cy - sp.oy * agrandi} width={sp.w * agrandi} height={sp.h * agrandi} preserveAspectRatio="none" style={{ pointerEvents: 'none' }} />
   }
 
   // ---------- sol : mer, cases, falaises ----------
   type Elt = { k: number; node: ReactNode }
   const sol: Elt[] = []
-  // cases de mer dans la partie visible (au-delà : la couleur de fond de la carte)
-  {
-    const inv = (sx: number, sy: number): P => [(sx / (TW / 2) + sy / (TH / 2)) / 2, (sy / (TH / 2) - sx / (TW / 2)) / 2]
-    const coins = [inv(vue.a, vue.c), inv(vue.b, vue.c), inv(vue.a, vue.d), inv(vue.b, vue.d)]
-    const xa = Math.floor(Math.min(...coins.map((c) => c[0]))) - 1, xb = Math.ceil(Math.max(...coins.map((c) => c[0]))) + 1
-    const ya = Math.floor(Math.min(...coins.map((c) => c[1]))) - 1, yb = Math.ceil(Math.max(...coins.map((c) => c[1]))) + 1
-    if ((xb - xa) * (yb - ya) < 4000) {
-      for (let y = ya; y <= yb; y++)
-        for (let x = xa; x <= xb; x++) {
-          if (isLand(x, y)) continue
-          const [cx, cy] = proj(x, y)
-          if (!visible(cx, cy)) continue
-          sol.push({ k: x + y - 0.002, node: <g key={`m${x},${y}`}>{image('mer', cx, cy - MER * STEP, 1.04)}</g> })
-        }
-    }
-  }
   for (const [x, y] of cases) {
     const [cx, cy0] = proj(x, y)
     if (!visible(cx, cy0)) continue
     const e = elev(x, y)
     const cy = cy0 - e * STEP
-    const hD = Math.min(4, e - Math.min(e, elev(x + 1, y))) // face droite (vers +x) : jusqu'à la case voisine ou la mer
-    const hG = Math.min(4, e - Math.min(e, elev(x, y + 1))) // face gauche (vers +y)
-    const herbe = (x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe'
+    // au niveau 0 : plage sur les bords qui donnent sur la mer ; en hauteur : falaises (jusqu'à la case voisine ou la mer)
+    const plage = e === 0 ? [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([dx, dy]) => (isLand(x + dx, y + dy) ? '0' : '1')).join('') : '0000'
+    const hD = e === 0 ? 0 : Math.min(4, e - Math.min(e, elev(x + 1, y))) // face droite (vers +x)
+    const hG = e === 0 ? 0 : Math.min(4, e - Math.min(e, elev(x, y + 1))) // face gauche (vers +y)
+    const dessus = plage !== '0000' ? `plage-${plage}` : (x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe'
+    const falaise = hG > 0 && hD > 0 ? `falaise-c-${hG}-${hD}` : hG > 0 ? `falaise-g-${hG}` : hD > 0 ? `falaise-d-${hD}` : null
     sol.push({
       k: x + y,
       node: (
         <g key={`t${x},${y}`} onClick={tap(onTile ? () => onTile(x, y) : undefined)} style={{ cursor: onTile ? 'pointer' : undefined }}>
-          {hG > 0 && image(`falaise-g-${hG}`, cx, cy)}
-          {hD > 0 && image(`falaise-d-${hD}`, cx, cy)}
-          {image(herbe, cx, cy)}
+          {falaise && image(falaise, cx, cy)}
+          {image(dessus, cx, cy)}
+          {/* zone de toucher exacte de la case */}
+          <polygon points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`} fill="transparent" />
           {valid?.has(`${x},${y}`) && (
             <polygon
               points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`}
@@ -330,7 +321,9 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
         >
           {sp ? (
             <>
-              <image href={spriteUrl(it.b.id, it.p.flip, hd ? 'hd' : 'normal')} x={-sp.ox} y={-sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" />
+              <image href={spriteUrl(it.b.id, it.p.flip, hd ? 'hd' : 'normal')} x={-sp.ox} y={-sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" style={{ pointerEvents: 'none' }} />
+              {/* zone de toucher : l'emprise au sol prolongée vers le haut (pas le rectangle transparent de l'image) */}
+              <polygon points={`${-TW * h},0 0,${TH * h} ${TW * h},0 ${TW * h},${-(sp.oy - TH * h) * 0.85} 0,${-(sp.oy - TH * h) * 0.85 - TH * h} ${-TW * h},${-(sp.oy - TH * h) * 0.85}`} fill="transparent" />
               {isSel && <polygon points={contour} fill="#ffe066" fillOpacity={0.28} stroke="#f2994a" strokeWidth={2 / Math.sqrt(cam.s)} style={{ pointerEvents: 'none' }} />}
             </>
           ) : (
@@ -365,8 +358,17 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
         onWheel={readOnly ? undefined : onWheel}
         style={{ touchAction: readOnly ? 'auto' : 'none' }}
       >
+        <defs>
+          {/* mer : une cellule (TW × TH) d'une texture périodique, répétée à l'infini, une marche sous le sol */}
+          <pattern id={idMer} patternUnits="userSpaceOnUse" x={-TW / 2} y={-TH / 2 - MER * STEP} width={TW} height={TH}>
+            <image href={solUrl('mer-motif')} x={0} y={0} width={TW} height={TH} preserveAspectRatio="none" />
+          </pattern>
+        </defs>
         <rect x={x0} y={top} width={vbW} height={vbH} fill="transparent" />
-        <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>{tout.map((e) => e.node)}</g>
+        <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
+          <rect x={vue.a - TW} y={vue.c - TH} width={vue.b - vue.a + 2 * TW} height={vue.d - vue.c + 2 * TH} fill={`url(#${idMer})`} style={{ pointerEvents: 'none' }} />
+          {tout.map((e) => e.node)}
+        </g>
       </svg>
       {!readOnly && (
         <div className="map-controls">

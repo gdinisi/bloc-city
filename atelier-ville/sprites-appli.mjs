@@ -53,6 +53,16 @@ for (const f of fs.readdirSync(SRC_SOLS).filter((f) => f.endsWith('.png'))) {
   const nom = f.replace(/\.png$/, '')
   const meta = JSON.parse(fs.readFileSync(path.join(SRC_SOLS, `${nom}.json`), 'utf8'))
   const { width, height } = await sharp(path.join(SRC_SOLS, f)).metadata()
+  if (nom === 'mer-motif') {
+    // cellule exacte (TW × TH) d'une texture périodique : répétée en motif sous toute la carte
+    const L = 3 * Math.SQRT2 * meta.ppu, Hc = L / 2
+    const cell = sharp(path.join(SRC_SOLS, f)).extract({ left: Math.round(meta.ox - L / 2), top: Math.round(meta.oy - Hc / 2), width: Math.round(L), height: Math.round(Hc) })
+    const buf = await cell.png().toBuffer()
+    for (const [dir, px] of [['sol', PX_CASE], ['sol/hd', PX_CASE_HD]])
+      await sharp(buf).resize(Math.round(Math.min(L, px)), Math.round(Math.min(L, px) / 2)).webp({ quality: 85 }).toFile(path.join(PUB, dir, 'mer-motif.webp'))
+    sols[nom] = { w: TW, h: TW / 2, ox: TW / 2, oy: TW / 4 }
+    continue
+  }
   const k = TW / (3 * Math.SQRT2 * meta.ppu)
   sols[nom] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(meta.ox * k).toFixed(2), oy: +(meta.oy * k).toFixed(2) }
   for (const [dir, px] of [['sol', PX_CASE], ['sol/hd', PX_CASE_HD]]) {

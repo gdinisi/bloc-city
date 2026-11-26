@@ -155,7 +155,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
       <QuestsMini sessions={sessions} weeklyGoal={weeklyGoal} city={city} onCity={onCity} />
 
-      <section className="card city-card">
+      <section className={`card city-card ${plein ? 'plein' : ''}`}>
         <div className="city-tools">
           <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
             ⛰️ Relief
