@@ -1533,6 +1533,8 @@ def rendre(bid, sens, out):
         touffes(cote / 2 - 0.03, int(170 * (cote / 3) ** 2), seed=len(bid))
     lo, hi = Vector((-cote / 2, -cote / 2, -0.15)), Vector((cote / 2, cote / 2, hmax))
     camera_for(sc, lo, hi)
+    if NUIT:
+        appliquer_nuit(sc)
     nom = f'{bid}-{sens}'
     sc.render.filepath = os.path.join(out, f'{nom}.png')
     bpy.ops.render.render(write_still=True)

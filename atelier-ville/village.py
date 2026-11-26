@@ -18,6 +18,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 FT = os.path.join(HERE, 'kits', 'fantasy-town-kit', 'Models', 'GLB format')
 SUB = os.path.join(HERE, 'kits', 'city-kit-suburban', 'Models', 'GLB format')
 PX_PER_UNIT = int(os.environ.get('ATELIER_PPU', '200'))
+# Mode nuit (essai) : ATELIER_NUIT=1 → clair de lune, fenêtres et lanternes allumées
+NUIT = os.environ.get('ATELIER_NUIT') == '1'
 
 # ---------- Palettes ----------
 # Zones de la texture-palette du kit (x0, y0, x1, y1 en pixels, origine en haut à gauche)
@@ -165,7 +167,74 @@ def reset():
     so = bpy.data.objects.new('Soleil', sun)
     so.rotation_euler = (math.radians(52), 0, math.radians(-35))
     sc.collection.objects.link(so)
+    if NUIT:
+        # nuit claire : ciel bleu nuit, lune froide qui garde les volumes lisibles
+        bg.inputs[0].default_value = (0.16, 0.24, 0.5, 1)
+        bg.inputs[1].default_value = 0.42
+        sun.energy = 0.75
+        sun.color = (0.62, 0.74, 1.0)
+        sun.angle = math.radians(2)
+        so.rotation_euler = (math.radians(48), 0, math.radians(-35))
+        for attr in ('use_raytracing', 'use_gtao'):
+            try:
+                setattr(sc.eevee, attr, True)
+            except AttributeError:
+                pass
     return sc
+
+
+LUMIERE = (1.0, 0.62, 0.28)
+
+
+def _mat_lumiere(nom, force):
+    m = bpy.data.materials.get(nom)
+    if m:
+        return m
+    m = bpy.data.materials.new(nom)
+    m.use_nodes = True
+    b = m.node_tree.nodes.get('Principled BSDF')
+    b.inputs['Base Color'].default_value = (*LUMIERE, 1)
+    b.inputs['Emission Color'].default_value = (*LUMIERE, 1)
+    b.inputs['Emission Strength'].default_value = force
+    return m
+
+
+def appliquer_nuit(sc):
+    """Avant le rendu de nuit : vitres des pièces du kit allumées, lanternes qui éclairent autour d'elles."""
+    # fenêtres : les pièces de mur du kit ont des ouvertures ; un panneau lumineux placé dans l'épaisseur
+    # du mur (repère local de la pièce : mur en x ≈ 0,425 → 0,475) n'est visible qu'à travers elles
+    lum = _mat_lumiere('Fenetre', 5.0)
+    for o in list(sc.objects):
+        if o.type == 'MESH' and o.name.startswith('wall') and 'window' in o.name:
+            me = bpy.data.meshes.new('vitre')
+            me.from_pydata([(0.45, -0.46, 0.06), (0.45, 0.46, 0.06), (0.45, 0.46, 0.94), (0.45, -0.46, 0.94)], [], [(0, 1, 2, 3)])
+            me.materials.append(lum)
+            v = bpy.data.objects.new('vitre', me)
+            sc.collection.objects.link(v)
+            v.matrix_world = o.matrix_world.copy()
+    for o in list(sc.objects):
+        if o.type == 'MESH' and o.name.startswith('lantern'):
+            pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+            x = sum(p.x for p in pts) / 8; y = sum(p.y for p in pts) / 8
+            z0 = min(p.z for p in pts); z1 = max(p.z for p in pts)
+            li = bpy.data.lights.new('lanterne', 'POINT')
+            li.energy = 30.0
+            li.color = LUMIERE
+            li.shadow_soft_size = 0.05
+            li.use_shadow = False  # la lumière sort de la lanterne (sinon sa tête fait écran)
+            lo = bpy.data.objects.new('lanterne', li)
+            lo.location = (x, y, z0 + 0.78 * (z1 - z0))
+            sc.collection.objects.link(lo)
+            # petit globe lumineux
+            bpy.ops.mesh.primitive_uv_sphere_add(radius=0.035, location=lo.location, segments=12, ring_count=8)
+            g = bpy.context.active_object
+            gm = bpy.data.materials.get('Globe') or bpy.data.materials.new('Globe')
+            gm.use_nodes = True
+            gb = gm.node_tree.nodes.get('Principled BSDF')
+            gb.inputs['Base Color'].default_value = (*LUMIERE, 1)
+            gb.inputs['Emission Color'].default_value = (*LUMIERE, 1)
+            gb.inputs['Emission Strength'].default_value = 4.0
+            g.data.materials.append(gm)
 
 
 _lib = {}

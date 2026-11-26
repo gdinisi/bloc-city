@@ -799,6 +799,8 @@ def rendre(nom, out):
         SOLS[nom]()
         lo, hi = Vector((-1.5, -1.5, -0.02)), Vector((1.5, 1.5, 0.12))
     camera_for(sc, lo, hi)
+    if NUIT:
+        appliquer_nuit(sc)
     sc.render.filepath = os.path.join(out, f'{nom}.png')
     bpy.ops.render.render(write_still=True)
     from bpy_extras.object_utils import world_to_camera_view
