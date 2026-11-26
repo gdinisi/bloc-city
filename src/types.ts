@@ -37,6 +37,10 @@ export interface Settings {
   /** Matériel disponible à la maison (vide = poids du corps) */
   equipment: Equipment[]
   home: HomePrefs
+  /** Questionnaire de départ (matériel, condition) déjà rempli */
+  onboarded?: boolean
+  /** Niveau de la première séance guidée, d'après la condition annoncée (ensuite il s'adapte) */
+  startLevel?: number
 }
 
 export const SESSION_TYPES: { id: SessionType; label: string; emoji: string; color: string }[] = [

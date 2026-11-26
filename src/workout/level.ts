@@ -40,12 +40,12 @@ export interface LevelInfo {
 
 const ENERGY: Record<Fatigue, number> = { fatigue: -2, normal: 0, frais: 1 }
 
-export function computeLevel(sessions: Session[], energy: Fatigue, today = new Date()): LevelInfo {
+export function computeLevel(sessions: Session[], energy: Fatigue, start = START_LEVEL, today = new Date()): LevelInfo {
   const guided = sessions
     .filter((s) => s.guided)
     .sort((a, b) => a.date.localeCompare(b.date) || a.createdAt.localeCompare(b.createdAt))
 
-  let level = START_LEVEL
+  let level = clamp(start)
   let lastDelta: number | null = null
   for (const s of guided) {
     lastDelta = sessionDelta(s.rpe, s.guided!.completion)
@@ -94,10 +94,10 @@ export function computeLevel(sessions: Session[], energy: Fatigue, today = new D
 /** Paramètres d'entraînement dérivés du niveau */
 export function levelParams(level: number) {
   return {
-    /** Multiplicateur des répétitions et des durées d'effort */
-    volume: 0.7 + 0.06 * level, // 0,76 -> 1,30
-    /** Multiplicateur des temps de repos */
-    rest: 1.3 - 0.06 * level, // 1,24 -> 0,70
+    /** Multiplicateur des répétitions et des durées d'effort (gainage, pompes, squats…) */
+    volume: 0.62 + 0.08 * level, // 0,70 -> 1,42
+    /** Même chose pour l'échauffement (jumping jacks…), plus modéré */
+    volumeEchauffement: 0.8 + 0.04 * level, // 0,84 -> 1,20
     /** Séries en plus (+1) ou en moins (-1) */
     setsDelta: level >= 7 ? 1 : level <= 2 ? -1 : 0,
     /** Intensité maximale des exercices proposés (1 à 3) */

@@ -1,3 +1,4 @@
+import { Onboarding } from './screens/Onboarding'
 import { useState } from 'react'
 import { useAppData } from './lib/store'
 import { CalendarScreen } from './screens/CalendarScreen'
@@ -63,6 +64,17 @@ export default function App() {
           </main>
         )}
         {auth.recovery && <NewPassword onDone={auth.endRecovery} />}
+      </div>
+    )
+  }
+
+  // Première connexion : on demande le matériel et la condition (une fois les données du cloud récupérées)
+  if ((!cloudEnabled || sync.recu) && !data.settings.onboarded) {
+    return (
+      <div className="app gate">
+        <main>
+          <Onboarding settings={data.settings} sessions={data.sessions} onDone={data.updateSettings} />
+        </main>
       </div>
     )
   }

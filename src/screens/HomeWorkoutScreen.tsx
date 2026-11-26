@@ -35,7 +35,7 @@ export function HomeWorkoutScreen({ sessions, settings, onSettings, onSave }: Pr
 
   const focuses = availableFocuses(equipment)
   const focus = focuses.some((f) => f.id === home.focus) ? home.focus : 'complet'
-  const lvl = useMemo(() => computeLevel(sessions, home.fatigue), [sessions, home.fatigue])
+  const lvl = useMemo(() => computeLevel(sessions, home.fatigue, settings.startLevel), [sessions, home.fatigue, settings.startLevel])
 
   const plan = useMemo(
     () => generatePlan({ minutes: home.minutes, fatigue: home.fatigue, focus, equipment, seed, level: lvl.today }),

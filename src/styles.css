@@ -5260,3 +5260,98 @@ body.sans-defilement {
   background: var(--card-2, var(--card));
   box-shadow: none;
 }
+
+/* Questionnaire de départ (matériel, condition) */
+.onboarding .card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.onboarding h2 {
+  margin: 0;
+}
+.onboarding p {
+  margin: 0;
+}
+.onb-etapes {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin: 6px 0 12px;
+}
+.onb-etapes i {
+  width: 26px;
+  height: 5px;
+  border-radius: 99px;
+  background: var(--card-3);
+}
+.onb-etapes i.on {
+  background: var(--accent);
+}
+.onb-choix {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.onb-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 2px solid var(--card-3);
+  background: var(--card-2);
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  touch-action: manipulation;
+}
+.onb-option.on {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.onb-emoji {
+  font-size: 1.4rem;
+}
+.onb-texte {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.onb-texte span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.onb-coche {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--card-3);
+  display: grid;
+  place-items: center;
+  font-weight: 900;
+  font-size: 0.85rem;
+  color: #fff;
+}
+.onb-option.on .onb-coche {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+.onb-actions {
+  display: flex;
+  gap: 8px;
+}
+.onb-actions .btn {
+  flex: 1;
+}
+.onb-tete {
+  text-align: center;
+  margin: 18px 0 4px;
+}
+.onb-tete h1 {
+  margin: 0 0 4px;
+  font-size: 1.6rem;
+}

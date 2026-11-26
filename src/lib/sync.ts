@@ -71,6 +71,8 @@ export function useCloudSync(app: App, userId: string | null, hasProfile: boolea
   const [lastSync, setLastSync] = useState<number | null>(null)
   const [tick, setTick] = useState(0)
   const [pullTry, setPullTry] = useState(0)
+  /** La copie du cloud a été récupérée (ou il n'y en a pas) : les données locales sont à jour */
+  const [recu, setRecu] = useState(false)
   const syncedFor = useRef<string | null>(null)
   const latest = useRef(app)
   latest.current = app
@@ -78,6 +80,7 @@ export function useCloudSync(app: App, userId: string | null, hasProfile: boolea
   // 1. à la connexion : récupérer la copie du cloud si elle est plus récente
   useEffect(() => {
     syncedFor.current = null
+    setRecu(false)
     if (!userId) {
       setStatus('hors-ligne')
       return
@@ -91,6 +94,7 @@ export function useCloudSync(app: App, userId: string | null, hasProfile: boolea
         const localEmpty = local.sessions.length === 0 && local.city.placed.length === 0
         if (remote && (remote.updatedAt > local.updatedAt || localEmpty)) local.replaceAll(remote.data, remote.updatedAt)
         syncedFor.current = userId
+        setRecu(true)
         setTick((t) => t + 1)
       })
       .catch(() => !cancelled && setStatus('erreur'))
@@ -126,5 +130,5 @@ export function useCloudSync(app: App, userId: string | null, hasProfile: boolea
     return () => window.removeEventListener('online', again)
   }, [])
 
-  return { status, lastSync }
+  return { status, lastSync, recu }
 }

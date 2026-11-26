@@ -66,8 +66,14 @@ const mulberry32 = (a: number) => () => {
 }
 
 const REP_SECONDS = 3.5
-/** Pause entre deux exercices : la même pendant toute la séance (pas d'écarts d'un exercice à l'autre) */
-export const PAUSE_EXOS = 20
+/**
+ * Pause de la séance (entre les exercices et entre les séries) : la même du début à la fin,
+ * réglée sur la difficulté du jour — 40 s pour la séance la plus douce, 20 s pour la plus intense.
+ */
+export const PAUSE_MAX = 40
+export const PAUSE_MIN = 20
+export const pauseDuNiveau = (level: number) =>
+  Math.min(PAUSE_MAX, Math.max(PAUSE_MIN, Math.round((PAUSE_MAX - ((level - 1) * (PAUSE_MAX - PAUSE_MIN)) / 9) / 5) * 5))
 /** Écran de mise en place au début de la séance (sans exercice) */
 export const MISE_EN_PLACE = 30
 
@@ -120,16 +126,34 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
     return pool[0]
   }
 
+  /** Pause unique de la séance */
+  const pause = pauseDuNiveau(level)
+  /** Repos entre les séries : la pause de la séance, sauf les petits changements de côté (étirements)
+   * et les protocoles de poutre, gardés tels quels pour la sécurité des tendons */
+  const reposSeries = (ex: Exercise) => (ex.needs.includes('poutre') || ex.rest < 15 ? ex.rest : pause)
+
   /** Prescription d'un exercice adaptée au niveau */
   const prescribe = (ex: Exercise, phase: Phase): PlanItem => {
-    const restAfter = PAUSE_EXOS
-    const adaptive = phase === 'principal' && ex.category !== 'mobilite'
-    const fingers = ex.category === 'doigts'
-    if (!adaptive) {
+    const restAfter = pause
+    const fingers = ex.needs.includes('poutre')
+    // Étirements du retour au calme : durées fixes
+    if (ex.category === 'mobilite') {
       return { ex, phase, sets: ex.sets, work: ex.work, reps: ex.reps, rest: ex.rest, restAfter }
     }
+    // Échauffement : un peu plus long et plus de répétitions quand la séance est exigeante
+    if (phase === 'echauffement') {
+      return {
+        ex,
+        phase,
+        sets: ex.sets,
+        work: ex.work ? round5(ex.work * lp.volumeEchauffement) : undefined,
+        reps: ex.reps ? Math.max(5, Math.round(ex.reps * lp.volumeEchauffement)) : undefined,
+        rest: reposSeries(ex),
+        restAfter,
+      }
+    }
     if (fingers) {
-      // Doigts : durées et repos fixes (sécurité des tendons), seul le nombre de séries bouge
+      // Poutre : durées et repos fixes (sécurité des tendons), seul le nombre de séries bouge
       return {
         ex,
         phase,
@@ -146,7 +170,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
       sets: Math.max(1, ex.sets + (ex.sets > 1 ? lp.setsDelta : 0)),
       work: ex.work ? round5(ex.work * lp.volume) : undefined,
       reps: ex.reps ? Math.max(3, Math.round(ex.reps * lp.volume)) : undefined,
-      rest: ex.rest ? round5(ex.rest * lp.rest) : 0,
+      rest: reposSeries(ex),
       restAfter,
     }
   }

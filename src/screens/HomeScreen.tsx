@@ -54,7 +54,7 @@ export function HomeScreen({ sessions, settings, pseudo, onSave, onSettings, onG
     return { k, n: d.getDate(), main, future: k > todayKey }
   })
   const weekMinutes = sessions.filter((s) => s.type !== 'repos' && s.date >= monday && s.date <= todayKey).reduce((t, s) => t + s.durationMin, 0)
-  const lvl = computeLevel(sessions, settings.home.fatigue)
+  const lvl = computeLevel(sessions, settings.home.fatigue, settings.startLevel)
   const focuses = FOCUSES.filter((f) => availableFocuses(settings.equipment).some((x) => x.id === f.id))
   const pct = Math.round((done / goal) * 100)
 
