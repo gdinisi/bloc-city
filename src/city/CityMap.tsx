@@ -223,12 +223,17 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
     const hG = Math.min(4, e - Math.min(e, elev(x, y + 1))) // face gauche (vers +y)
     const dessus = (x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe'
     const falaise = hG > 0 && hD > 0 ? `falaise-c-${hG}-${hD}` : hG > 0 ? `falaise-g-${hG}` : hD > 0 ? `falaise-d-${hD}` : null
+    // pied de la falaise (éboulis, herbes hautes) : au niveau du sol d'en bas, dessiné juste après lui
+    // (avant les bâtiments de cette rangée) pour casser la ligne droite entre la roche et le sol
+    if (hG > 0) sol.push({ k: x + y + 1.0002, node: <g key={`pg${x},${y}`}>{image('pied-g', cx, cy + hG * STEP)}</g> })
+    if (hD > 0) sol.push({ k: x + y + 1.0002, node: <g key={`pd${x},${y}`}>{image('pied-d', cx, cy + hD * STEP)}</g> })
     sol.push({
       k: x + y,
       node: (
         <g key={`t${x},${y}`} onClick={tap(onTile ? () => onTile(x, y) : undefined)} style={{ cursor: onTile ? 'pointer' : undefined }}>
-          {falaise && image(falaise, cx, cy)}
           {image(dessus, cx, cy)}
+          {/* la falaise par-dessus l'herbe : son bord herbeux arrondi recouvre l'arête de la case */}
+          {falaise && image(falaise, cx, cy)}
           {/* zone de toucher exacte de la case */}
           <polygon points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`} fill="transparent" />
           {valid?.has(`${x},${y}`) && (

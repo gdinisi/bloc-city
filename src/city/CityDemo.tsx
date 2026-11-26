@@ -9,6 +9,8 @@ export default function CityDemo() {
     ...newCity(),
     packs: [],
     lastChestAt: new Date().toISOString(),
+    // relief de démo : plateaux et marches, dont certains au bord de l'île
+    elevation: { '4,0': 1, '5,0': 2, '4,1': 1, '5,1': 2, '0,4': 1, '0,5': 2, '1,5': 1, '2,5': 3, '3,0': 1, '7,0': 2, '7,1': 2, '6,0': 1 },
     inventory: { 'maison-bleue': 2, boulangerie: 1, chalet: 1, 'salle-bloc': 1, phare: 1, 'tour-eiffel': 1, chateau: 1 },
     placed: [
       { uid: 'd1', id: 'maison-jaune', x: 0, y: 0, flip: false },

@@ -158,6 +158,8 @@ MARCHE = 0.857
 FALAISES = {f'falaise-{f}-{h}': (f, h) for f in 'gd' for h in (1, 2, 3, 4)}
 # les deux faces ensemble (angle avant fermé), hauteurs indépendantes
 FALAISES_C = {f'falaise-c-{a}-{b}': (a, b) for a in (1, 2, 3, 4) for b in (1, 2, 3, 4)}
+# pied des falaises (éboulis, herbes hautes), dessiné au niveau du sol d'en bas, par-dessus celui-ci
+PIEDS = {'pied-g': 'g', 'pied-d': 'd'}
 
 
 def mat_roche():
@@ -234,60 +236,199 @@ def bloc_roche(centre, taille, rnd, m):
     return o
 
 
-def paroi(face, h, seed=1, u_fin=1.5):
+def P_face(face, u, out, z):
+    """(u le long de la face, sortie vers l'extérieur, z) → monde. Face « g » vers -y Blender (+y appli),
+    « d » vers +x. u croît de l'arrière vers l'angle avant (u = 1,5 : angle avant de la case)."""
+    return (u, -1.5 - out, z) if face == 'g' else (1.5 + out, -u, z)
+
+
+NORMALE = {'g': (0.0, -1.0), 'd': (1.0, 0.0)}
+TOUFFES = [('t1', '#3d8a2e'), ('t2', '#5aa83a'), ('t3', '#2f7426')]
+
+
+def periodique(u, termes):
+    """Somme de sinus de période 3 (une case) : identique d'une case à l'autre, donc sans couture."""
+    return sum(a * math.sin(math.tau * k * u / 3 + p) for k, a, p in termes)
+
+
+def retombee(u):
+    """Hauteur dont l'herbe retombe sur la roche : festons irréguliers et quelques coulures plus longues."""
+    v = 0.2 + periodique(u, [(2, 0.045, 0.3), (3, 0.035, 1.1), (5, 0.03, 2.0), (8, 0.02, 0.5), (11, 0.012, 2.6)])
+    v += 0.11 * max(0.0, math.sin(math.tau * 4 * u / 3 + 0.9)) ** 8 + 0.07 * max(0.0, math.sin(math.tau * 7 * u / 3 + 2.3)) ** 10
+    return max(0.13, v)
+
+
+def mat_terre_sombre():
+    return bpy.data.materials.get('TerreSombre') or _mat('TerreSombre', '#3b2a1a', 1.0)
+
+
+def bourrelet(chemin):
+    """Bord herbeux arrondi qui recouvre le haut de la falaise : il part du dessus de la case (même herbe,
+    mêmes coordonnées monde que la dalle → raccord invisible), s'arrondit et retombe en festons sur la roche.
+    chemin = [(x, y, nx, ny, u)] : points du bord de la case, normale sortante, abscisse le long de la face."""
+    prof = lambda d: [(-0.3, 0.0), (-0.08, 0.0), (0.04, -0.012), (0.11, -0.045), (0.14, -0.1), (0.13, -d + 0.03),
+                      (0.1, -d), (0.04, -d + 0.005), (-0.02, -d + 0.05)]
+    n = 9
+    vs, fs, ms = [], [], []
+    for (x, y, nx, ny, u) in chemin:
+        for o, z in prof(retombee(u)):
+            vs.append((x + nx * o, y + ny * o, z))
+    for i in range(len(chemin) - 1):
+        for k in range(n - 1):
+            a = i * n + k
+            fs.append((a, a + 1, a + n + 1, a + n))
+            ms.append(0 if k < 5 else 1)   # dessous de la retombée : terre sombre (ombre portée de l'herbe)
+    # bouchons aux deux bouts : la coupe du bord d'herbe ne laisse pas voir le dessous
+    fin = (len(chemin) - 1) * n
+    fs += [tuple(range(n)), tuple(fin + k for k in range(n))]
+    ms += [0, 0]
+    me = bpy.data.meshes.new('bourrelet')
+    me.from_pydata(vs, [], fs)
+    me.materials.append(mat_herbe())
+    me.materials.append(mat_terre_sombre())
+    for p, k in zip(me.polygons, ms):
+        p.material_index = k
+        p.use_smooth = True
+    import bmesh
+    bm = bmesh.new(); bm.from_mesh(me)
+    bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    bm.to_mesh(me); bm.free()
+    o = bpy.data.objects.new('herbe', me)
+    bpy.context.scene.collection.objects.link(o)
+    return o
+
+
+def chemin_face(face, u0, u1, pas=0.025):
+    nx, ny = NORMALE[face]
+    m = max(2, int(abs(u1 - u0) / pas))
+    pts = []
+    for i in range(m + 1):
+        u = u0 + (u1 - u0) * i / m
+        x, y, _ = P_face(face, u, 0.0, 0.0)
+        pts.append((x, y, nx, ny, u))
+    return pts
+
+
+def touffe_orientee(pos, direction, echelle, rnd):
+    me_t = maillage_touffe(*rnd.choice(TOUFFES))
+    tf = bpy.data.objects.new('touffe', me_t)
+    tf.location = pos
+    tf.rotation_mode = 'QUATERNION'
+    tf.rotation_quaternion = Vector((0, 0, 1)).rotation_difference(Vector(direction).normalized())
+    tf.scale = echelle
+    bpy.context.scene.collection.objects.link(tf)
+    return tf
+
+
+def decor_rebord(face, rnd, u0, u1):
+    """Touffes dressées sur le rebord et brins qui pendent sous les festons."""
+    nx, ny = NORMALE[face]
+    objs = []
+    for _ in range(int(34 * (u1 - u0) / 3)):
+        u, o = rnd.uniform(u0 + 0.03, u1 - 0.03), rnd.uniform(-0.26, 0.09)
+        z = 0.0 if o < 0.0 else -0.012 - 0.3 * o * o
+        s = rnd.uniform(1.0, 1.7)
+        objs.append(touffe_orientee(P_face(face, u, o, z), (nx * 0.25 * max(o, 0) * 6, ny * 0.25 * max(o, 0) * 6, 1), (s, s, s * rnd.uniform(1, 1.5)), rnd))
+    for _ in range(int(26 * (u1 - u0) / 3)):
+        u = rnd.uniform(u0 + 0.03, u1 - 0.03)
+        d = retombee(u)
+        s = rnd.uniform(1.1, 1.6)
+        objs.append(touffe_orientee(P_face(face, u, 0.11, -d + 0.02), (nx * 0.55, ny * 0.55, -1), (s, s, s * rnd.uniform(1.3, 2.6)), rnd))
+    # quelques fleurs sauvages au bord
+    for _ in range(int(5 * (u1 - u0) / 3)):
+        u, o = rnd.uniform(u0 + 0.1, u1 - 0.1), rnd.uniform(-0.22, -0.02)
+        x, y, _ = P_face(face, u, o, 0)
+        c = rnd.choice(FLEURS)
+        f = bpy.data.objects.new('feuilles', _mesh('feuilles', 0.05, '#3f8f3a'))
+        f.location = (x, y, 0.025); f.scale = (1, 1, 0.7)
+        bpy.context.scene.collection.objects.link(f); objs.append(f)
+        for _ in range(3):
+            fl = bpy.data.objects.new('fleur', _mesh('f' + c, 0.02, c))
+            fl.location = (x + rnd.uniform(-0.04, 0.04), y + rnd.uniform(-0.04, 0.04), 0.06 + rnd.uniform(0, 0.015))
+            bpy.context.scene.collection.objects.link(fl); objs.append(fl)
+    return objs
+
+
+def paroi(face, h, seed=1, u_fin=1.5, avec_bord=True):
     """Falaise de h marches : strates de blocs de roche qui se chevauchent (aucun interstice sombre),
-    fond en même roche légèrement en retrait, liseré d'herbe en haut. Rien ne dépasse au pied :
-    le sol devant (dessiné ensuite) recouvre proprement la base."""
+    fond en même roche légèrement en retrait, bord d'herbe arrondi qui retombe sur la roche.
+    Le pied (rochers, touffes) est rendu à part (`pied`) : il est dessiné par-dessus le sol d'en bas."""
     rnd = random.Random(seed * 13 + h * 7 + (0 if face == 'g' else 3))
     H = h * MARCHE
     roche = mat_roche()
     objs = []
     u0, u1 = -1.53, u_fin + 0.03  # léger chevauchement avec la case voisine : pas de jointure visible
-
-    def P(u, out, z):
-        """(u le long de la face, sortie vers l'extérieur, z) → monde"""
-        return (u, -1.5 - out, z) if face == 'g' else (1.5 + out, -u, z)
+    P = lambda u, out, z: P_face(face, u, out, z)
 
     # fond continu dans la même roche (en retrait) : bouche les interstices sans tache sombre
     fond = bpy.data.meshes.new('fond')
-    c = [P(u0, -0.02, 0.0), P(u1, -0.02, 0.0), P(u1, -0.02, -H), P(u0, -0.02, -H)]
+    c = [P(u0, -0.02, -0.05), P(u1, -0.02, -0.05), P(u1, -0.02, -H), P(u0, -0.02, -H)]
     fond.from_pydata(c, [], [(0, 1, 2, 3)])
     fond.materials.append(roche)
     fo = bpy.data.objects.new('fond', fond); bpy.context.scene.collection.objects.link(fo); objs.append(fo)
-    # strates : rangées décalées, blocs qui se recouvrent
+    # strates : rangées décalées, blocs qui se recouvrent ; le haut passe sous le bord d'herbe
     rangs = max(1, int(math.ceil(H / 0.3)))
-    hr = H / rangs
+    hr = (H - 0.05) / rangs
     for r in range(rangs):
-        zc = -(r + 0.5) * hr
-        hz = hr * rnd.uniform(1.05, 1.25)
-        zc = min(zc, -hz * 0.62)                 # le haut reste sous le liseré d'herbe
+        zc = -0.05 - (r + 0.5) * hr
+        hz = hr * rnd.uniform(1.05, 1.3)
+        zc = min(zc, -hz * 0.5 - 0.07)           # le haut reste sous l'herbe (ne perce pas le dessus de la case)
         zc = max(zc, -H + hz * 0.5)              # le bas ne descend pas sous le pied de la falaise
         u = u0 - (0.0 if r % 2 == 0 else 0.25) - rnd.uniform(0, 0.1)
         while u < u1:
-            lu = rnd.uniform(0.35, 0.9)
+            lu = rnd.uniform(0.3, 1.0)
             a, b = max(u, u0), min(u + lu, u1)
             if b - a > 0.08:
-                prof = rnd.uniform(0.03, 0.13)
+                prof = rnd.uniform(0.02, 0.08)
                 o = bloc_roche(P((a + b) / 2, prof / 2 - 0.02, zc), (b - a, 0.1 + prof, hz) if face == 'g' else (0.1 + prof, b - a, hz), rnd, roche)
                 o.rotation_euler = (rnd.uniform(-0.03, 0.03), rnd.uniform(-0.03, 0.03), rnd.uniform(-0.04, 0.04))
                 objs.append(o)
             u += lu * rnd.uniform(0.8, 0.92)    # recouvrement entre blocs voisins
-    # liseré d'herbe qui déborde légèrement, avec des touffes qui pendent au bord
-    if face == 'g':
-        lis = dalle(u1 - u0, 0.2, mat_herbe(), 0.01, 0.1, (u0 + u1) / 2, -1.56)
-    else:
-        lis = dalle(0.2, u1 - u0, mat_herbe(), 0.01, 0.1, 1.56, -(u0 + u1) / 2)
-    lis.name = 'herbe'
-    objs.append(lis)
-    for k in range(int(12 + 4 * h)):
-        t = rnd.uniform(u0 + 0.05, u1 - 0.05)
-        me_t = maillage_touffe(*rnd.choice([('t1', '#3d8a2e'), ('t2', '#5aa83a'), ('t3', '#2f7426')]))
-        tf = bpy.data.objects.new('touffe', me_t)
-        tf.location = P(t, 0.16, 0.0)
-        tf.rotation_euler = (math.radians(rnd.uniform(110, 150)), 0, 0) if face == 'g' else (0, math.radians(-rnd.uniform(110, 150)), 0)
-        tf.scale = (1.3, 1.3, rnd.uniform(1.2, 2.4))
-        bpy.context.scene.collection.objects.link(tf)
-        objs.append(tf)
+    if avec_bord:
+        objs.append(bourrelet(chemin_face(face, u0, u1)))
+        objs += decor_rebord(face, rnd, u0, u1)
+    return objs
+
+
+def pied(face, seed=5):
+    """Pied de falaise, au niveau du sol d'en bas (z = 0) : éboulis arrondis, touffes hautes et buissons
+    qui cassent la ligne droite entre la roche et le sol. Dessiné après le sol de la case d'en bas."""
+    rnd = random.Random(seed + (0 if face == 'g' else 17))
+    roche = mat_roche()
+    nx, ny = NORMALE[face]
+    objs = []
+    P = lambda u, out, z: P_face(face, u, out, z)
+    # herbes hautes collées à la paroi : la base de la roche disparaît dans la végétation
+    for _ in range(70):
+        u, o = rnd.uniform(-1.48, 1.45), rnd.uniform(0.0, 0.16)
+        s = rnd.uniform(1.2, 2.0)
+        objs.append(touffe_orientee(P(u, o, 0.0), (nx * 0.25, ny * 0.25, 1), (s, s, s * rnd.uniform(1.4, 2.6)), rnd))
+    for _ in range(30):
+        u, o = rnd.uniform(-1.45, 1.4), rnd.uniform(0.12, 0.42)
+        s = rnd.uniform(0.9, 1.5)
+        objs.append(touffe_orientee(P(u, o, 0.0), (0, 0, 1), (s, s, s), rnd))
+    # éboulis : quelques gros rochers et des cailloux, à moitié enfoncés
+    u = -1.35 + rnd.uniform(0, 0.3)
+    while u < 1.3:
+        t = rnd.uniform(0.09, 0.2)
+        o = bloc_roche(P(u, t * 0.6 + rnd.uniform(0.0, 0.12), t * 0.25), (t * rnd.uniform(1.0, 1.6), t * rnd.uniform(0.9, 1.3), t * rnd.uniform(0.7, 1.1)), rnd, roche)
+        o.rotation_euler = (rnd.uniform(-0.2, 0.2), rnd.uniform(-0.2, 0.2), rnd.uniform(0, math.tau))
+        objs.append(o)
+        for _ in range(rnd.randint(1, 3)):
+            c = rnd.uniform(0.035, 0.07)
+            o2 = bloc_roche(P(u + rnd.uniform(-0.25, 0.25), rnd.uniform(0.08, 0.38), c * 0.2), (c * 1.3, c, c * 0.8), rnd, roche)
+            o2.rotation_euler = (0, 0, rnd.uniform(0, math.tau))
+            objs.append(o2)
+        u += rnd.uniform(0.45, 0.9)
+    # petits buissons
+    for _ in range(3):
+        bu = rnd.uniform(-1.2, 1.2)
+        x, y, _ = P(bu, rnd.uniform(0.12, 0.25), 0)
+        for k in range(4):
+            b = bpy.data.objects.new('buisson', _mesh('buisson' + str(k % 2), 0.07, '#3f8f3a' if k % 2 else '#2f7426'))
+            b.location = (x + rnd.uniform(-0.07, 0.07), y + rnd.uniform(-0.07, 0.07), 0.04 + rnd.uniform(0, 0.03))
+            b.scale = (1, 1, 0.8)
+            bpy.context.scene.collection.objects.link(b); objs.append(b)
     return objs
 
 
@@ -309,12 +450,69 @@ def masque_canonique(bits):
 RIVAGES = sorted({masque_canonique(format(n, '08b')) for n in range(1, 256)} - {'00000000'})
 
 
-def mat_eau_claire():
-    """Eau peu profonde au-dessus du sable : turquoise translucide qui s'efface vers le large."""
-    m = bpy.data.materials.get('EauClaire')
+def coords_tore(N, L, R=1.0):
+    """Coordonnées 4D sur un tore : une texture de bruit qui les lit est PÉRIODIQUE de période 3 en x et en y
+    (une case) → deux cases de rivage voisines se raccordent sans couture."""
+    geo = N.new('ShaderNodeNewGeometry')
+    sep = N.new('ShaderNodeSeparateXYZ'); L.new(geo.outputs['Position'], sep.inputs[0])
+    sortie = []
+    for axe in (0, 1):
+        ang = N.new('ShaderNodeMath'); ang.operation = 'MULTIPLY'; ang.inputs[1].default_value = math.tau / 3
+        L.new(sep.outputs[axe], ang.inputs[0])
+        for op in ('COSINE', 'SINE'):
+            t = N.new('ShaderNodeMath'); t.operation = op; L.new(ang.outputs[0], t.inputs[0])
+            r = N.new('ShaderNodeMath'); r.operation = 'MULTIPLY'; r.inputs[1].default_value = R; L.new(t.outputs[0], r.inputs[0])
+            sortie.append(r)
+    vec = N.new('ShaderNodeCombineXYZ')
+    for i in range(3):
+        L.new(sortie[i].outputs[0], vec.inputs[i])
+    return vec, sortie[3]
+
+
+def tex4d(N, L, kind, vec, w, echelle):
+    t = N.new(kind)
+    if kind == 'ShaderNodeTexNoise':
+        t.noise_dimensions = '4D'
+        t.inputs['Detail'].default_value = 3
+    else:
+        t.voronoi_dimensions = '4D'
+    t.inputs['Scale'].default_value = echelle
+    L.new(vec.outputs[0], t.inputs['Vector']); L.new(w.outputs[0], t.inputs['W'])
+    return t
+
+
+def plage_d(N, L, a, b, src, interp='SMOOTHSTEP', vmin=0.0, vmax=1.0):
+    m = N.new('ShaderNodeMapRange'); m.interpolation_type = interp
+    m.inputs['From Min'].default_value = a; m.inputs['From Max'].default_value = b
+    m.inputs['To Min'].default_value = vmin; m.inputs['To Max'].default_value = vmax
+    L.new(src, m.inputs['Value'])
+    return m.outputs['Result']
+
+
+def melange(N, L, fac, c1, c2, mode='MIX'):
+    m = N.new('ShaderNodeMix'); m.data_type = 'RGBA'; m.blend_type = mode
+    for entree, v in ((m.inputs['Factor'], fac), (m.inputs[6], c1), (m.inputs[7], c2)):
+        if isinstance(v, (tuple, list)):
+            entree.default_value = (*v, 1) if len(v) == 3 else v
+        elif isinstance(v, float):
+            entree.default_value = v
+        else:
+            L.new(v, entree)
+    return m.outputs[2]
+
+
+def lin(hexa):
+    return tuple(c ** 2.2 for c in hex_rgb(hexa))
+
+
+def mat_rivage():
+    """Plage organique (attribut « d » = distance à la terre, déjà ondulée) : sable sec, sable mouillé,
+    dentelle d'écume à la ligne d'eau, eau turquoise translucide avec reflets de caustiques,
+    puis bleu plus profond qui s'efface dans la mer."""
+    m = bpy.data.materials.get('Rivage2')
     if m:
         return m
-    m = bpy.data.materials.new('EauClaire')
+    m = bpy.data.materials.new('Rivage2')
     m.use_nodes = True
     try:
         m.surface_render_method = 'BLENDED'
@@ -322,18 +520,80 @@ def mat_eau_claire():
         m.blend_method = 'BLEND'
     N, L = m.node_tree.nodes, m.node_tree.links
     b = N.get('Principled BSDF')
-    b.inputs['Base Color'].default_value = (0.1, 0.55, 0.6, 1)
-    b.inputs['Roughness'].default_value = 0.1
-    attr = N.new('ShaderNodeAttribute'); attr.attribute_name = 'alpha'; attr.attribute_type = 'GEOMETRY'
-    L.new(attr.outputs['Fac'], b.inputs['Alpha'])
+    at = N.new('ShaderNodeAttribute'); at.attribute_name = 'd'; at.attribute_type = 'GEOMETRY'
+    d = at.outputs['Fac']
+    vec, w = coords_tore(N, L)
+    # sable : grain et taches
+    nz = tex4d(N, L, 'ShaderNodeTexNoise', vec, w, 3.0)
+    sec = melange(N, L, plage_d(N, L, 0.35, 0.7, nz.outputs['Fac']), lin('#dcbc7e'), lin('#f3dfaa'))
+    mouille = melange(N, L, plage_d(N, L, 0.35, 0.7, nz.outputs['Fac']), lin('#a7895a'), lin('#c2a36c'))
+    sable = melange(N, L, plage_d(N, L, 0.72, 0.97, d), sec, mouille)
+    # eau : turquoise clair → bleu, mélangée par-dessus le sable mouillé (effet de transparence)
+    rampe = N.new('ShaderNodeValToRGB')
+    el = rampe.color_ramp.elements
+    el[0].position = 0.0; el[0].color = (*lin('#7fe0d2'), 1)
+    el[1].position = 1.0; el[1].color = (*lin('#1f6f9c'), 1)
+    e2 = el.new(0.35); e2.color = (*lin('#38bdc4'), 1)
+    L.new(plage_d(N, L, 1.0, 2.0, d, 'LINEAR'), rampe.inputs['Fac'])
+    couvre = plage_d(N, L, 0.99, 1.75, d, 'SMOOTHSTEP', 0.55, 1.0)
+    dans_eau = plage_d(N, L, 0.985, 1.02, d)
+    fac_eau = N.new('ShaderNodeMath'); fac_eau.operation = 'MULTIPLY'
+    L.new(couvre, fac_eau.inputs[0]); L.new(dans_eau, fac_eau.inputs[1])
+    col = melange(N, L, fac_eau.outputs[0], sable, rampe.outputs['Color'])
+    # caustiques : bords de cellules de Voronoï, plus visibles en eau peu profonde
+    vo = tex4d(N, L, 'ShaderNodeTexVoronoi', vec, w, 7.0)
+    vo.feature = 'DISTANCE_TO_EDGE'
+    cau = plage_d(N, L, 0.0, 0.05, vo.outputs['Distance'], 'SMOOTHSTEP', 1.0, 0.0)
+    peu = plage_d(N, L, 1.05, 1.9, d, 'LINEAR', 0.35, 0.0)
+    fc = N.new('ShaderNodeMath'); fc.operation = 'MULTIPLY'
+    L.new(cau, fc.inputs[0]); L.new(peu, fc.inputs[1])
+    col = melange(N, L, fc.outputs[0], col, lin('#e9fffb'))
+    # écume : dentelle irrégulière le long de la ligne d'eau + quelques paquets un peu plus au large
+    ne = tex4d(N, L, 'ShaderNodeTexNoise', vec, w, 14.0)
+    ne.inputs['Detail'].default_value = 6
+    bande = N.new('ShaderNodeMath'); bande.operation = 'SUBTRACT'
+    L.new(d, bande.inputs[0]); bande.inputs[1].default_value = 1.03
+    absb = N.new('ShaderNodeMath'); absb.operation = 'ABSOLUTE'; L.new(bande.outputs[0], absb.inputs[0])
+    prox = plage_d(N, L, 0.0, 0.11, absb.outputs[0], 'LINEAR', 1.0, 0.0)          # 1 sur la ligne d'eau
+    seuil = N.new('ShaderNodeMath'); seuil.operation = 'ADD'
+    L.new(ne.outputs['Fac'], seuil.inputs[0]); L.new(prox, seuil.inputs[1])
+    ecume1 = plage_d(N, L, 1.12, 1.2, seuil.outputs[0])
+    # liseré continu très fin au contact du sable
+    lis = plage_d(N, L, 0.0, 0.018, absb.outputs[0], 'SMOOTHSTEP', 1.0, 0.0)
+    # paquets d'écume épars plus loin (vague suivante)
+    b2 = N.new('ShaderNodeMath'); b2.operation = 'SUBTRACT'; L.new(d, b2.inputs[0]); b2.inputs[1].default_value = 1.28
+    a2 = N.new('ShaderNodeMath'); a2.operation = 'ABSOLUTE'; L.new(b2.outputs[0], a2.inputs[0])
+    prox2 = plage_d(N, L, 0.0, 0.07, a2.outputs[0], 'LINEAR', 0.6, 0.0)
+    s2 = N.new('ShaderNodeMath'); s2.operation = 'ADD'; L.new(ne.outputs['Fac'], s2.inputs[0]); L.new(prox2, s2.inputs[1])
+    ecume2 = plage_d(N, L, 1.08, 1.14, s2.outputs[0], 'SMOOTHSTEP', 0.0, 0.85)
+    em = N.new('ShaderNodeMath'); em.operation = 'MAXIMUM'
+    L.new(ecume1, em.inputs[0]); L.new(ecume2, em.inputs[1])
+    em2 = N.new('ShaderNodeMath'); em2.operation = 'MAXIMUM'
+    L.new(em.outputs[0], em2.inputs[0]); L.new(lis, em2.inputs[1])
+    col = melange(N, L, em2.outputs[0], col, lin('#fbfdff'))
+    L.new(col, b.inputs['Base Color'])
+    rug = N.new('ShaderNodeMath'); rug.operation = 'MULTIPLY_ADD'
+    L.new(dans_eau, rug.inputs[0]); rug.inputs[1].default_value = -0.75; rug.inputs[2].default_value = 0.9
+    L.new(rug.outputs[0], b.inputs['Roughness'])
+    # transparence : l'eau s'efface dans la mer
+    L.new(plage_d(N, L, 1.6, 2.1, d, 'SMOOTHSTEP', 1.0, 0.0), b.inputs['Alpha'])
+    # relief : grain du sable et petites rides de l'eau
+    bump = N.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.15; bump.inputs['Distance'].default_value = 0.01
+    L.new(ne.outputs['Fac'], bump.inputs['Height']); L.new(bump.outputs['Normal'], b.inputs['Normal'])
     return m
 
 
+def ondulation(x, y):
+    """Ondulation périodique (période 3 = une case) de la ligne de rivage, entre -1 et 1 environ."""
+    T = math.tau / 3
+    termes = [(1, 2, 0.32, 0.4), (2, -1, 0.28, 1.7), (3, 1, 0.18, 2.9), (1, -3, 0.14, 0.8), (4, 2, 0.1, 2.2), (2, 5, 0.08, 1.3)]
+    return sum(a * math.sin(T * (p * x + q * y) + f) for p, q, a, f in termes)
+
+
 def rivage(masque):
-    """Sable en pente douce depuis la terre (distance aux cases de terre voisines, diagonales comprises :
-    gère bords droits, angles saillants et rentrants, trou d'une case), écume à la ligne d'eau,
-    puis eau claire translucide qui se fond dans la mer."""
-    # cases de terre voisines en coordonnées Blender (y appli = -y Blender)
+    """Plage organique sur une case d'eau voisine de l'île : distance aux cases de terre voisines (diagonales
+    comprises : bords droits, angles saillants et rentrants, trou d'une case), ondulée par un motif périodique
+    (raccord parfait entre cases), puis sable, écume et eau translucide (voir mat_rivage)."""
     carres = []
     for i, (dx, dy) in enumerate(VOISINS8):
         if masque[i] == '1':
@@ -343,42 +603,32 @@ def rivage(masque):
     def dist(x, y):
         d = 9.0
         for x0, x1, y0, y1 in carres:
-            ddx = max(x0 - x, 0, x - x1)
-            ddy = max(y0 - y, 0, y - y1)
-            d = min(d, math.hypot(ddx, ddy))
+            d = min(d, math.hypot(max(x0 - x, 0, x - x1), max(y0 - y, 0, y - y1)))
         return d
-    W, LARGE = 1.25, 2.1  # sable jusqu'à W, eau claire de W à LARGE
-    n = 90
-    vs, fs, ms = [], [], []
-    alpha = []
+    n = 120
+    vs, ds = [], []
     for j in range(n + 1):
         for i in range(n + 1):
             x, y = -1.5 + 3 * i / n, -1.5 + 3 * j / n
-            d = dist(x, y)
-            t = min(1.0, d / W)
-            vs.append((x, y, -0.06 * t * t))
-            alpha.append(max(0.0, min(0.85, 0.85 * (1 - (d - W) / (LARGE - W)))) if d > W - 0.08 else 0.85)
+            d0 = dist(x, y)
+            d = d0 + 0.2 * ondulation(x, y) * min(1.0, d0 / 0.35)   # au contact de la terre : pas d'ondulation
+            ds.append(d)
+            t = min(1.0, max(0.0, d) / 1.05)
+            vs.append((x, y, -0.05 * t * t))
+    fs = []
     for j in range(n):
         for i in range(n):
             a = j * (n + 1) + i
             q = (a, a + 1, a + n + 2, a + n + 1)
-            cx, cy = -1.5 + 3 * (i + 0.5) / n, -1.5 + 3 * (j + 0.5) / n
-            d = dist(cx, cy)
-            if d > LARGE:
+            if min(ds[k] for k in q) > 2.12:
                 continue
             fs.append(q)
-            ms.append(0 if d < W - 0.55 else 1 if d < W - 0.06 else 2 if d < W + 0.04 else 3)
     me = bpy.data.meshes.new('rivage')
     me.from_pydata(vs, [], fs)
-    me.attributes.new('alpha', 'FLOAT', 'POINT').data.foreach_set('value', alpha)
-    for m in (mat_bruit('SablePlage', '#d9bb7c', '#f2dca6', 3.0, 0.2), mat_bruit('SableMouille', '#a98d5c', '#c4a56d', 4.0, 0.15),
-              _mat('Ecume', '#f4fbff', 0.6), mat_eau_claire()):
-        me.materials.append(m)
-    for p, k in zip(me.polygons, ms):
-        p.material_index = k
+    me.attributes.new('d', 'FLOAT', 'POINT').data.foreach_set('value', ds)
+    me.materials.append(mat_rivage())
     o = bpy.data.objects.new('sol', me)
     bpy.context.scene.collection.objects.link(o)
-    # l'eau claire est posée juste au-dessus du sable (z = 0) pour recouvrir sa partie immergée
     return o
 
 
@@ -479,10 +729,17 @@ def plage(masque):
 def paroi_combo(hg, hd, seed=1):
     """Deux faces de falaise (gauche hg marches, droite hd marches) avec l'angle avant fermé."""
     objs = []
-    if hg:
-        objs += paroi('g', hg, seed, u_fin=1.5 + (0.22 if hd else 0.0))
-    if hd:
-        objs += paroi('d', hd, seed + 1, u_fin=1.5 + (0.22 if hg else 0.0))
+    objs += paroi('g', hg, seed, u_fin=1.5 + 0.12, avec_bord=False)
+    objs += paroi('d', hd, seed + 1, u_fin=1.5 + 0.12, avec_bord=False)
+    # bord d'herbe continu qui fait le tour de l'angle (arrondi)
+    ch = chemin_face('g', -1.53, 1.5)
+    for i in range(1, 12):
+        a = -math.pi / 2 + (math.pi / 2) * i / 12
+        ch.append((1.5, -1.5, math.cos(a), math.sin(a), 1.5))
+    ch += chemin_face('d', 1.5, -1.53)
+    objs.append(bourrelet(ch))
+    rnd = random.Random(seed * 31 + hg * 5 + hd)
+    objs += decor_rebord('g', rnd, -1.53, 1.5) + decor_rebord('d', rnd, -1.53, 1.5)
     return objs
 
 
@@ -505,7 +762,15 @@ def rendre(nom, out):
                 setattr(sc.eevee, attr, True)
             except AttributeError:
                 pass
-        lo, hi = Vector((-1.5, -1.5, -max(a, b) * MARCHE - 0.2)), Vector((1.5, 1.5, 0.05))
+        lo, hi = Vector((-1.6, -1.8, -max(a, b) * MARCHE - 0.2)), Vector((1.8, 1.6, 0.12))
+    elif nom in PIEDS:
+        pied(PIEDS[nom])
+        for attr in ('use_raytracing', 'use_gtao'):
+            try:
+                setattr(sc.eevee, attr, True)
+            except AttributeError:
+                pass
+        lo, hi = Vector((-1.6, -2.1, 0.0)), Vector((2.1, 1.6, 0.3))
     elif nom in FALAISES:
         f, h = FALAISES[nom]
         paroi(f, h)
@@ -514,7 +779,7 @@ def rendre(nom, out):
                 setattr(sc.eevee, attr, True)
             except AttributeError:
                 pass
-        lo, hi = Vector((-1.5, -1.5, -h * MARCHE - 0.2)), Vector((1.5, 1.5, 0.05))
+        lo, hi = Vector((-1.6, -1.8, -h * MARCHE - 0.2)), Vector((1.8, 1.6, 0.12))
     elif nom in CHEMINS:
         forme, t = CHEMINS[nom]
         w, d = RUES[forme]
@@ -546,5 +811,5 @@ def rendre(nom, out):
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 out = os.path.abspath(argv[0] if argv else os.path.join(ICI, 'out', 'sols'))
 os.makedirs(out, exist_ok=True)
-for nom in (argv[1:] or list(SOLS) + list(FALAISES) + list(FALAISES_C) + ['rivage-' + m for m in RIVAGES] + ['mer-motif']):
+for nom in (argv[1:] or list(SOLS) + list(FALAISES) + list(FALAISES_C) + list(PIEDS) + ['rivage-' + m for m in RIVAGES] + ['mer-motif']):
     rendre(nom, out)
