@@ -99,12 +99,33 @@ for (const e of elts) await e.f()
 let img = sharp({ create: { width: W, height: H, channels: 4, background: nuit ? '#0b2033' : '#1d5f8c' } }).composite([...fondMer, ...couches])
 let buf = await img.png().toBuffer()
 if (nuit) {
+  // couche de lumière de chaque bâtiment (halos qui débordent sur les cases voisines, faisceau du phare),
+  // additionnée sur fond noir puis posée en mode « écran » par-dessus la ville
+  const MARGE = 2000
+  const lumieres = []
+  for (const [id, x, y] of bats) {
+    const f = path.join(OUT, 'batiments', `${id}-d-lum.png`)
+    if (!fs.existsSync(f)) continue
+    const m = meta('batiments', `${id}-d-lum`)
+    const n = m.taille
+    const k = (n * TW) / ((3 * n + 0.6 * (n - 1)) * Math.SQRT2 * m.ppu)
+    const { width } = await sharp(f).metadata()
+    const r = k * PX
+    const [px, py] = ecran(...proj(x + (n - 1) / 2, y + (n - 1) / 2))
+    lumieres.push({ input: await sharp(f).resize(Math.round(width * r)).png().toBuffer(), left: Math.round(px - m.ox * r) + MARGE, top: Math.round(py - m.oy * r) + MARGE, blend: 'add' })
+  }
+  const couche = await sharp({ create: { width: W + 2 * MARGE, height: H + 2 * MARGE, channels: 4, background: '#000000ff' } })
+    .composite(lumieres)
+    .png()
+    .toBuffer()
+  const coucheVue = await sharp(couche).extract({ left: MARGE, top: MARGE, width: W, height: H }).png().toBuffer()
+  buf = await sharp(buf).composite([{ input: coucheVue, blend: 'screen' }]).png().toBuffer()
   // halo des lumières : on isole les pixels chauds et très clairs, on les floute et on les ajoute (écran)
   const { data, info } = await sharp(buf).raw().toBuffer({ resolveWithObject: true })
   const lum = Buffer.alloc(data.length)
   for (let i = 0; i < data.length; i += 4) {
     const r = data[i], g = data[i + 1], b = data[i + 2]
-    const chaud = r > 170 && g > 110 && b < 150 && r - b > 70
+    const chaud = r > 225 && g > 150 && b < 170 && r - b > 80
     if (chaud) { lum[i] = 255; lum[i + 1] = 165; lum[i + 2] = 70; lum[i + 3] = 255 } else lum[i + 3] = 255
   }
   const halo = await sharp(lum, { raw: info }).blur(14).png().toBuffer()

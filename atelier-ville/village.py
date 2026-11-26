@@ -218,7 +218,7 @@ def appliquer_nuit(sc):
             x = sum(p.x for p in pts) / 8; y = sum(p.y for p in pts) / 8
             z0 = min(p.z for p in pts); z1 = max(p.z for p in pts)
             li = bpy.data.lights.new('lanterne', 'POINT')
-            li.energy = 30.0
+            li.energy = 5.0  # le halo au sol est dans la couche de lumière (déborde sur les cases voisines)
             li.color = LUMIERE
             li.shadow_soft_size = 0.05
             li.use_shadow = False  # la lumière sort de la lanterne (sinon sa tête fait écran)
@@ -235,6 +235,140 @@ def appliquer_nuit(sc):
             gb.inputs['Emission Color'].default_value = (*LUMIERE, 1)
             gb.inputs['Emission Strength'].default_value = 4.0
             g.data.materials.append(gm)
+
+
+
+def passe_lumiere(sc, chemin_png, lo, hi, marge=4.5, sens='d'):
+    """Couche de lumière de nuit, rendue à part sur fond noir et posée en mode « écran » par-dessus la ville :
+    halos des lanternes et des fenêtres sur un sol fictif qui déborde d'une case autour de la parcelle
+    (la lumière ne s'arrête plus au bord de la case), faisceau du phare. Les volumes du bâtiment masquent
+    la lumière qui passe derrière eux (holdout) sans faire d'ombre."""
+    # sol fictif et couverture plate : invisibles ; volumes : masques
+    for o in list(sc.objects):
+        if o.type != 'MESH':
+            continue
+        if o.name.startswith(('vitre', 'Sphere', 'feu-phare', 'faisceau')):
+            o.hide_render = True
+            continue
+        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+        haut = max(p.z for p in pts) - min(p.z for p in pts)
+        if haut < 0.1 or o.name.startswith(('herbe', 'sable', 'sol', 'touffe')):
+            o.hide_render = True
+        else:
+            o.is_holdout = True
+            o.visible_shadow = False
+    for o in sc.objects:
+        if o.type == 'LIGHT' and o.data.type == 'SUN':
+            o.data.energy = 0.0
+        if o.type == 'LIGHT' and o.name.startswith('lanterne'):
+            o.data.energy = 17.0
+    sc.world.node_tree.nodes['Background'].inputs[1].default_value = 0.0
+    # petites flaques de lumière sous les fenêtres
+    for o in list(sc.objects):
+        if o.name.startswith('vitre'):
+            c = o.matrix_world @ Vector((0.45, 0, 0.45))
+            li = bpy.data.lights.new('fenetre', 'POINT')
+            li.energy = 2.2
+            li.color = LUMIERE
+            li.use_shadow = False
+            lo_ = bpy.data.objects.new('fenetre', li)
+            lo_.location = c
+            sc.collection.objects.link(lo_)
+    # sol fictif qui déborde sur les cases voisines
+    x0, x1, y0, y1 = lo.x - marge, hi.x + marge, lo.y - marge, hi.y + marge
+    me = bpy.data.meshes.new('sol-lumiere')
+    me.from_pydata([(x0, y0, 0.002), (x1, y0, 0.002), (x1, y1, 0.002), (x0, y1, 0.002)], [], [(0, 1, 2, 3)])
+    ms = bpy.data.materials.new('SolLumiere')
+    ms.use_nodes = True
+    b = ms.node_tree.nodes.get('Principled BSDF')
+    b.inputs['Roughness'].default_value = 1.0
+    # le sol fictif s'efface vers ses bords : aucune lumière ne s'arrête net
+    N, L = ms.node_tree.nodes, ms.node_tree.links
+    tc = N.new('ShaderNodeTexCoord'); sep = N.new('ShaderNodeSeparateXYZ'); L.new(tc.outputs['Generated'], sep.inputs[0])
+    bords = []
+    for i in (0, 1):
+        a = N.new('ShaderNodeMath'); a.operation = 'SUBTRACT'; a.inputs[0].default_value = 1.0; L.new(sep.outputs[i], a.inputs[1])
+        mn = N.new('ShaderNodeMath'); mn.operation = 'MINIMUM'; L.new(sep.outputs[i], mn.inputs[0]); L.new(a.outputs[0], mn.inputs[1])
+        bords.append(mn)
+    mn = N.new('ShaderNodeMath'); mn.operation = 'MINIMUM'; L.new(bords[0].outputs[0], mn.inputs[0]); L.new(bords[1].outputs[0], mn.inputs[1])
+    fad = N.new('ShaderNodeMapRange'); fad.interpolation_type = 'SMOOTHSTEP'
+    fad.inputs['From Min'].default_value = 0.0; fad.inputs['From Max'].default_value = 0.22
+    fad.inputs['To Min'].default_value = 0.0; fad.inputs['To Max'].default_value = 0.55
+    L.new(mn.outputs[0], fad.inputs['Value'])
+    L.new(fad.outputs['Result'], b.inputs['Base Color'])
+    me.materials.append(ms)
+    so = bpy.data.objects.new('sol-lumiere', me)
+    sc.collection.objects.link(so)
+    lo2, hi2 = Vector((x0, y0, lo.z)), Vector((x1, y1, hi.z))
+    # faisceau du phare : long cône lumineux vers la gauche de l'écran, au-dessus de la mer
+    feu = sc.objects.get('feu-phare')
+    if feu:
+        p = feu.matrix_world.translation + Vector((0, 0, 0.16))
+        # vers la droite de l'écran (côté façade) ; bâtiment tourné : vers la gauche
+        d = (Vector((0.72, 0.62, -0.17)) if sens == 'd' else Vector((-0.62, -0.72, -0.17))).normalized()
+        long = 10.5
+        faisceau(sc, p, d, long)
+        bout = p + d * long
+        lo2 = Vector((min(lo2.x, bout.x - 1.5), min(lo2.y, bout.y - 1.5), min(lo2.z, bout.z - 0.5)))
+        hi2 = Vector((max(hi2.x, bout.x + 1.5), max(hi2.y, bout.y + 1.5), hi2.z))
+        # sol fictif étendu jusqu'au bout du faisceau
+        so.data.vertices[0].co = (lo2.x, lo2.y, 0.002); so.data.vertices[1].co = (hi2.x, lo2.y, 0.002)
+        so.data.vertices[2].co = (hi2.x, hi2.y, 0.002); so.data.vertices[3].co = (lo2.x, hi2.y, 0.002)
+    sc.render.film_transparent = False
+    camera_for(sc, lo2, hi2)
+    sc.render.filepath = chemin_png
+    bpy.ops.render.render(write_still=True)
+    from bpy_extras.object_utils import world_to_camera_view
+    v = world_to_camera_view(sc, sc.camera, Vector((0, 0, 0)))
+    return {'ox': v.x * sc.render.resolution_x, 'oy': (1 - v.y) * sc.render.resolution_y}
+
+
+def faisceau(sc, p, d, long):
+    """Cône de lumière qui s'évase et s'éteint au loin, plus doux sur ses bords."""
+    n = 32
+    rot = Vector((0, 0, 1)).rotation_difference(d)
+    vs, fs = [], []
+    for k in range(n):
+        a = k / n * math.tau
+        for t, r in ((0.0, 0.08), (1.0, 1.35)):
+            loc = Vector((math.cos(a) * r, math.sin(a) * r, t * long))
+            vs.append(p + rot @ loc)
+    for k in range(n):
+        a, b = 2 * k, 2 * ((k + 1) % n)
+        fs.append((a, b, b + 1, a + 1))
+    me = bpy.data.meshes.new('faisceau')
+    me.from_pydata(vs, [], fs)
+    uv = me.uv_layers.new()
+    for poly in me.polygons:
+        for li in poly.loop_indices:
+            vi = me.loops[li].vertex_index
+            uv.data[li].uv = (0, 0.0 if vi % 2 == 0 else 1.0)
+    m = bpy.data.materials.new('Faisceau')
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    for x in list(N):
+        if x.type != 'OUTPUT_MATERIAL':
+            N.remove(x)
+    out = next(x for x in N if x.type == 'OUTPUT_MATERIAL')
+    em = N.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (1.0, 0.92, 0.72, 1)
+    tc = N.new('ShaderNodeTexCoord'); sep = N.new('ShaderNodeSeparateXYZ'); L.new(tc.outputs['UV'], sep.inputs[0])
+    fad = N.new('ShaderNodeMapRange'); fad.interpolation_type = 'SMOOTHSTEP'
+    fad.inputs['From Min'].default_value = 0.0; fad.inputs['From Max'].default_value = 1.0
+    fad.inputs['To Min'].default_value = 1.0; fad.inputs['To Max'].default_value = 0.0
+    L.new(sep.outputs[1], fad.inputs['Value'])
+    lw = N.new('ShaderNodeLayerWeight'); lw.inputs['Blend'].default_value = 0.5
+    inv = N.new('ShaderNodeMath'); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
+    L.new(lw.outputs['Facing'], inv.inputs[1])
+    pw = N.new('ShaderNodeMath'); pw.operation = 'POWER'; pw.inputs[1].default_value = 2.0
+    L.new(inv.outputs[0], pw.inputs[0])
+    f = N.new('ShaderNodeMath'); f.operation = 'MULTIPLY'; L.new(fad.outputs['Result'], f.inputs[0]); L.new(pw.outputs[0], f.inputs[1])
+    f2 = N.new('ShaderNodeMath'); f2.operation = 'MULTIPLY'; f2.inputs[1].default_value = 0.42; L.new(f.outputs[0], f2.inputs[0])
+    L.new(f2.outputs[0], em.inputs['Strength'])
+    L.new(em.outputs[0], out.inputs['Surface'])
+    me.materials.append(m)
+    o = bpy.data.objects.new('faisceau-lum', me)
+    sc.collection.objects.link(o)
+    return o
 
 
 _lib = {}

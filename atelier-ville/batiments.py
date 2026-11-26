@@ -732,7 +732,9 @@ def b_phare():
     for p in pts[::2]:
         c.poutre((p[0], p[1], zt + 0.05), p, 0.01)
     o.append(c.objet('rambarde', mat('#2b2d42', 0.5, 0.5)))
-    o.append(cyl(r1 * 0.75, 0.32, (0, 0.2, zt + 0.05), mat('#ffe7a3', 0.2, 0, 6.0), n=16))
+    feu = cyl(r1 * 0.75, 0.32, (0, 0.2, zt + 0.05), mat('#ffe7a3', 0.2, 0, 6.0), n=16)
+    feu.name = 'feu-phare'
+    o.append(feu)
     for k in range(8):
         a = k / 8 * math.tau
         o.append(cyl(0.012, 0.32, (math.cos(a) * r1 * 0.77, 0.2 + math.sin(a) * r1 * 0.77, zt + 0.05), mat('#2b2d42'), n=6))
@@ -1542,6 +1544,11 @@ def rendre(bid, sens, out):
     v = world_to_camera_view(sc, sc.camera, Vector((0, 0, 0)))
     with open(os.path.join(out, f'{nom}.json'), 'w') as f:
         json.dump({'ox': v.x * sc.render.resolution_x, 'oy': (1 - v.y) * sc.render.resolution_y, 'ppu': PX_PER_UNIT, 'taille': n}, f)
+    if NUIT:
+        # couche de lumière (halos qui débordent sur les cases voisines, faisceau du phare)
+        m = passe_lumiere(sc, os.path.join(out, f'{nom}-lum.png'), lo, hi, sens=sens)
+        with open(os.path.join(out, f'{nom}-lum.json'), 'w') as f:
+            json.dump({**m, 'ppu': PX_PER_UNIT, 'taille': n}, f)
     print(f'[atelier] {nom}')
 
 
