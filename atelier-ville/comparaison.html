@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Atelier ville</title>
+<style>
+  :root { --bg: #0d0e10; --card: #17191d; --txt: #f2f2f2; --muted: #9aa0a6; --accent: #f0782d; --herbe: #a7d98b; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--txt); font: 15px/1.4 system-ui, -apple-system, sans-serif; }
+  main { max-width: 520px; margin: 0 auto; padding: 18px 16px 40px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 17px; margin: 26px 0 10px; color: var(--accent); }
+  p { margin: 0 0 6px; color: var(--muted); font-size: 13px; }
+  .duo { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .case { background: var(--card); border-radius: 14px; padding: 12px 8px 8px; display: flex; flex-direction: column; align-items: center; }
+  .case .vis { height: 170px; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+  .case img { max-height: 100%; max-width: 100%; display: block; }
+  .case span { margin-top: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+  .grand { background: var(--card); border-radius: 14px; padding: 12px; }
+  .grand img { width: 100%; display: block; }
+  .grille { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .grille img { width: 100%; display: block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Atelier graphismes</h1>
+  <p>Style « village cosy » : maisons à colombage colorées, rendues avec Blender (kit Kenney Fantasy Town, CC0).</p>
+  <p>Toits en tuiles, parcelles séparées par des routes pavées (tuiles de route et carrefours ajoutées entre les cases).</p>
+
+  <h2>Merveille : Tour Eiffel (3 × 3 parcelles)</h2>
+  <div class="grand"><img src="apercu/village/quartier-merveille.png" alt="" /></div>
+
+  <h2>Grand bâtiment : salle d'escalade (2 × 2 parcelles)</h2>
+  <div class="grand"><img src="apercu/village/quartier-escalade.png" alt="" /></div>
+
+  <h2>Quartier (9 parcelles)</h2>
+  <div class="grand"><img src="apercu/village/quartier.png" alt="" /></div>
+
+  <h2>Actuel / Village cosy</h2>
+  <div class="duo">
+    <div class="case"><div class="vis"><img src="apercu/actuel-maison-bleue.svg" alt="" /></div><span>Actuel</span></div>
+    <div class="case"><div class="vis"><img src="apercu/village/maison-creme.png" alt="" /></div><span>Colombage</span></div>
+  </div>
+
+  <h2>Les parcelles</h2>
+  <div class="grille">
+    <img src="apercu/village/maison-creme.png" alt="" />
+    <img src="apercu/village/maison-jaune.png" alt="" />
+    <img src="apercu/village/maison-rose.png" alt="" />
+    <img src="apercu/village/auberge.png" alt="" />
+    <img src="apercu/village/place-fontaine.png" alt="" />
+    <img src="apercu/village/hameau-2.png" alt="" />
+    <img src="apercu/village/hameau-2b.png" alt="" />
+    <img src="apercu/village/hameau-3.png" alt="" />
+    <img src="apercu/village/verger.png" alt="" />
+  </div>
+
+  <h2>Essai précédent (style moderne)</h2>
+  <div class="grand"><img src="apercu/parcelle.png" alt="" /></div>
+</main>
+</body>
+</html>
