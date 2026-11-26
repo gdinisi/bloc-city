@@ -183,7 +183,8 @@ export function Player({ plan, onSave, onClose }: Props) {
   const C = 2 * Math.PI * R
   const ex = plan.items[step.item].ex
   // Pendant la préparation et les repos : on montre l'exercice qui arrive
-  const showFigure = step.kind !== 'work' && hasAnim(ex.id)
+  // (sauf l'écran de mise en place du début : aucun exercice, juste le temps de s'installer)
+  const showFigure = step.kind === 'rest' && hasAnim(ex.id)
 
   const openInfo = () => {
     setInfo({ resume: !paused })
@@ -216,9 +217,11 @@ export function Player({ plan, onSave, onClose }: Props) {
       <div className="player-body">
         <div className="player-kind">{step.kind === 'work' ? step.label || 'À toi !' : step.label}</div>
         <h2 className="player-title">{step.kind === 'work' ? step.title : step.next ?? step.title}</h2>
-        <button type="button" className="how-btn" onClick={once(openInfo)}>
-          <span className="info-btn">i</span> Comment faire ?
-        </button>
+        {step.kind !== 'prep' && (
+          <button type="button" className="how-btn" onClick={once(openInfo)}>
+            <span className="info-btn">i</span> Comment faire ?
+          </button>
+        )}
         {showFigure && <ExerciseFigure id={ex.id} size="small" />}
 
         {step.seconds !== undefined ? (

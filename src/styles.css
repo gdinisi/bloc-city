@@ -5241,3 +5241,22 @@ body.sans-defilement {
   top: 8px;
   right: 8px;
 }
+
+/* Ville en plein écran : inventaire et bâtiment sélectionné sous la carte */
+.city-card.plein .inv-plein {
+  flex: none;
+  border-top: 1px solid var(--card-3);
+}
+.city-card.plein .inv-plein .inventory {
+  padding-top: 12px;
+}
+.city-card.plein .inv-plein .empty {
+  margin: 8px 0;
+}
+.city-card.plein .selected-card.dans-plein {
+  flex: none;
+  margin: 0;
+  padding: 10px;
+  background: var(--card-2, var(--card));
+  box-shadow: none;
+}

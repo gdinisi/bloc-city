@@ -146,10 +146,12 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
       const dy = cur[1] - prev[1]
       if (!gesture.current.moved && Math.hypot(dx, dy) < 2) return
       gesture.current.moved = true
+      camBougee.current = true
       const u = unitsPerPx()
       setCam((c) => ({ ...c, x: c.x + dx * u, y: c.y + dy * u }))
     } else if (pointers.current.size === 2) {
       gesture.current.moved = true
+      camBougee.current = true
       const [a, b] = [...pointers.current.values()]
       const d = Math.hypot(a[0] - b[0], a[1] - b[1])
       if (!gesture.current.dist) return
@@ -166,6 +168,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
     if (pointers.current.size < 2) gesture.current.dist = 0
   }
   const onWheel = (e: React.WheelEvent) => {
+    camBougee.current = true
     const [mx, my] = toSvg(e.clientX, e.clientY)
     zoomBy(e.deltaY < 0 ? 1.15 : 1 / 1.15, mx, my)
   }
@@ -282,29 +285,39 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [city.placed, city.elevation, land])
 
-  // cadrage de départ : la partie construite (ou toute l'île si elle est vide)
+  // cadrage : toute l'île (cases réelles, pas le cadre figé du premier affichage), centrée à l'écran
   const cadrer = () => {
-    if (!items.length) return { s: 1, x: 0, y: 0 }
+    if (!cases.length) return { s: 1, x: 0, y: 0 }
     let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity
-    for (const it of items) {
-      const [cx, cy0] = proj(it.p.x + (it.s - 1) / 2, it.p.y + (it.s - 1) / 2)
-      const cy = cy0 - it.e * STEP
-      const sp = SPRITES[it.b.id]
-      const w = sp ? sp.w : TW * it.s, h = sp ? sp.h : 60 * it.s
-      const ox = sp ? sp.ox : w / 2, oy = sp ? sp.oy : h - TH
-      a = Math.min(a, cx - ox); b = Math.max(b, cx - ox + w)
-      c = Math.min(c, cy - oy); d = Math.max(d, cy - oy + h)
+    for (const [x, y] of cases) {
+      const [cx, cy0] = proj(x, y)
+      const cy = cy0 - elev(x, y) * STEP
+      a = Math.min(a, cx - TW / 2); b = Math.max(b, cx + TW / 2)
+      c = Math.min(c, cy - TH / 2); d = Math.max(d, cy0 + TH / 2)
     }
-    const bw = Math.max(b - a + 2 * TW, 3 * TW), bh = Math.max(d - c + 2 * TW, 3 * TH)
-    const sc = clampS(Math.min(visW / bw, visH / bh))
+    // le haut des grands bâtiments compte aussi (sinon une tour sortirait du cadre)
+    for (const it of items) {
+      const [, cy0] = proj(it.p.x + (it.s - 1) / 2, it.p.y + (it.s - 1) / 2)
+      const sp = SPRITES[it.b.id]
+      c = Math.min(c, cy0 - it.e * STEP - (sp ? sp.oy : 60 * it.s))
+    }
+    // un peu de plage et de mer autour
+    a -= TW * 0.6; b += TW * 0.6; c -= TH * 0.6; d += TH * 1.2
+    const sc = clampS(Math.min(visW / (b - a), visH / (d - c)))
     const mx = (a + b) / 2, my = (c + d) / 2
     return { s: sc, x: cxV - mx * sc, y: cyV - my * sc }
+  }
+  /** La caméra a-t-elle été bougée à la main depuis le dernier cadrage ? */
+  const camBougee = useRef(false)
+  const recadrer = () => {
+    camBougee.current = false
+    setCam(cadrer())
   }
   const dejaCadre = useRef(false)
   useLayoutEffect(() => {
     if (dejaCadre.current) return
     dejaCadre.current = true
-    setCam(cadrer())
+    recadrer()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
   // en passant en plein écran (ou en le quittant), on recadre dès que la nouvelle taille est connue
@@ -317,9 +330,20 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
   useEffect(() => {
     if (!ecran || !aRecadrer.current) return
     aRecadrer.current = false
-    setCam(cadrer())
+    recadrer()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ecran])
+  // l'île arrive (synchro au démarrage) ou change de forme : on recadre, sauf si l'on est en train de la
+  // modifier ou si la carte a déjà été bougée à la main
+  const empreinteIle = useMemo(() => [...land].sort().join(';'), [land])
+  const ilePrec = useRef(empreinteIle)
+  useEffect(() => {
+    if (ilePrec.current === empreinteIle) return
+    ilePrec.current = empreinteIle
+    if (ghost || onAddCase || camBougee.current) return
+    recadrer()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [empreinteIle])
 
   const bats: Elt[] = items.map((it) => {
     const [cx, cy] = proj(it.p.x + (it.s - 1) / 2, it.p.y + (it.s - 1) / 2)
@@ -395,7 +419,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
       </svg>
       {!readOnly && (
         <div className="map-controls">
-          <button type="button" className="round" aria-label="Recentrer" onClick={() => setCam(cadrer())}>
+          <button type="button" className="round" aria-label="Recentrer" onClick={recadrer}>
             ⌖
           </button>
           {controle}

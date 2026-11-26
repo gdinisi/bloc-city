@@ -20,6 +20,8 @@ const showFriendDemo = import.meta.env.DEV && q.has('amidemo')
 const FriendDemo = lazy(() => import('./screens/FriendDemo'))
 const showCityDemo = import.meta.env.DEV && q.has('villedemo')
 const CityDemo = lazy(() => import('./city/CityDemo'))
+const showSeanceDemo = import.meta.env.DEV && q.has('seancedemo')
+const SeanceDemo = lazy(() => import('./workout/SeanceDemo'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -30,6 +32,10 @@ createRoot(document.getElementById('root')!).render(
     ) : showCityDemo ? (
       <Suspense fallback={null}>
         <CityDemo />
+      </Suspense>
+    ) : showSeanceDemo ? (
+      <Suspense fallback={null}>
+        <SeanceDemo />
       </Suspense>
     ) : showFriendDemo ? (
       <Suspense fallback={null}>

@@ -66,6 +66,10 @@ const mulberry32 = (a: number) => () => {
 }
 
 const REP_SECONDS = 3.5
+/** Pause entre deux exercices : la même pendant toute la séance (pas d'écarts d'un exercice à l'autre) */
+export const PAUSE_EXOS = 20
+/** Écran de mise en place au début de la séance (sans exercice) */
+export const MISE_EN_PLACE = 30
 
 export const setSeconds = (it: PlanItem) => it.work ?? (it.reps ?? 10) * REP_SECONDS
 
@@ -117,7 +121,8 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
   }
 
   /** Prescription d'un exercice adaptée au niveau */
-  const prescribe = (ex: Exercise, phase: Phase, restAfter: number): PlanItem => {
+  const prescribe = (ex: Exercise, phase: Phase): PlanItem => {
+    const restAfter = PAUSE_EXOS
     const adaptive = phase === 'principal' && ex.category !== 'mobilite'
     const fingers = ex.category === 'doigts'
     if (!adaptive) {
@@ -132,7 +137,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
         work: ex.work,
         reps: ex.reps,
         rest: ex.rest,
-        restAfter: round5(restAfter),
+        restAfter,
       }
     }
     return {
@@ -142,7 +147,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
       work: ex.work ? round5(ex.work * lp.volume) : undefined,
       reps: ex.reps ? Math.max(3, Math.round(ex.reps * lp.volume)) : undefined,
       rest: ex.rest ? round5(ex.rest * lp.rest) : 0,
-      restAfter: Math.max(15, round5(restAfter * lp.rest)),
+      restAfter,
     }
   }
 
@@ -154,7 +159,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
     const ex = pick('echauffement')
     if (!ex) break
     used.add(ex.id)
-    warm.push(prescribe(ex, 'echauffement', 10))
+    warm.push(prescribe(ex, 'echauffement'))
   }
 
   const cool: PlanItem[] = []
@@ -162,7 +167,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
     const ex = pick('mobilite')
     if (!ex) break
     used.add(ex.id)
-    cool.push(prescribe(ex, 'retour', 10))
+    cool.push(prescribe(ex, 'retour'))
   }
 
   const total = minutes * 60
@@ -177,8 +182,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
       misses++
       continue
     }
-    const hard = ex.intensity === 3
-    const it = focus === 'mobilite' ? prescribe(ex, 'retour', 10) : prescribe(ex, 'principal', hard ? 90 : 45)
+    const it = focus === 'mobilite' ? prescribe(ex, 'retour') : prescribe(ex, 'principal')
     const cost = itemSeconds(it)
     // On accepte un léger dépassement plutôt que de laisser un gros trou
     if (cost > budget + 90) {
@@ -196,7 +200,7 @@ export function generatePlan({ minutes, fatigue, focus, equipment, seed, level }
   if (items.length) items[items.length - 1] = { ...items[items.length - 1], restAfter: 0 }
   return {
     items,
-    estimated: items.reduce((s, it) => s + itemSeconds(it), 0) + 10,
+    estimated: items.reduce((s, it) => s + itemSeconds(it), 0) + MISE_EN_PLACE,
     focus,
     fatigue,
     level,
@@ -227,7 +231,16 @@ export function buildSteps(plan: Plan): Step[] {
     const sides: (string | null)[] = ex.perSide ? ['Gauche', 'Droite'] : [null]
     const rounds = ex.rounds ?? 1
     if (idx === 0) {
-      steps.push({ kind: 'prep', item: 0, title: 'Prépare-toi', cue: ex.cue, seconds: 10, label: 'C\'est parti dans…', next: ex.name })
+      // écran de mise en place, sans exercice : le temps de s'installer
+      steps.push({
+        kind: 'prep',
+        item: 0,
+        title: 'Mets-toi en place',
+        cue: `Installe ton tapis et ton matériel, prends de l'eau. Premier exercice : ${ex.name}.`,
+        seconds: MISE_EN_PLACE,
+        label: 'La séance commence dans…',
+        next: 'Mets-toi en place',
+      })
     }
     for (let r = 1; r <= rounds; r++) {
       for (let s = 1; s <= it.sets; s++) {

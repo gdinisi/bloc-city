@@ -63,6 +63,8 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const [placeFlip, setPlaceFlip] = useState(false)
   /** Ville en plein écran */
   const [plein, setPlein] = useState(false)
+  /** Inventaire ouvert dans la ville en plein écran */
+  const [invPlein, setInvPlein] = useState(false)
   useEffect(() => {
     if (!plein) return
     const h = (e: KeyboardEvent) => e.key === 'Escape' && setPlein(false)
@@ -134,6 +136,85 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
     setMode(mode.type === m.type ? { type: 'idle' } : m)
   }
 
+  const selection = selectedP && selectedB && mode.type === 'idle' && (
+      <section className={`card selected-card ${plein ? 'dans-plein' : ''}`}>
+        <div className="selected-head">
+          <BuildingThumb b={selectedB} size={52} />
+          <div>
+            <b>{selectedB.name}</b>
+            <span className="rarity" style={{ color: RARITIES[selectedB.rarity].color }}>
+              {RARITIES[selectedB.rarity].label} · +{RARITIES[selectedB.rarity].pop} habitants
+              {sizeOf(selectedB) > 1 ? ` · ${sizeOf(selectedB)} × ${sizeOf(selectedB)} cases` : ''}
+            </span>
+          </div>
+          <button type="button" className="round" aria-label="Fermer" onClick={() => setSelected(null)}>
+            ✕
+          </button>
+        </div>
+        <div className="selected-actions">
+          <button type="button" className="btn small" onClick={() => onCity((c) => rotate(c, selectedP.uid))}>
+            🔄 Tourner
+          </button>
+          <button
+            type="button"
+            className="btn small"
+            onClick={() => {
+              setMode({ type: 'move', uid: selectedP.uid })
+              setSelected(null)
+            }}
+          >
+            ✋ Déplacer
+          </button>
+          <button
+            type="button"
+            className="btn small"
+            onClick={() => {
+              onCity((c) => store(c, selectedP.uid))
+              setSelected(null)
+            }}
+          >
+            📦 Ranger
+          </button>
+        </div>
+      </section>
+  )
+
+  const listeInventaire =
+        inventory.length === 0 ? (
+          <p className="muted empty">Rien à poser pour l'instant. Chaque séance te rapporte un pack de bâtiments.</p>
+        ) : (
+          <div className="inventory">
+            {inventory.map(([id, n]) => {
+              const b = buildingById(id)
+              if (!b) return null
+              const on = mode.type === 'place' && mode.id === id
+              return (
+                <button
+                  key={id}
+                  type="button"
+                  className={`inv-item ${on ? 'on' : ''}`}
+                  style={{ borderColor: RARITIES[b.rarity].color }}
+                  onClick={() => {
+                    setSelected(null)
+                    setPlaceFlip(false)
+                    setMode(on ? { type: 'idle' } : { type: 'place', id })
+                    setInvPlein(false)
+                  }}
+                >
+                  <BuildingThumb b={b} size={58} />
+                  <span className="inv-name">{b.name}</span>
+                  {sizeOf(b) > 1 && (
+                    <span className="inv-size">
+                      {sizeOf(b)}×{sizeOf(b)}
+                    </span>
+                  )}
+                  {n > 1 && <span className="inv-count">×{n}</span>}
+                </button>
+              )
+            })}
+          </div>
+        )
+
   return (
     <div className="screen">
       <div className="reward-row">
@@ -157,12 +238,30 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
       <section className={`card city-card ${plein ? 'plein' : ''}`}>
         <div className="city-tools">
-          <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
+          <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => {
+              setInvPlein(false)
+              toggleTool({ type: 'relief', delta: 1 })
+            }}>
             ⛰️ Relief
           </button>
-          <button type="button" className={`chip ${mode.type === 'terrain' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'terrain', action: 'ajouter' })}>
+          <button type="button" className={`chip ${mode.type === 'terrain' ? 'on' : ''}`} onClick={() => {
+              setInvPlein(false)
+              toggleTool({ type: 'terrain', action: 'ajouter' })
+            }}>
             🏝️ Terrain
           </button>
+          {plein && (
+            <button
+              type="button"
+              className={`chip ${invPlein ? 'on' : ''}`}
+              onClick={() => {
+                setInvPlein((v) => !v)
+                if (editingGround) setMode({ type: 'idle' })
+              }}
+            >
+              🏠 Bâtiments
+            </button>
+          )}
           {editingGround && (
             <button type="button" className="btn small" onClick={() => setMode({ type: 'idle' })}>
               Terminer
@@ -229,58 +328,22 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           movingUid={mode.type === 'move' ? mode.uid : null}
           plein={plein}
           controle={
-            <button type="button" className="round" aria-label={plein ? 'Quitter le plein écran' : 'Plein écran'} onClick={() => setPlein((v) => !v)}>
+            <button type="button" className="round" aria-label={plein ? 'Quitter le plein écran' : 'Plein écran'} onClick={() => {
+              setPlein((v) => !v)
+              setInvPlein(false)
+            }}>
               {plein ? '✕' : '⛶'}
             </button>
           }
         />
-        {city.placed.length === 0 && mode.type === 'idle' && (
+        {plein && selection}
+        {plein && invPlein && <div className="inv-plein">{listeInventaire}</div>}
+        {city.placed.length === 0 && mode.type === 'idle' && !plein && (
           <p className="muted small-text center">Ta ville est vide : ouvre tes packs puis pose tes bâtiments depuis l'inventaire.</p>
         )}
       </section>
 
-      {selectedP && selectedB && mode.type === 'idle' && (
-        <section className="card selected-card">
-          <div className="selected-head">
-            <BuildingThumb b={selectedB} size={52} />
-            <div>
-              <b>{selectedB.name}</b>
-              <span className="rarity" style={{ color: RARITIES[selectedB.rarity].color }}>
-                {RARITIES[selectedB.rarity].label} · +{RARITIES[selectedB.rarity].pop} habitants
-                {sizeOf(selectedB) > 1 ? ` · ${sizeOf(selectedB)} × ${sizeOf(selectedB)} cases` : ''}
-              </span>
-            </div>
-            <button type="button" className="round" aria-label="Fermer" onClick={() => setSelected(null)}>
-              ✕
-            </button>
-          </div>
-          <div className="selected-actions">
-            <button type="button" className="btn small" onClick={() => onCity((c) => rotate(c, selectedP.uid))}>
-              🔄 Tourner
-            </button>
-            <button
-              type="button"
-              className="btn small"
-              onClick={() => {
-                setMode({ type: 'move', uid: selectedP.uid })
-                setSelected(null)
-              }}
-            >
-              ✋ Déplacer
-            </button>
-            <button
-              type="button"
-              className="btn small"
-              onClick={() => {
-                onCity((c) => store(c, selectedP.uid))
-                setSelected(null)
-              }}
-            >
-              📦 Ranger
-            </button>
-          </div>
-        </section>
-      )}
+      {!plein && selection}
 
       <section className="card">
         <div className="day-head">
@@ -289,39 +352,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
             🛒 Boutique
           </button>
         </div>
-        {inventory.length === 0 ? (
-          <p className="muted empty">Rien à poser pour l'instant. Chaque séance te rapporte un pack de bâtiments.</p>
-        ) : (
-          <div className="inventory">
-            {inventory.map(([id, n]) => {
-              const b = buildingById(id)
-              if (!b) return null
-              const on = mode.type === 'place' && mode.id === id
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  className={`inv-item ${on ? 'on' : ''}`}
-                  style={{ borderColor: RARITIES[b.rarity].color }}
-                  onClick={() => {
-                    setSelected(null)
-                    setPlaceFlip(false)
-                    setMode(on ? { type: 'idle' } : { type: 'place', id })
-                  }}
-                >
-                  <BuildingThumb b={b} size={58} />
-                  <span className="inv-name">{b.name}</span>
-                  {sizeOf(b) > 1 && (
-                    <span className="inv-size">
-                      {sizeOf(b)}×{sizeOf(b)}
-                    </span>
-                  )}
-                  {n > 1 && <span className="inv-count">×{n}</span>}
-                </button>
-              )
-            })}
-          </div>
-        )}
+        {listeInventaire}
         <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser. Un grand bâtiment demande des cases à la même hauteur.</p>
       </section>
 
