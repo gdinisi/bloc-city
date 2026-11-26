@@ -238,6 +238,41 @@ def appliquer_nuit(sc):
 
 
 
+def _est_volume(o):
+    """Objet en volume (maison, arbre, lampadaire…) par opposition au sol et au décor plat."""
+    if o.name.startswith(('vitre', 'Sphere', 'feu-phare', 'faisceau', 'halo', 'sol-lumiere')):
+        return None  # sources de lumière : ni sol ni volume
+    pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
+    haut = max(p.z for p in pts) - min(p.z for p in pts)
+    return not (haut < 0.1 or o.name.startswith(('herbe', 'sable', 'sol', 'touffe')))
+
+
+def passe_volumes(sc, chemin_png):
+    """Silhouette noire des volumes (même cadrage que le rendu principal) : dans l'appli, ce masque empêche
+    la lumière des bâtiments voisins de passer par-dessus les maisons, arbres et lampadaires."""
+    caches = []
+    for o in sc.objects:
+        if o.type == 'MESH' and not o.hide_render and _est_volume(o) is not True:
+            o.hide_render = True
+            caches.append(o)
+    noir = bpy.data.materials.get('Silhouette') or bpy.data.materials.new('Silhouette')
+    noir.use_nodes = True
+    N = noir.node_tree.nodes
+    for x in list(N):
+        if x.type != 'OUTPUT_MATERIAL':
+            N.remove(x)
+    em = N.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (0, 0, 0, 1)
+    noir.node_tree.links.new(em.outputs[0], next(x for x in N if x.type == 'OUTPUT_MATERIAL').inputs['Surface'])
+    vl = bpy.context.view_layer
+    vl.material_override = noir
+    sc.render.film_transparent = True
+    sc.render.filepath = chemin_png
+    bpy.ops.render.render(write_still=True)
+    vl.material_override = None
+    for o in caches:
+        o.hide_render = False
+
+
 def passe_lumiere(sc, chemin_png, lo, hi, marge=4.5, sens='d'):
     """Couche de lumière de nuit, rendue à part sur fond noir et posée en mode « écran » par-dessus la ville :
     halos des lanternes et des fenêtres sur un sol fictif qui déborde d'une case autour de la parcelle
@@ -247,28 +282,25 @@ def passe_lumiere(sc, chemin_png, lo, hi, marge=4.5, sens='d'):
     for o in list(sc.objects):
         if o.type != 'MESH':
             continue
-        if o.name.startswith(('vitre', 'Sphere', 'feu-phare', 'faisceau')):
-            o.hide_render = True
-            continue
-        pts = [o.matrix_world @ Vector(c) for c in o.bound_box]
-        haut = max(p.z for p in pts) - min(p.z for p in pts)
-        if haut < 0.1 or o.name.startswith(('herbe', 'sable', 'sol', 'touffe')):
-            o.hide_render = True
-        else:
+        v = _est_volume(o)
+        if v:
             o.is_holdout = True
             o.visible_shadow = False
-    for o in sc.objects:
+        else:
+            o.hide_render = True
+    for o in list(sc.objects):
         if o.type == 'LIGHT' and o.data.type == 'SUN':
             o.data.energy = 0.0
         if o.type == 'LIGHT' and o.name.startswith('lanterne'):
-            o.data.energy = 17.0
+            o.data.energy = 7.0
+            halo(sc, o.location, 0.13, 1.2)
     sc.world.node_tree.nodes['Background'].inputs[1].default_value = 0.0
     # petites flaques de lumière sous les fenêtres
     for o in list(sc.objects):
         if o.name.startswith('vitre'):
             c = o.matrix_world @ Vector((0.45, 0, 0.45))
             li = bpy.data.lights.new('fenetre', 'POINT')
-            li.energy = 2.2
+            li.energy = 0.9
             li.color = LUMIERE
             li.use_shadow = False
             lo_ = bpy.data.objects.new('fenetre', li)
@@ -321,6 +353,35 @@ def passe_lumiere(sc, chemin_png, lo, hi, marge=4.5, sens='d'):
     from bpy_extras.object_utils import world_to_camera_view
     v = world_to_camera_view(sc, sc.camera, Vector((0, 0, 0)))
     return {'ox': v.x * sc.render.resolution_x, 'oy': (1 - v.y) * sc.render.resolution_y}
+
+
+def halo(sc, p, r, force):
+    """Petit halo doux autour d'une source (lanterne) : sphère lumineuse qui s'estompe vers ses bords."""
+    bpy.ops.mesh.primitive_uv_sphere_add(radius=r, location=p, segments=20, ring_count=12)
+    o = bpy.context.active_object
+    o.name = 'halo'
+    m = bpy.data.materials.get('Halo')
+    if not m:
+        m = bpy.data.materials.new('Halo')
+        m.use_nodes = True
+        N, L = m.node_tree.nodes, m.node_tree.links
+        for x in list(N):
+            if x.type != 'OUTPUT_MATERIAL':
+                N.remove(x)
+        em = N.new('ShaderNodeEmission'); em.inputs['Color'].default_value = (*LUMIERE, 1)
+        lw = N.new('ShaderNodeLayerWeight'); lw.inputs['Blend'].default_value = 0.5
+        inv = N.new('ShaderNodeMath'); inv.operation = 'SUBTRACT'; inv.inputs[0].default_value = 1.0
+        L.new(lw.outputs['Facing'], inv.inputs[1])
+        pw = N.new('ShaderNodeMath'); pw.operation = 'POWER'; pw.inputs[1].default_value = 3.0
+        L.new(inv.outputs[0], pw.inputs[0])
+        f = N.new('ShaderNodeMath'); f.operation = 'MULTIPLY'; f.inputs[1].default_value = force
+        L.new(pw.outputs[0], f.inputs[0])
+        L.new(f.outputs[0], em.inputs['Strength'])
+        L.new(em.outputs[0], next(x for x in N if x.type == 'OUTPUT_MATERIAL').inputs['Surface'])
+    o.data.materials.append(m)
+    for p_ in o.data.polygons:
+        p_.use_smooth = True
+    return o
 
 
 def faisceau(sc, p, d, long):

@@ -1545,6 +1545,8 @@ def rendre(bid, sens, out):
     with open(os.path.join(out, f'{nom}.json'), 'w') as f:
         json.dump({'ox': v.x * sc.render.resolution_x, 'oy': (1 - v.y) * sc.render.resolution_y, 'ppu': PX_PER_UNIT, 'taille': n}, f)
     if NUIT:
+        # silhouette des volumes (masque de la lumière des voisins), même cadrage que le rendu principal
+        passe_volumes(sc, os.path.join(out, f'{nom}-vol.png'))
         # couche de lumière (halos qui débordent sur les cases voisines, faisceau du phare)
         m = passe_lumiere(sc, os.path.join(out, f'{nom}-lum.png'), lo, hi, sens=sens)
         with open(os.path.join(out, f'{nom}-lum.json'), 'w') as f:
