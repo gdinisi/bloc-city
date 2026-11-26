@@ -18,7 +18,7 @@ export default defineConfig({
           {
             urlPattern: /\/img\/ville\//,
             handler: 'CacheFirst',
-            options: { cacheName: 'ville-img', expiration: { maxEntries: 300 } },
+            options: { cacheName: 'ville-img', expiration: { maxEntries: 1500 } },
           },
         ],
       },

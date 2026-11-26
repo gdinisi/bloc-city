@@ -10,6 +10,15 @@ import sharp from 'sharp'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import crypto from 'node:crypto'
+
+// version courte d'une image (empreinte du rendu source) : ajoutée à l'URL (?v=…), elle force le
+// téléphone à retélécharger une image modifiée malgré le cache de l'appli (CacheFirst)
+const empreinte = (...fichiers) => {
+  const h = crypto.createHash('md5')
+  for (const f of fichiers) h.update(fs.readFileSync(f))
+  return h.digest('hex').slice(0, 8)
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const SRC = path.join(HERE, 'out', 'batiments')
@@ -35,7 +44,7 @@ for (const id of ids) {
     const cote = 3 * n + ROUTE * (n - 1)
     const losange = cote * Math.SQRT2 * meta.ppu // largeur du losange de l'emprise, en px source
     const k = (n * TW) / losange // unités SVG par px source : l'emprise occupe exactement n cases côte à côte
-    if (sens === 'd') table[id] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(meta.ox * k).toFixed(2), oy: +(meta.oy * k).toFixed(2) }
+    if (sens === 'd') table[id] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(meta.ox * k).toFixed(2), oy: +(meta.oy * k).toFixed(2), v: empreinte(path.join(SRC, `${id}-g.png`), path.join(SRC, `${id}-d.png`)) }
     for (const [dir, px] of [['', PX_CASE], ['hd', PX_CASE_HD]]) {
       const r = Math.min(1, (px * n) / losange)
       const info = await sharp(fichier).resize(Math.round(width * r)).webp({ quality: 80, alphaQuality: 90, effort: 5 }).toFile(path.join(PUB, dir, `${id}-${sens}.webp`))
@@ -60,11 +69,11 @@ for (const f of fs.readdirSync(SRC_SOLS).filter((f) => f.endsWith('.png'))) {
     const buf = await cell.png().toBuffer()
     for (const [dir, px] of [['sol', PX_CASE], ['sol/hd', PX_CASE_HD]])
       await sharp(buf).resize(Math.round(Math.min(L, px)), Math.round(Math.min(L, px) / 2)).webp({ quality: 85 }).toFile(path.join(PUB, dir, 'mer-motif.webp'))
-    sols[nom] = { w: TW, h: TW / 2, ox: TW / 2, oy: TW / 4 }
+    sols[nom] = { w: TW, h: TW / 2, ox: TW / 2, oy: TW / 4, v: empreinte(path.join(SRC_SOLS, f)) }
     continue
   }
   const k = TW / (3 * Math.SQRT2 * meta.ppu)
-  sols[nom] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(meta.ox * k).toFixed(2), oy: +(meta.oy * k).toFixed(2) }
+  sols[nom] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(meta.ox * k).toFixed(2), oy: +(meta.oy * k).toFixed(2), v: empreinte(path.join(SRC_SOLS, f)) }
   for (const [dir, px] of [['sol', PX_CASE], ['sol/hd', PX_CASE_HD]]) {
     const r = Math.min(1, px / (3 * Math.SQRT2 * meta.ppu))
     await sharp(path.join(SRC_SOLS, f)).resize(Math.round(width * r)).webp({ quality: 82, alphaQuality: 90, effort: 5 }).toFile(path.join(PUB, dir, `${nom}.webp`))
@@ -79,6 +88,8 @@ export interface Sprite {
   h: number
   ox: number
   oy: number
+  /** version de l'image (à mettre dans l'URL pour contourner le cache) */
+  v: string
 }
 
 export const SPRITES: Record<string, Sprite> = ${JSON.stringify(table, null, 2)}

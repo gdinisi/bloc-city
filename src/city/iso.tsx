@@ -545,7 +545,7 @@ export function GroundTile({ id, cx, cy, alt }: { id: string; cx: number; cy: nu
  * « g » = tourné. `hd` : image haute définition (carte zoomée de près), `mini` : vignette rognée.
  */
 export const spriteUrl = (id: string, flip: boolean, taille: 'normal' | 'hd' | 'mini' = 'normal') =>
-  `${import.meta.env.BASE_URL}img/ville/${taille === 'normal' ? '' : taille + '/'}${id}-${flip ? 'g' : 'd'}.webp`
+  `${import.meta.env.BASE_URL}img/ville/${taille === 'normal' ? '' : taille + '/'}${id}-${flip ? 'g' : 'd'}.webp?v=${SPRITES[id]?.v ?? ''}`
 
 /** Petite vignette autonome d'un bâtiment (cartes, inventaire, boutique) */
 export function BuildingThumb({ b, size = 64, dim = false, flip = false }: { b: Building; size?: number; dim?: boolean; flip?: boolean }) {

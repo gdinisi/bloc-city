@@ -184,7 +184,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
   }
   const visible = (x: number, y: number) => x >= vue.a && x <= vue.b && y >= vue.c && y <= vue.d
   const hd = cam.s >= 2.2
-  const solUrl = (nom: string) => `${import.meta.env.BASE_URL}img/ville/sol/${hd ? 'hd/' : ''}${nom}.webp`
+  const solUrl = (nom: string) => `${import.meta.env.BASE_URL}img/ville/sol/${hd ? 'hd/' : ''}${nom}.webp?v=${SOLS[nom]?.v ?? ''}`
   const image = (nom: string, cx: number, cy: number, agrandi = 1) => {
     const sp = SOLS[nom]
     if (!sp) return null
