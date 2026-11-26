@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Building } from './buildings'
+import { SPRITES } from './sprites'
 
 /*
  * Rendu isométrique (losanges 2:1). Chaque bâtiment est dessiné autour de son
@@ -539,8 +540,29 @@ export function GroundTile({ id, cx, cy, alt }: { id: string; cx: number; cy: nu
   )
 }
 
+/**
+ * Rendu Blender d'un bâtiment (public/img/ville) : « d » = façade à droite (sens par défaut),
+ * « g » = tourné. `hd` : image haute définition (carte zoomée de près), `mini` : vignette rognée.
+ */
+export const spriteUrl = (id: string, flip: boolean, taille: 'normal' | 'hd' | 'mini' = 'normal') =>
+  `${import.meta.env.BASE_URL}img/ville/${taille === 'normal' ? '' : taille + '/'}${id}-${flip ? 'g' : 'd'}.webp`
+
 /** Petite vignette autonome d'un bâtiment (cartes, inventaire, boutique) */
 export function BuildingThumb({ b, size = 64, dim = false, flip = false }: { b: Building; size?: number; dim?: boolean; flip?: boolean }) {
+  if (SPRITES[b.id]) {
+    return (
+      <img
+        src={spriteUrl(b.id, flip, 'mini')}
+        width={size}
+        height={size}
+        alt=""
+        aria-hidden="true"
+        draggable={false}
+        className="building-thumb"
+        style={{ objectFit: 'contain', opacity: dim ? 0.35 : 1, filter: dim ? 'grayscale(1)' : undefined }}
+      />
+    )
+  }
   // cadrage adapté à la hauteur du bâtiment, pied du bâtiment en bas de la vignette
   const top = Math.max(40, b.h + (b.roof === 'pyramid' || ['clock', 'castle', 'rocket', 'glass', 'temple'].includes(b.kind) ? 24 : 16))
   return (

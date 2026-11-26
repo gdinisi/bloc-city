@@ -12,6 +12,16 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-48x48.png', 'apple-touch-icon-180x180.png', 'img/*.webp'],
+      // Rendus des bâtiments (public/img/ville) : mis en cache au premier affichage, pas au téléchargement de l'app
+      workbox: {
+        runtimeCaching: [
+          {
+            urlPattern: /\/img\/ville\//,
+            handler: 'CacheFirst',
+            options: { cacheName: 'ville-img', expiration: { maxEntries: 300 } },
+          },
+        ],
+      },
       manifest: {
         name: 'Bloc City',
         short_name: 'Bloc City',

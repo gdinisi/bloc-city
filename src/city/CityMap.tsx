@@ -3,14 +3,16 @@ import type { ReactNode } from 'react'
 import type { CityState } from './economy'
 import { gridOf } from './economy'
 import { buildingById, sizeOf } from './buildings'
-import { BuildingSprite, GroundTile, TH, TW, shade } from './iso'
+import { BuildingSprite, GroundTile, TH, TW, shade, spriteUrl } from './iso'
+import { SPRITES } from './sprites'
 
 /*
  * Carte isométrique de la ville.
  * - rotation de la vue par quarts de tour (on « tourne autour » de la ville)
  * - relief : chaque case a une hauteur (0 à 3 marches)
  * - routes, eau et ponts se raccordent automatiquement à leurs voisins
- * - caméra : glisser pour se déplacer, pincer avec deux doigts pour zoomer (molette sur ordinateur)
+ * - caméra : glisser pour se déplacer, pincer avec deux doigts pour zoomer (molette sur ordinateur), sans limite pratique
+ * - bâtiments : rendus Blender (public/img/ville), version HD chargée quand on zoome de près
  * - ordre d'affichage par diagonales, puis tri topologique des emprises
  */
 
@@ -80,7 +82,8 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
       if (!b) continue
       const s = sizeOf(b)
       const [, cy] = proj(...toView(p.x + (s - 1) / 2, p.y + (s - 1) / 2))
-      t = Math.min(t, cy - (b.h + 36) * s - 3 * STEP)
+      const sp = SPRITES[b.id]
+      t = Math.min(t, sp ? cy - sp.oy - 3 * STEP - 4 : cy - (b.h + 36) * s - 3 * STEP)
     }
     return t
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -89,7 +92,9 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
   const vbH = bottom - top
 
   // ---------- caméra ----------
-  const clampS = (s: number) => Math.min(3.2, Math.max(0.7, s))
+  // zoom : de la vue d'ensemble jusqu'au très gros plan
+  const clampS = (s: number) => Math.min(14, Math.max(0.5, s))
+  const hd = cam.s >= 2.2
   const zoomBy = (k: number, cx = 0, cy = (top + bottom) / 2) =>
     setCam((c) => {
       const s = clampS(c.s * k)
@@ -311,17 +316,42 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
             transition: 'opacity 0.2s',
           }}
         >
-          {isSel && (
-            <polygon
-              points={`${(-TW * it.s) / 2},0 0,${(TH * it.s) / 2} ${(TW * it.s) / 2},0 0,${(-TH * it.s) / 2}`}
-              fill="#ffe066"
-              stroke="#f2994a"
-              strokeWidth={2}
-            />
+          {SPRITES[it.b.id] ? (
+            <>
+              <image
+                href={spriteUrl(it.b.id, it.p.flip !== (rot % 2 === 1), hd ? 'hd' : 'normal')}
+                x={-SPRITES[it.b.id].ox}
+                y={-SPRITES[it.b.id].oy}
+                width={SPRITES[it.b.id].w}
+                height={SPRITES[it.b.id].h}
+                preserveAspectRatio="none"
+              />
+              {isSel && (
+                <polygon
+                  points={`${(-TW * it.s) / 2},0 0,${(TH * it.s) / 2} ${(TW * it.s) / 2},0 0,${(-TH * it.s) / 2}`}
+                  fill="#ffe066"
+                  fillOpacity={0.28}
+                  stroke="#f2994a"
+                  strokeWidth={2 / Math.sqrt(cam.s)}
+                  style={{ pointerEvents: 'none' }}
+                />
+              )}
+            </>
+          ) : (
+            <>
+              {isSel && (
+                <polygon
+                  points={`${(-TW * it.s) / 2},0 0,${(TH * it.s) / 2} ${(TW * it.s) / 2},0 0,${(-TH * it.s) / 2}`}
+                  fill="#ffe066"
+                  stroke="#f2994a"
+                  strokeWidth={2}
+                />
+              )}
+              <g transform={it.s > 1 ? `scale(${it.s})` : undefined}>
+                <BuildingSprite b={it.b} flip={it.p.flip !== (rot % 2 === 1)} />
+              </g>
+            </>
           )}
-          <g transform={it.s > 1 ? `scale(${it.s})` : undefined}>
-            <BuildingSprite b={it.b} flip={it.p.flip !== (rot % 2 === 1)} />
-          </g>
         </g>,
       )
     }
