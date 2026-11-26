@@ -18,6 +18,8 @@ const showGallery = import.meta.env.DEV && q.has('galerie')
 const showBuildings = import.meta.env.DEV && q.has('batiments')
 const showFriendDemo = import.meta.env.DEV && q.has('amidemo')
 const FriendDemo = lazy(() => import('./screens/FriendDemo'))
+const showCityDemo = import.meta.env.DEV && q.has('villedemo')
+const CityDemo = lazy(() => import('./city/CityDemo'))
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
@@ -25,6 +27,10 @@ createRoot(document.getElementById('root')!).render(
       <Gallery />
     ) : showBuildings ? (
       <BuildingGallery />
+    ) : showCityDemo ? (
+      <Suspense fallback={null}>
+        <CityDemo />
+      </Suspense>
     ) : showFriendDemo ? (
       <Suspense fallback={null}>
         <FriendDemo />

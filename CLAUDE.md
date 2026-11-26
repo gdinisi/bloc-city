@@ -23,7 +23,8 @@ React 19 + Vite 8 + TypeScript 7, vite-plugin-pwa (autoUpdate, base `/bloc-city/
 - `src/city/` : ville 2D isométrique SVG (`CityMap` : pincement pour zoomer, pas de rotation ni de boutons +/−), économie (packs, coffre, fragments, boutique), quêtes (dans l'onglet Ville).
 - `src/lib/` : `store.ts` (localStorage `blocCity.v1`, `updatedAt`), `sync.ts` (sync cloud « la plus récente gagne », profil mis en cache `blocCity.profile`), `cloud.ts` (Supabase : auth email+mot de passe, profils, amis, classement, `shared_sessions`), `xp.ts` (10 grades selon les heures de sport), `theme.ts` (sombre/clair, `blocCity.theme`), stats.
 - `src/ui/` : `Icon` (icônes au trait), `MountainArt` (illustrations SVG), `FocusArt` (photo par type de séance, recadrage `card` pour petites cartes), `GradeLogo` (écusson par grade), `Ring`, `XpBar` (`XpBar`, `TopXp`, `XpGrades`).
-- Pages de dev (DEV seulement) : `?galerie`, `?batiments`, `?amidemo`.
+- Pages de dev (DEV seulement) : `?galerie`, `?batiments`, `?amidemo`, `?villedemo` (écran Ville avec un inventaire de démo, sans compte).
+- Atelier graphismes `atelier-ville/` (hors appli) : rendus Blender des bâtiments (`batiments.py`, 2 orientations : `-g` façade à gauche = `flip: true`, `-d` façade à droite = `flip: false`), catalogue `catalogue.html`.
 
 ## Supabase
 Projet `xxrtaetfuaxamzgvdlrx`. Clé **publishable** seulement dans `.env` (commité, sans risque). Ne jamais utiliser/stocker la clé secret/service_role.

@@ -325,12 +325,13 @@ export function sculpt(city: CityState, x: number, y: number, delta: 1 | -1): Ci
   return { ...city, elevation: next }
 }
 
-export function place(city: CityState, id: string, x: number, y: number): CityState | null {
+/** Pose un bâtiment ; `flip` = tourné vers l'autre côté (choisi avant de poser) */
+export function place(city: CityState, id: string, x: number, y: number, flip = false): CityState | null {
   if ((city.inventory[id] ?? 0) <= 0 || !canPlace(city, id, x, y)) return null
   return {
     ...city,
     inventory: { ...city.inventory, [id]: city.inventory[id] - 1 },
-    placed: [...city.placed, { uid: uid(), id, x, y, flip: false }],
+    placed: [...city.placed, { uid: uid(), id, x, y, flip }],
   }
 }
 

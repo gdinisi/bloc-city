@@ -58,6 +58,8 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const [selected, setSelected] = useState<string | null>(null)
   const [opening, setOpening] = useState<Pack[] | null>(null)
   const [shop, setShop] = useState(false)
+  /** Sens du bâtiment en cours de pose (tourné vers la gauche ou la droite) */
+  const [placeFlip, setPlaceFlip] = useState(false)
   const now = useNow()
 
   const grid = gridOf(city)
@@ -85,7 +87,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
     if (mode.type === 'relief') return onCity((c) => sculpt(c, x, y, mode.delta))
     if (mode.type === 'place') {
       if (!valid.has(`${x},${y}`)) return
-      onCity((c) => place(c, mode.id, x, y) ?? c)
+      onCity((c) => place(c, mode.id, x, y, placeFlip) ?? c)
       setMode({ type: 'idle' })
       return
     }
@@ -194,6 +196,18 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
         {banner && (
           <div className="place-banner">
+            {mode.type === 'place' && buildingById(mode.id) && (
+              <button
+                type="button"
+                className="place-turn"
+                onClick={() => setPlaceFlip((f) => !f)}
+                aria-label={`Tourner vers la ${placeFlip ? 'droite' : 'gauche'}`}
+                title="Tourner avant de poser"
+              >
+                <BuildingThumb b={buildingById(mode.id)!} size={44} flip={placeFlip} />
+                <span>🔄 Tourner</span>
+              </button>
+            )}
             <span>{banner}</span>
             <button type="button" className="btn small" onClick={() => setMode({ type: 'idle' })}>
               Annuler
@@ -281,6 +295,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
                   style={{ borderColor: RARITIES[b.rarity].color }}
                   onClick={() => {
                     setSelected(null)
+                    setPlaceFlip(false)
                     setMode(on ? { type: 'idle' } : { type: 'place', id })
                   }}
                 >

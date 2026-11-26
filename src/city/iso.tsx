@@ -540,7 +540,7 @@ export function GroundTile({ id, cx, cy, alt }: { id: string; cx: number; cy: nu
 }
 
 /** Petite vignette autonome d'un bâtiment (cartes, inventaire, boutique) */
-export function BuildingThumb({ b, size = 64, dim = false }: { b: Building; size?: number; dim?: boolean }) {
+export function BuildingThumb({ b, size = 64, dim = false, flip = false }: { b: Building; size?: number; dim?: boolean; flip?: boolean }) {
   // cadrage adapté à la hauteur du bâtiment, pied du bâtiment en bas de la vignette
   const top = Math.max(40, b.h + (b.roof === 'pyramid' || ['clock', 'castle', 'rocket', 'glass', 'temple'].includes(b.kind) ? 24 : 16))
   return (
@@ -552,7 +552,7 @@ export function BuildingThumb({ b, size = 64, dim = false }: { b: Building; size
       style={{ opacity: dim ? 0.35 : 1, filter: dim ? 'grayscale(1)' : undefined }}
       aria-hidden="true"
     >
-      <BuildingSprite b={b} />
+      <BuildingSprite b={b} flip={flip} />
     </svg>
   )
 }

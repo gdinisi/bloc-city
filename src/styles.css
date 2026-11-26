@@ -5158,3 +5158,25 @@ img.photo-doigts.card {
   top: env(safe-area-inset-top);
   box-shadow: 0 -12px 0 6px var(--bg), 0 6px 14px var(--bg);
 }
+
+/* Choix du sens avant de poser un bâtiment */
+.place-banner .place-turn {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px;
+  border: 1px solid var(--line, rgba(255, 255, 255, 0.15));
+  border-radius: 10px;
+  background: var(--card);
+  color: inherit;
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  touch-action: manipulation;
+  cursor: pointer;
+}
+.place-banner .place-turn svg {
+  transition: transform 0.2s;
+}
