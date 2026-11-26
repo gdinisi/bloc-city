@@ -170,8 +170,8 @@ def reset():
     if NUIT:
         # nuit claire : ciel bleu nuit, lune froide qui garde les volumes lisibles
         bg.inputs[0].default_value = (0.16, 0.24, 0.5, 1)
-        bg.inputs[1].default_value = 0.42
-        sun.energy = 0.75
+        bg.inputs[1].default_value = 0.5
+        sun.energy = 0.55
         sun.color = (0.62, 0.74, 1.0)
         sun.angle = math.radians(2)
         so.rotation_euler = (math.radians(48), 0, math.radians(-35))
@@ -218,16 +218,19 @@ def appliquer_nuit(sc):
             x = sum(p.x for p in pts) / 8; y = sum(p.y for p in pts) / 8
             z0 = min(p.z for p in pts); z1 = max(p.z for p in pts)
             li = bpy.data.lights.new('lanterne', 'POINT')
-            li.energy = 5.0  # le halo au sol est dans la couche de lumière (déborde sur les cases voisines)
+            li.energy = 7.0  # même force que dans la couche de lumière : murs et sol éclairés pareil
             li.color = LUMIERE
-            li.shadow_soft_size = 0.05
-            li.use_shadow = False  # la lumière sort de la lanterne (sinon sa tête fait écran)
+            li.shadow_soft_size = 0.12
+            # ombres actives : la lumière ne traverse pas les murs ; la lanterne elle-même ne fait pas écran
+            li.use_shadow = True
+            o.visible_shadow = False
             lo = bpy.data.objects.new('lanterne', li)
             lo.location = (x, y, z0 + 0.78 * (z1 - z0))
             sc.collection.objects.link(lo)
             # petit globe lumineux
             bpy.ops.mesh.primitive_uv_sphere_add(radius=0.035, location=lo.location, segments=12, ring_count=8)
             g = bpy.context.active_object
+            g.visible_shadow = False  # le globe entoure la lumière : il ne doit pas l'arrêter
             gm = bpy.data.materials.get('Globe') or bpy.data.materials.new('Globe')
             gm.use_nodes = True
             gb = gm.node_tree.nodes.get('Principled BSDF')
@@ -235,6 +238,15 @@ def appliquer_nuit(sc):
             gb.inputs['Emission Color'].default_value = (*LUMIERE, 1)
             gb.inputs['Emission Strength'].default_value = 4.0
             g.data.materials.append(gm)
+    # les lanternes éclairent les murs et les objets (avec leurs ombres) mais pas le sol : la flaque de lumière
+    # au sol est dans la couche de lumière, qui déborde sur les cases voisines
+    recepteurs = bpy.data.collections.get('recepteurs') or bpy.data.collections.new('recepteurs')
+    for o in list(sc.objects):
+        if o.type == 'MESH' and _est_volume(o) and o.name not in recepteurs.objects:
+            recepteurs.objects.link(o)
+    for o in list(sc.objects):
+        if o.type == 'LIGHT' and o.name.startswith('lanterne'):
+            o.light_linking.receiver_collection = recepteurs
 
 
 
@@ -293,6 +305,7 @@ def passe_lumiere(sc, chemin_png, lo, hi, marge=4.5, sens='d'):
             o.data.energy = 0.0
         if o.type == 'LIGHT' and o.name.startswith('lanterne'):
             o.data.energy = 7.0
+            o.light_linking.receiver_collection = None  # ici, la lumière doit tomber sur le sol fictif
             halo(sc, o.location, 0.13, 1.2)
     sc.world.node_tree.nodes['Background'].inputs[1].default_value = 0.0
     # petites flaques de lumière sous les fenêtres
