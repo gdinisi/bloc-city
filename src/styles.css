@@ -5369,3 +5369,13 @@ body.sans-defilement {
 .city-card.plein > .city-tools .btn {
   margin-left: 0;
 }
+
+/* Boutons de la carte (jour / nuit, recentrer, plein écran) : plus grands, plus faciles à toucher */
+.city-map .map-controls {
+  gap: 8px;
+}
+.city-map .map-controls .round {
+  width: 44px;
+  height: 44px;
+  font-size: 1.35rem;
+}

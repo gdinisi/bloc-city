@@ -31,8 +31,11 @@ export function useModeNuit() {
       /* stockage indisponible : le choix vaut pour la session */
     }
   }
-  /** Auto → Jour → Nuit → Auto */
-  const suivant = () => setMode(mode === 'auto' ? 'jour' : mode === 'jour' ? 'nuit' : 'auto')
   const nuit = mode === 'nuit' || (mode === 'auto' && heureNuit)
+  /** Un seul toucher bascule jour ↔ nuit ; revenir à ce que donne l'heure repasse en automatique */
+  const suivant = () => {
+    const voulu = !nuit
+    setMode(voulu === heureNuit ? 'auto' : voulu ? 'nuit' : 'jour')
+  }
   return { mode, nuit, suivant }
 }

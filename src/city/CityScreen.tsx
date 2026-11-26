@@ -335,11 +335,11 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
             <button
               type="button"
               className="round ciel-btn"
-              aria-label={ciel.mode === 'auto' ? "Jour ou nuit selon l'heure (toucher pour forcer le jour)" : ciel.mode === 'jour' ? 'Toujours le jour (toucher pour forcer la nuit)' : 'Toujours la nuit (toucher pour revenir en automatique)'}
-              title={ciel.mode === 'auto' ? "Auto (selon l'heure)" : ciel.mode === 'jour' ? 'Jour' : 'Nuit'}
+              aria-label={ciel.nuit ? 'Passer la ville en jour' : 'Passer la ville en nuit'}
+              title={ciel.mode === 'auto' ? "Selon l'heure" : ciel.nuit ? 'Nuit' : 'Jour'}
               onClick={ciel.suivant}
             >
-              {ciel.mode === 'auto' ? '🌗' : ciel.mode === 'jour' ? '☀️' : '🌙'}
+              {ciel.nuit ? '🌙' : '☀️'}
             </button>
             <button type="button" className="round" aria-label={plein ? 'Quitter le plein écran' : 'Plein écran'} onClick={() => {
               setPlein((v) => !v)
