@@ -1300,8 +1300,10 @@ def run(name, out):
     print(f'[atelier] {name} -> {sc.render.filepath}')
 
 
-argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
-out = os.path.abspath(argv[0] if argv else os.path.join(HERE, 'out', 'village'))
-os.makedirs(out, exist_ok=True)
-for n in (argv[1:] or list(LOTS) + list(ROUTES)):
-    run(n, out)
+# Utilisé comme bibliothèque par batiments.py (ATELIER_BIBLIO) : pas de rendu automatique
+if not globals().get('ATELIER_BIBLIO'):
+    argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
+    out = os.path.abspath(argv[0] if argv else os.path.join(HERE, 'out', 'village'))
+    os.makedirs(out, exist_ok=True)
+    for n in (argv[1:] or list(LOTS) + list(ROUTES)):
+        run(n, out)
