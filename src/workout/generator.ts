@@ -68,10 +68,10 @@ const mulberry32 = (a: number) => () => {
 const REP_SECONDS = 3.5
 /**
  * Pause de la séance (entre les exercices et entre les séries) : la même du début à la fin,
- * réglée sur la difficulté du jour — 40 s pour la séance la plus douce, 20 s pour la plus intense.
+ * réglée sur la difficulté du jour — 40 s pour la séance la plus douce, 10 s pour la plus intense.
  */
 export const PAUSE_MAX = 40
-export const PAUSE_MIN = 20
+export const PAUSE_MIN = 10
 export const pauseDuNiveau = (level: number) =>
   Math.min(PAUSE_MAX, Math.max(PAUSE_MIN, Math.round((PAUSE_MAX - ((level - 1) * (PAUSE_MAX - PAUSE_MIN)) / 9) / 5) * 5))
 /** Écran de mise en place au début de la séance (sans exercice) */

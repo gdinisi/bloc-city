@@ -5355,3 +5355,17 @@ body.sans-defilement {
   margin: 0 0 4px;
   font-size: 1.6rem;
 }
+
+/* Ville en plein écran : la carte en haut, les outils d'édition en bas (à portée de pouce) */
+.city-card.plein > .city-map {
+  order: -1;
+}
+.city-card.plein > .city-tools {
+  order: 10;
+  margin: 0;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.city-card.plein > .city-tools .btn {
+  margin-left: 0;
+}
