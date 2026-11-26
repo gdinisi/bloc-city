@@ -9,8 +9,9 @@ import { SOLS, SPRITES } from './sprites'
 /*
  * Carte isométrique de la ville (rendus Blender : sols, falaises, mer, bâtiments).
  * - l'île est un ensemble libre de cases côte à côte (on peut en ajouter / enlever une par une)
- * - l'île est entourée par la mer, une marche plus bas que le sol (de quoi ajouter des ports plus tard)
- * - au niveau 0, les bords qui donnent sur la mer sont des plages ; en hauteur, des falaises rocheuses
+ * - le sol non surélevé est au niveau de la mer ; une rangée de cases de rivage (plage) fait la liaison
+ *   entre l'île et la mer, en tenant compte des angles et des trous d'une case
+ * - en hauteur, des falaises rocheuses jusqu'au niveau de la case voisine (ou du rivage)
  * - la mer est un motif continu (texture périodique) sous toute la carte : visible à tous les zooms
  * - les images ne captent pas le toucher : chaque case a une zone en losange exacte (pose, terrain, relief)
  * - caméra : glisser pour se déplacer, pincer pour zoomer (×0,5 à ×14, molette sur ordinateur) ;
@@ -19,7 +20,7 @@ import { SOLS, SPRITES } from './sprites'
 
 type P = [number, number]
 const STEP = 7 // hauteur d'une marche de relief (unités de la carte)
-const MER = -1 // niveau de la mer, en marches
+const MER = 0 // niveau de la mer, en marches (= le sol non surélevé)
 /** Couleur de la mer au-delà des cases d'eau dessinées */
 export const COULEUR_MER = '#1d5f8c'
 
@@ -194,16 +195,33 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
   // ---------- sol : mer, cases, falaises ----------
   type Elt = { k: number; node: ReactNode }
   const sol: Elt[] = []
+  // rivage : chaque case d'eau voisine de l'île (diagonales comprises) reçoit une plage
+  // masque : +x, +y, -x, -y, puis coins (+x+y), (-x+y), (-x-y), (+x-y) — un coin ne compte que si ses deux côtés sont de l'eau
+  {
+    const V: P[] = [[1, 0], [0, 1], [-1, 0], [0, -1], [1, 1], [-1, 1], [-1, -1], [1, -1]]
+    const vus = new Set<string>()
+    for (const [lx, ly] of cases)
+      for (const [dx, dy] of V) {
+        const x = lx + dx, y = ly + dy
+        const k = `${x},${y}`
+        if (vus.has(k) || isLand(x, y)) continue
+        vus.add(k)
+        const [cx, cy] = proj(x, y)
+        if (!visible(cx, cy)) continue
+        const b = V.map(([ax, ay]) => (isLand(x + ax, y + ay) ? '1' : '0'))
+        for (const [c, i, j] of [[4, 0, 1], [5, 2, 1], [6, 2, 3], [7, 0, 3]]) if (b[i] === '1' || b[j] === '1') b[c] = '0'
+        sol.push({ k: x + y, node: <g key={`r${k}`}>{image(`rivage-${b.join('')}`, cx, cy - MER * STEP)}</g> })
+      }
+  }
   for (const [x, y] of cases) {
     const [cx, cy0] = proj(x, y)
     if (!visible(cx, cy0)) continue
     const e = elev(x, y)
     const cy = cy0 - e * STEP
-    // au niveau 0 : plage sur les bords qui donnent sur la mer ; en hauteur : falaises (jusqu'à la case voisine ou la mer)
-    const plage = e === 0 ? [[1, 0], [0, 1], [-1, 0], [0, -1]].map(([dx, dy]) => (isLand(x + dx, y + dy) ? '0' : '1')).join('') : '0000'
-    const hD = e === 0 ? 0 : Math.min(4, e - Math.min(e, elev(x + 1, y))) // face droite (vers +x)
-    const hG = e === 0 ? 0 : Math.min(4, e - Math.min(e, elev(x, y + 1))) // face gauche (vers +y)
-    const dessus = plage !== '0000' ? `plage-${plage}` : (x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe'
+    // falaises jusqu'à la case voisine (ou jusqu'au rivage, au niveau de la mer)
+    const hD = Math.min(4, e - Math.min(e, elev(x + 1, y))) // face droite (vers +x)
+    const hG = Math.min(4, e - Math.min(e, elev(x, y + 1))) // face gauche (vers +y)
+    const dessus = (x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe'
     const falaise = hG > 0 && hD > 0 ? `falaise-c-${hG}-${hD}` : hG > 0 ? `falaise-g-${hG}` : hD > 0 ? `falaise-d-${hD}` : null
     sol.push({
       k: x + y,

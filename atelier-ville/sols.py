@@ -235,49 +235,52 @@ def bloc_roche(centre, taille, rnd, m):
 
 
 def paroi(face, h, seed=1, u_fin=1.5):
-    """Falaise de h marches : empilement de blocs rocheux à facettes (style low-poly des autres falaises)
-    sur un fond de roche sombre, liseré d'herbe qui déborde en haut, éboulis au pied."""
+    """Falaise de h marches : strates de blocs de roche qui se chevauchent (aucun interstice sombre),
+    fond en même roche légèrement en retrait, liseré d'herbe en haut. Rien ne dépasse au pied :
+    le sol devant (dessiné ensuite) recouvre proprement la base."""
     rnd = random.Random(seed * 13 + h * 7 + (0 if face == 'g' else 3))
     H = h * MARCHE
     roche = mat_roche()
     objs = []
+    u0, u1 = -1.53, u_fin + 0.03  # léger chevauchement avec la case voisine : pas de jointure visible
 
     def P(u, out, z):
         """(u le long de la face, sortie vers l'extérieur, z) → monde"""
         return (u, -1.5 - out, z) if face == 'g' else (1.5 + out, -u, z)
 
-    # fond sombre continu (bouche les interstices entre les blocs)
+    # fond continu dans la même roche (en retrait) : bouche les interstices sans tache sombre
     fond = bpy.data.meshes.new('fond')
-    c = [P(-1.5, 0.0, 0.0), P(u_fin, 0.0, 0.0), P(u_fin, 0.0, -H), P(-1.5, 0.0, -H)]
+    c = [P(u0, -0.02, 0.0), P(u1, -0.02, 0.0), P(u1, -0.02, -H), P(u0, -0.02, -H)]
     fond.from_pydata(c, [], [(0, 1, 2, 3)])
-    fond.materials.append(_mat('rFond', '#3a3129', 0.95))
+    fond.materials.append(roche)
     fo = bpy.data.objects.new('fond', fond); bpy.context.scene.collection.objects.link(fo); objs.append(fo)
-    # blocs : rangées décalées, tailles et saillies variées
-    pas_z = 0.3
-    rangs = max(1, int(math.ceil(H / pas_z)))
+    # strates : rangées décalées, blocs qui se recouvrent
+    rangs = max(1, int(math.ceil(H / 0.3)))
+    hr = H / rangs
     for r in range(rangs):
-        zc = -(r + 0.5) * H / rangs + rnd.uniform(-0.04, 0.04)
-        hz = H / rangs * rnd.uniform(0.9, 1.15)
-        zc = min(zc, -hz * 0.68)  # le haut des blocs reste sous le liseré d'herbe
-        u = -1.5 + (0.0 if r % 2 == 0 else 0.2) + rnd.uniform(0, 0.08)
-        while u < u_fin - 0.12:
-            lu = min(rnd.uniform(0.3, 0.95), u_fin - u + 0.02)
-            prof = rnd.uniform(0.05, 0.22) + (0.08 if r == rangs - 1 else 0)  # gros blocs à la base
-            # strate : bloc plus large que haut, saillie variable d'un bloc à l'autre
-            o = bloc_roche(P(u + lu / 2, prof / 2 - 0.02, zc), (lu, 0.12 + prof, hz) if face == 'g' else (0.12 + prof, lu, hz), rnd, roche)
-            o.rotation_euler = (rnd.uniform(-0.04, 0.04), rnd.uniform(-0.04, 0.04), rnd.uniform(-0.05, 0.05))
-            o.data.materials[0] = roche
-            objs.append(o)
-            u += lu * rnd.uniform(0.92, 1.0)
+        zc = -(r + 0.5) * hr
+        hz = hr * rnd.uniform(1.05, 1.25)
+        zc = min(zc, -hz * 0.62)                 # le haut reste sous le liseré d'herbe
+        zc = max(zc, -H + hz * 0.5)              # le bas ne descend pas sous le pied de la falaise
+        u = u0 - (0.0 if r % 2 == 0 else 0.25) - rnd.uniform(0, 0.1)
+        while u < u1:
+            lu = rnd.uniform(0.35, 0.9)
+            a, b = max(u, u0), min(u + lu, u1)
+            if b - a > 0.08:
+                prof = rnd.uniform(0.03, 0.13)
+                o = bloc_roche(P((a + b) / 2, prof / 2 - 0.02, zc), (b - a, 0.1 + prof, hz) if face == 'g' else (0.1 + prof, b - a, hz), rnd, roche)
+                o.rotation_euler = (rnd.uniform(-0.03, 0.03), rnd.uniform(-0.03, 0.03), rnd.uniform(-0.04, 0.04))
+                objs.append(o)
+            u += lu * rnd.uniform(0.8, 0.92)    # recouvrement entre blocs voisins
     # liseré d'herbe qui déborde légèrement, avec des touffes qui pendent au bord
     if face == 'g':
-        lis = dalle(u_fin + 1.5, 0.2, mat_herbe(), 0.01, 0.1, (u_fin - 1.5) / 2, -1.56)
+        lis = dalle(u1 - u0, 0.2, mat_herbe(), 0.01, 0.1, (u0 + u1) / 2, -1.56)
     else:
-        lis = dalle(0.2, u_fin + 1.5, mat_herbe(), 0.01, 0.1, 1.56, -(u_fin - 1.5) / 2)
+        lis = dalle(0.2, u1 - u0, mat_herbe(), 0.01, 0.1, 1.56, -(u0 + u1) / 2)
     lis.name = 'herbe'
     objs.append(lis)
     for k in range(int(12 + 4 * h)):
-        t = rnd.uniform(-1.45, u_fin - 0.08)
+        t = rnd.uniform(u0 + 0.05, u1 - 0.05)
         me_t = maillage_touffe(*rnd.choice([('t1', '#3d8a2e'), ('t2', '#5aa83a'), ('t3', '#2f7426')]))
         tf = bpy.data.objects.new('touffe', me_t)
         tf.location = P(t, 0.16, 0.0)
@@ -285,14 +288,98 @@ def paroi(face, h, seed=1, u_fin=1.5):
         tf.scale = (1.3, 1.3, rnd.uniform(1.2, 2.4))
         bpy.context.scene.collection.objects.link(tf)
         objs.append(tf)
-    # éboulis au pied
-    for k in range(int(3 + 2 * h)):
-        t = rnd.uniform(-1.35, u_fin - 0.15)
-        sz = rnd.uniform(0.06, 0.14)
-        o = rocher(P(t, 0.12 + rnd.uniform(0, 0.06), -H), (sz, sz * 0.9, sz * 0.7), '#6e6253', seed=seed * 100 + k + h * 10, sub=1)
-        o.data.materials[0] = roche
-        objs.append(o)
     return objs
+
+
+# ---------- Rivage : case d'eau voisine de l'île, plage qui fait la liaison terre / mer ----------
+# masque de 8 voisins, axes de l'appli : +x, +y, -x, -y, puis coins (+x+y), (-x+y), (-x-y), (+x-y)
+# (un coin ne compte que si ses deux côtés adjacents sont de l'eau)
+VOISINS8 = [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, 1), (-1, -1), (1, -1)]
+COIN_COTES = {4: (0, 1), 5: (2, 1), 6: (2, 3), 7: (0, 3)}
+
+
+def masque_canonique(bits):
+    b = list(bits)
+    for c, (i, j) in COIN_COTES.items():
+        if b[i] == '1' or b[j] == '1':
+            b[c] = '0'
+    return ''.join(b)
+
+
+RIVAGES = sorted({masque_canonique(format(n, '08b')) for n in range(1, 256)} - {'00000000'})
+
+
+def mat_eau_claire():
+    """Eau peu profonde au-dessus du sable : turquoise translucide qui s'efface vers le large."""
+    m = bpy.data.materials.get('EauClaire')
+    if m:
+        return m
+    m = bpy.data.materials.new('EauClaire')
+    m.use_nodes = True
+    try:
+        m.surface_render_method = 'BLENDED'
+    except AttributeError:
+        m.blend_method = 'BLEND'
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N.get('Principled BSDF')
+    b.inputs['Base Color'].default_value = (0.1, 0.55, 0.6, 1)
+    b.inputs['Roughness'].default_value = 0.1
+    attr = N.new('ShaderNodeAttribute'); attr.attribute_name = 'alpha'; attr.attribute_type = 'GEOMETRY'
+    L.new(attr.outputs['Fac'], b.inputs['Alpha'])
+    return m
+
+
+def rivage(masque):
+    """Sable en pente douce depuis la terre (distance aux cases de terre voisines, diagonales comprises :
+    gère bords droits, angles saillants et rentrants, trou d'une case), écume à la ligne d'eau,
+    puis eau claire translucide qui se fond dans la mer."""
+    # cases de terre voisines en coordonnées Blender (y appli = -y Blender)
+    carres = []
+    for i, (dx, dy) in enumerate(VOISINS8):
+        if masque[i] == '1':
+            cx, cy = dx * 3.0, -dy * 3.0
+            carres.append((cx - 1.5, cx + 1.5, cy - 1.5, cy + 1.5))
+
+    def dist(x, y):
+        d = 9.0
+        for x0, x1, y0, y1 in carres:
+            ddx = max(x0 - x, 0, x - x1)
+            ddy = max(y0 - y, 0, y - y1)
+            d = min(d, math.hypot(ddx, ddy))
+        return d
+    W, LARGE = 1.25, 2.1  # sable jusqu'à W, eau claire de W à LARGE
+    n = 90
+    vs, fs, ms = [], [], []
+    alpha = []
+    for j in range(n + 1):
+        for i in range(n + 1):
+            x, y = -1.5 + 3 * i / n, -1.5 + 3 * j / n
+            d = dist(x, y)
+            t = min(1.0, d / W)
+            vs.append((x, y, -0.06 * t * t))
+            alpha.append(max(0.0, min(0.85, 0.85 * (1 - (d - W) / (LARGE - W)))) if d > W - 0.08 else 0.85)
+    for j in range(n):
+        for i in range(n):
+            a = j * (n + 1) + i
+            q = (a, a + 1, a + n + 2, a + n + 1)
+            cx, cy = -1.5 + 3 * (i + 0.5) / n, -1.5 + 3 * (j + 0.5) / n
+            d = dist(cx, cy)
+            if d > LARGE:
+                continue
+            fs.append(q)
+            ms.append(0 if d < W - 0.55 else 1 if d < W - 0.06 else 2 if d < W + 0.04 else 3)
+    me = bpy.data.meshes.new('rivage')
+    me.from_pydata(vs, [], fs)
+    me.attributes.new('alpha', 'FLOAT', 'POINT').data.foreach_set('value', alpha)
+    for m in (mat_bruit('SablePlage', '#d9bb7c', '#f2dca6', 3.0, 0.2), mat_bruit('SableMouille', '#a98d5c', '#c4a56d', 4.0, 0.15),
+              _mat('Ecume', '#f4fbff', 0.6), mat_eau_claire()):
+        me.materials.append(m)
+    for p, k in zip(me.polygons, ms):
+        p.material_index = k
+    o = bpy.data.objects.new('sol', me)
+    bpy.context.scene.collection.objects.link(o)
+    # l'eau claire est posée juste au-dessus du sable (z = 0) pour recouvrir sa partie immergée
+    return o
 
 
 def mat_mer_motif():
@@ -404,6 +491,9 @@ def rendre(nom, out):
     if nom == 'mer-motif':
         dalle(12, 12, mat_mer_motif(), 0.0, 0)
         lo, hi = Vector((-1.5, -1.5, 0.0)), Vector((1.5, 1.5, 0.0))
+    elif nom.startswith('rivage-'):
+        rivage(nom[7:])
+        lo, hi = Vector((-1.5, -1.5, -0.1)), Vector((1.5, 1.5, 0.05))
     elif nom in PLAGES:
         plage(PLAGES[nom])
         lo, hi = Vector((-1.5, -1.5, -MARCHE)), Vector((1.5, 1.5, 0.12))
@@ -456,5 +546,5 @@ def rendre(nom, out):
 argv = sys.argv[sys.argv.index('--') + 1:] if '--' in sys.argv else []
 out = os.path.abspath(argv[0] if argv else os.path.join(ICI, 'out', 'sols'))
 os.makedirs(out, exist_ok=True)
-for nom in (argv[1:] or list(SOLS) + list(FALAISES) + list(FALAISES_C) + list(PLAGES) + ['mer-motif']):
+for nom in (argv[1:] or list(SOLS) + list(FALAISES) + list(FALAISES_C) + ['rivage-' + m for m in RIVAGES] + ['mer-motif']):
     rendre(nom, out)
