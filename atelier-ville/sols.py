@@ -60,6 +60,19 @@ def mat_planches():
     return m
 
 
+def rocher(pos, taille, couleur='#a39e93', seed=1, sub=2, rugo=0.22):
+    rnd = random.Random(seed)
+    bpy.ops.mesh.primitive_ico_sphere_add(subdivisions=sub, radius=1.0)
+    o = bpy.context.active_object
+    for v in o.data.vertices:
+        v.co *= 1 + rnd.uniform(-rugo, rugo)
+    o.scale = taille
+    o.location = pos
+    o.rotation_euler = (0, 0, rnd.uniform(0, math.tau))
+    o.data.materials.append(_mat('r' + couleur, couleur, 0.95))
+    return o
+
+
 def sol(nom, m, seed=1, avec_touffes=False, n_fleurs=0):
     g = dalle(3, 3, m, 0.0, 0)
     g.name = 'herbe' if avec_touffes else 'sol'
@@ -77,6 +90,7 @@ SOLS = {
     'herbe2': lambda: sol('herbe2', mat_herbe(), 23, True),
     'fleurs': lambda: sol('fleurs', mat_herbe(), 31, True, 14),
     'eau': lambda: sol('eau', bpy.data.materials.get('Eau') or _eau()),
+    'mer': lambda: sol('mer', mat_mer()),
     'terre': lambda: sol('terre', mat_bruit('Terre', '#7a5233', '#a87a50', 3.0, 0.4)),
     'paves': lambda: sol('paves', mat_paves('PavesPlace', (0.7, 0.66, 0.6))),
     'sable': lambda: sol('sable', mat_bruit('SableSol', '#d9b878', '#f0d9a2', 2.5, 0.25)),
@@ -100,6 +114,29 @@ def _eau():
     return m
 
 
+def mat_mer():
+    """Mer autour de l'île : bleu profond, vaguelettes et reflets clairs."""
+    m = bpy.data.materials.get('Mer')
+    if m:
+        return m
+    m = bpy.data.materials.new('Mer')
+    m.use_nodes = True
+    N, L = m.node_tree.nodes, m.node_tree.links
+    b = N.get('Principled BSDF'); b.inputs['Roughness'].default_value = 0.12
+    geo = N.new('ShaderNodeNewGeometry')
+    nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 1.6; nz.inputs['Detail'].default_value = 4
+    L.new(geo.outputs['Position'], nz.inputs['Vector'])
+    r = N.new('ShaderNodeValToRGB')
+    r.color_ramp.elements[0].color = (0.04, 0.24, 0.42, 1); r.color_ramp.elements[0].position = 0.35
+    r.color_ramp.elements[1].color = (0.08, 0.36, 0.55, 1); r.color_ramp.elements[1].position = 0.7
+    L.new(nz.outputs['Fac'], r.inputs['Fac']); L.new(r.outputs['Color'], b.inputs['Base Color'])
+    vg = N.new('ShaderNodeTexWave'); vg.inputs['Scale'].default_value = 5; vg.inputs['Distortion'].default_value = 7
+    L.new(geo.outputs['Position'], vg.inputs['Vector'])
+    bump = N.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.3; bump.inputs['Distance'].default_value = 0.02
+    L.new(vg.outputs['Fac'], bump.inputs['Height']); L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    return m
+
+
 RUES = {'route-x': (3.0, ROUTE), 'route-y': (ROUTE, 3.0), 'carrefour': (ROUTE, ROUTE)}
 
 # Chemins entre les cases : une texture par type de sol (peinte par le joueur)
@@ -118,63 +155,142 @@ CHEMINS = {f'{forme}-{t}': (forme, t) for t in MATS_CHEMIN for forme in RUES}
 # Falaises : parois rocheuses sous une case surélevée (face gauche « g » vers -y, droite « d » vers +x),
 # pour 1 à 3 marches de dénivelé (une marche = 0,857 unité = 7 px de la carte)
 MARCHE = 0.857
-FALAISES = {f'falaise-{f}-{h}': (f, h) for f in 'gd' for h in (1, 2, 3)}
+FALAISES = {f'falaise-{f}-{h}': (f, h) for f in 'gd' for h in (1, 2, 3, 4)}
 
 
 def mat_roche():
-    m = bpy.data.materials.get('Roche')
+    """Roche claire gris-beige veinée d'ocre, fissures sombres (inspirée d'un rocher stratifié)."""
+    m = bpy.data.materials.get('Roche3')
     if m:
         return m
-    m = bpy.data.materials.new('Roche')
+    m = bpy.data.materials.new('Roche3')
     m.use_nodes = True
     N, L = m.node_tree.nodes, m.node_tree.links
-    b = N.get('Principled BSDF'); b.inputs['Roughness'].default_value = 0.95
+    b = N.get('Principled BSDF'); b.inputs['Roughness'].default_value = 0.8
     geo = N.new('ShaderNodeNewGeometry')
-    st = N.new('ShaderNodeTexWave'); st.wave_type = 'BANDS'; st.bands_direction = 'Z'
-    st.inputs['Scale'].default_value = 1.4; st.inputs['Distortion'].default_value = 9.0; st.inputs['Detail'].default_value = 4
-    L.new(geo.outputs['Position'], st.inputs['Vector'])
-    r = N.new('ShaderNodeValToRGB')
-    r.color_ramp.elements[0].color = (0.24, 0.2, 0.16, 1); r.color_ramp.elements[0].position = 0.15
-    r.color_ramp.elements[1].color = (0.4, 0.34, 0.27, 1); r.color_ramp.elements[1].position = 0.95
-    L.new(st.outputs['Fac'], r.inputs['Fac']); L.new(r.outputs['Color'], b.inputs['Base Color'])
-    nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 18
+    # base : gris clair → beige, taches douces
+    nz = N.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 4; nz.inputs['Detail'].default_value = 8
     L.new(geo.outputs['Position'], nz.inputs['Vector'])
+    base = N.new('ShaderNodeValToRGB')
+    base.color_ramp.elements[0].color = (0.24, 0.22, 0.2, 1); base.color_ramp.elements[0].position = 0.25
+    base.color_ramp.elements[1].color = (0.44, 0.4, 0.34, 1); base.color_ramp.elements[1].position = 0.75
+    L.new(nz.outputs['Fac'], base.inputs['Fac'])
+    # veines ocre
+    ve = N.new('ShaderNodeTexNoise'); ve.inputs['Scale'].default_value = 2.2; ve.inputs['Detail'].default_value = 3
+    L.new(geo.outputs['Position'], ve.inputs['Vector'])
+    vm = N.new('ShaderNodeMapRange'); vm.inputs['From Min'].default_value = 0.55; vm.inputs['From Max'].default_value = 0.7
+    vm.inputs['To Max'].default_value = 0.6
+    L.new(ve.outputs['Fac'], vm.inputs['Value'])
+    ocre = N.new('ShaderNodeMix'); ocre.data_type = 'RGBA'
+    L.new(vm.outputs['Result'], ocre.inputs['Factor']); L.new(base.outputs['Color'], ocre.inputs[6])
+    ocre.inputs[7].default_value = (0.42, 0.27, 0.13, 1)
+    # fissures : bords de cellules de Voronoï déformés
+    dis = N.new('ShaderNodeTexNoise'); dis.inputs['Scale'].default_value = 6
+    L.new(geo.outputs['Position'], dis.inputs['Vector'])
+    add = N.new('ShaderNodeVectorMath'); add.operation = 'ADD'
+    L.new(geo.outputs['Position'], add.inputs[0])
+    sc = N.new('ShaderNodeVectorMath'); sc.operation = 'SCALE'; sc.inputs['Scale'].default_value = 0.25
+    L.new(dis.outputs['Color'], sc.inputs[0]); L.new(sc.outputs['Vector'], add.inputs[1])
+    vo = N.new('ShaderNodeTexVoronoi'); vo.feature = 'DISTANCE_TO_EDGE'; vo.inputs['Scale'].default_value = 2.2
+    L.new(add.outputs['Vector'], vo.inputs['Vector'])
+    fis = N.new('ShaderNodeMapRange'); fis.inputs['From Min'].default_value = 0.0; fis.inputs['From Max'].default_value = 0.014
+    fis.inputs['To Min'].default_value = 0.25; fis.inputs['To Max'].default_value = 1.0
+    L.new(vo.outputs['Distance'], fis.inputs['Value'])
+    gris = N.new('ShaderNodeCombineColor')
+    for i in range(3):
+        L.new(fis.outputs['Result'], gris.inputs[i])
+    mul = N.new('ShaderNodeMix'); mul.data_type = 'RGBA'; mul.blend_type = 'MULTIPLY'; mul.inputs['Factor'].default_value = 1.0
+    L.new(ocre.outputs[2], mul.inputs[6]); L.new(gris.outputs['Color'], mul.inputs[7])
+    L.new(mul.outputs[2], b.inputs['Base Color'])
+    # relief : fissures creusées + grain
+    gr = N.new('ShaderNodeTexNoise'); gr.inputs['Scale'].default_value = 40
+    L.new(geo.outputs['Position'], gr.inputs['Vector'])
+    h = N.new('ShaderNodeMath'); h.operation = 'ADD'
+    L.new(fis.outputs['Result'], h.inputs[0]); L.new(gr.outputs['Fac'], h.inputs[1])
     bump = N.new('ShaderNodeBump'); bump.inputs['Strength'].default_value = 0.5; bump.inputs['Distance'].default_value = 0.02
-    L.new(nz.outputs['Fac'], bump.inputs['Height']); L.new(bump.outputs['Normal'], b.inputs['Normal'])
+    L.new(h.outputs[0], bump.inputs['Height']); L.new(bump.outputs['Normal'], b.inputs['Normal'])
     return m
 
 
+def bloc_roche(centre, taille, rnd, m):
+    """Dalle de roche : cube aux sommets décalés, arêtes adoucies (biseau), comme un rocher érodé."""
+    bpy.ops.mesh.primitive_cube_add(size=1, location=centre)
+    o = bpy.context.active_object
+    for v in o.data.vertices:
+        v.co.x += rnd.uniform(-0.14, 0.14)
+        v.co.y += rnd.uniform(-0.14, 0.14)
+        v.co.z += rnd.uniform(-0.1, 0.1)
+    o.scale = taille
+    bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
+    bev = o.modifiers.new('biseau', 'BEVEL')
+    bev.width = min(taille) * 0.22
+    bev.segments = 3
+    bev.limit_method = 'NONE'
+    o.data.materials.append(m)
+    for p in o.data.polygons:
+        p.use_smooth = True
+    return o
+
+
 def paroi(face, h, seed=1):
-    """Paroi rocheuse irrégulière (facettes) d'une hauteur de h marches, avec un liseré d'herbe en haut."""
-    rnd = random.Random(seed * 7 + h)
+    """Falaise de h marches : empilement de blocs rocheux à facettes (style low-poly des autres falaises)
+    sur un fond de roche sombre, liseré d'herbe qui déborde en haut, éboulis au pied."""
+    rnd = random.Random(seed * 13 + h * 7 + (0 if face == 'g' else 3))
     H = h * MARCHE
-    nx, nz = 18, max(4, int(5 * h))
-    verts, faces = [], []
-    for j in range(nz + 1):
-        z = -H * j / nz
-        for i in range(nx + 1):
-            u = -1.5 + 3.0 * i / nx
-            bord = i in (0, nx) or j == 0
-            sortie = 0.0 if bord else rnd.uniform(0.03, 0.2) + 0.06 * math.sin(i * 0.9 + j * 1.7)
-            # paroi un peu évasée vers le bas, comme un éboulis
-            sortie += 0.08 * (j / nz) ** 2 * (0 if i in (0, nx) else 1)
-            if face == 'g':
-                verts.append((u, -1.5 - sortie, z))
-            else:
-                verts.append((1.5 + sortie, -u, z))
-    for j in range(nz):
-        for i in range(nx):
-            a = j * (nx + 1) + i
-            faces.append((a, a + 1, a + nx + 2, a + nx + 1))
-    me = bpy.data.meshes.new('paroi')
-    me.from_pydata(verts, [], faces)
-    me.materials.append(mat_roche())
-    o = bpy.data.objects.new('paroi', me)
-    bpy.context.scene.collection.objects.link(o)
-    # liseré d'herbe qui déborde un peu du haut de la falaise
-    lis = dalle(3.0 if face == 'g' else 0.12, 0.12 if face == 'g' else 3.0, mat_herbe(), 0.005, 0.07,
-                0.0 if face == 'g' else 1.52, -1.52 if face == 'g' else 0.0)
-    return [o, lis]
+    roche = mat_roche()
+    objs = []
+
+    def P(u, out, z):
+        """(u le long de la face, sortie vers l'extérieur, z) → monde"""
+        return (u, -1.5 - out, z) if face == 'g' else (1.5 + out, -u, z)
+
+    # fond sombre continu (bouche les interstices entre les blocs)
+    fond = bpy.data.meshes.new('fond')
+    c = [P(-1.5, 0.0, 0.0), P(1.75, 0.0, 0.0), P(1.75, 0.0, -H), P(-1.5, 0.0, -H)]
+    fond.from_pydata(c, [], [(0, 1, 2, 3)])
+    fond.materials.append(_mat('rFond', '#3a3129', 0.95))
+    fo = bpy.data.objects.new('fond', fond); bpy.context.scene.collection.objects.link(fo); objs.append(fo)
+    # blocs : rangées décalées, tailles et saillies variées
+    pas_z = 0.3
+    rangs = max(1, int(math.ceil(H / pas_z)))
+    for r in range(rangs):
+        zc = -(r + 0.5) * H / rangs + rnd.uniform(-0.04, 0.04)
+        hz = H / rangs * rnd.uniform(0.9, 1.15)
+        zc = min(zc, -hz * 0.68)  # le haut des blocs reste sous le liseré d'herbe
+        u = -1.5 + (0.0 if r % 2 == 0 else 0.2) + rnd.uniform(0, 0.08)
+        while u < 1.75:
+            lu = rnd.uniform(0.3, 0.95)
+            prof = rnd.uniform(0.05, 0.22) + (0.08 if r == rangs - 1 else 0)  # gros blocs à la base
+            # strate : bloc plus large que haut, saillie variable d'un bloc à l'autre
+            o = bloc_roche(P(u + lu / 2, prof / 2 - 0.02, zc), (lu, 0.12 + prof, hz) if face == 'g' else (0.12 + prof, lu, hz), rnd, roche)
+            o.rotation_euler = (rnd.uniform(-0.04, 0.04), rnd.uniform(-0.04, 0.04), rnd.uniform(-0.05, 0.05))
+            o.data.materials[0] = roche
+            objs.append(o)
+            u += lu * rnd.uniform(0.92, 1.0)
+    # liseré d'herbe qui déborde légèrement, avec des touffes qui pendent au bord
+    if face == 'g':
+        lis = dalle(3.25, 0.2, mat_herbe(), 0.01, 0.1, 0.12, -1.56)
+    else:
+        lis = dalle(0.2, 3.25, mat_herbe(), 0.01, 0.1, 1.56, -0.12)
+    lis.name = 'herbe'
+    objs.append(lis)
+    for k in range(int(12 + 4 * h)):
+        t = rnd.uniform(-1.45, 1.65)
+        me_t = maillage_touffe(*rnd.choice([('t1', '#3d8a2e'), ('t2', '#5aa83a'), ('t3', '#2f7426')]))
+        tf = bpy.data.objects.new('touffe', me_t)
+        tf.location = P(t, 0.16, 0.0)
+        tf.rotation_euler = (math.radians(rnd.uniform(110, 150)), 0, 0) if face == 'g' else (0, math.radians(-rnd.uniform(110, 150)), 0)
+        tf.scale = (1.3, 1.3, rnd.uniform(1.2, 2.4))
+        bpy.context.scene.collection.objects.link(tf)
+        objs.append(tf)
+    # éboulis au pied
+    for k in range(int(3 + 2 * h)):
+        t = rnd.uniform(-1.35, 1.6)
+        sz = rnd.uniform(0.06, 0.14)
+        o = rocher(P(t, 0.2 + rnd.uniform(0, 0.12), -H), (sz, sz * 0.9, sz * 0.7), '#6e6253', seed=seed * 100 + k + h * 10, sub=1)
+        o.data.materials[0] = roche
+        objs.append(o)
+    return objs
 
 
 def rendre(nom, out):
@@ -182,6 +298,11 @@ def rendre(nom, out):
     if nom in FALAISES:
         f, h = FALAISES[nom]
         paroi(f, h)
+        for attr in ('use_raytracing', 'use_gtao'):
+            try:
+                setattr(sc.eevee, attr, True)
+            except AttributeError:
+                pass
         lo, hi = Vector((-1.5, -1.5, -h * MARCHE - 0.2)), Vector((1.5, 1.5, 0.05))
     elif nom in CHEMINS:
         forme, t = CHEMINS[nom]

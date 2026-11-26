@@ -17,10 +17,10 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 32.66
   },
   "arche": {
-    "w": 90.84,
-    "h": 75.8,
-    "ox": 45.42,
-    "oy": 51.17
+    "w": 82.58,
+    "h": 68.91,
+    "ox": 41.29,
+    "oy": 46.52
   },
   "bloc": {
     "w": 42.85,
@@ -47,22 +47,22 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 31.01
   },
   "chateau": {
-    "w": 138.83,
-    "h": 109.6,
-    "ox": 69.41,
-    "oy": 72.97
+    "w": 122.5,
+    "h": 96.71,
+    "ox": 61.25,
+    "oy": 64.38
   },
   "colisee": {
-    "w": 186.82,
-    "h": 127.09,
-    "ox": 93.41,
-    "oy": 78.45
+    "w": 162.45,
+    "h": 110.51,
+    "ox": 81.23,
+    "oy": 68.21
   },
   "falaise": {
-    "w": 90.84,
-    "h": 79.1,
-    "ox": 45.42,
-    "oy": 54.45
+    "w": 82.58,
+    "h": 71.91,
+    "ox": 41.29,
+    "oy": 49.5
   },
   "fontaine": {
     "w": 42.85,
@@ -71,22 +71,22 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 31.01
   },
   "fusee": {
-    "w": 90.84,
-    "h": 93.76,
-    "ox": 45.42,
-    "oy": 69.13
+    "w": 82.58,
+    "h": 85.24,
+    "ox": 41.29,
+    "oy": 62.84
   },
   "grande-paroi": {
-    "w": 138.83,
-    "h": 117.76,
-    "ox": 69.41,
-    "oy": 81.13
+    "w": 122.5,
+    "h": 103.9,
+    "ox": 61.25,
+    "oy": 71.58
   },
   "gratte-ciel": {
-    "w": 90.84,
-    "h": 92.16,
-    "ox": 45.42,
-    "oy": 67.52
+    "w": 82.58,
+    "h": 83.78,
+    "ox": 41.29,
+    "oy": 61.38
   },
   "immeuble": {
     "w": 42.85,
@@ -107,16 +107,16 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 31.01
   },
   "lac": {
-    "w": 90.84,
-    "h": 67.65,
-    "ox": 45.42,
-    "oy": 43.01
+    "w": 82.58,
+    "h": 61.5,
+    "ox": 41.29,
+    "oy": 39.1
   },
   "magasin-sport": {
-    "w": 90.84,
-    "h": 72.55,
-    "ox": 45.42,
-    "oy": 47.91
+    "w": 82.58,
+    "h": 65.95,
+    "ox": 41.29,
+    "oy": 43.56
   },
   "maison-bleue": {
     "w": 42.85,
@@ -155,10 +155,10 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 34.27
   },
   "observatoire": {
-    "w": 90.84,
-    "h": 75.8,
-    "ox": 45.42,
-    "oy": 51.17
+    "w": 82.58,
+    "h": 68.91,
+    "ox": 41.29,
+    "oy": 46.52
   },
   "phare": {
     "w": 42.85,
@@ -167,10 +167,10 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 48.97
   },
   "pyramide": {
-    "w": 186.82,
-    "h": 140.15,
-    "ox": 93.41,
-    "oy": 91.51
+    "w": 162.45,
+    "h": 121.87,
+    "ox": 81.23,
+    "oy": 79.57
   },
   "refuge": {
     "w": 42.85,
@@ -179,10 +179,10 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 31.01
   },
   "salle-bloc": {
-    "w": 90.84,
-    "h": 77.45,
-    "ox": 45.42,
-    "oy": 52.81
+    "w": 82.58,
+    "h": 70.41,
+    "ox": 41.29,
+    "oy": 48.01
   },
   "sapin": {
     "w": 42.85,
@@ -197,16 +197,16 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 31.01
   },
   "temple": {
-    "w": 138.83,
-    "h": 99.8,
-    "ox": 69.41,
-    "oy": 63.17
+    "w": 122.5,
+    "h": 88.06,
+    "ox": 61.25,
+    "oy": 55.73
   },
   "tour-eiffel": {
-    "w": 138.83,
-    "h": 147.97,
-    "ox": 69.41,
-    "oy": 111.34
+    "w": 122.5,
+    "h": 130.57,
+    "ox": 61.25,
+    "oy": 98.24
   },
   "tour-horloge": {
     "w": 42.85,
@@ -215,10 +215,10 @@ export const SPRITES: Record<string, Sprite> = {
     "oy": 48.97
   },
   "tour-verre": {
-    "w": 138.83,
-    "h": 140.62,
-    "ox": 69.41,
-    "oy": 103.99
+    "w": 122.5,
+    "h": 124.08,
+    "ox": 61.25,
+    "oy": 91.75
   },
   "villa": {
     "w": 42.85,
@@ -308,6 +308,12 @@ export const SOLS: Record<string, Sprite> = {
     "ox": 21.43,
     "oy": 11.82
   },
+  "falaise-d-4": {
+    "w": 42.85,
+    "h": 52.84,
+    "ox": 21.43,
+    "oy": 11.82
+  },
   "falaise-g-1": {
     "w": 42.85,
     "h": 31.87,
@@ -326,6 +332,12 @@ export const SOLS: Record<string, Sprite> = {
     "ox": 21.43,
     "oy": 11.82
   },
+  "falaise-g-4": {
+    "w": 42.85,
+    "h": 52.84,
+    "ox": 21.43,
+    "oy": 11.82
+  },
   "fleurs": {
     "w": 42.85,
     "h": 23.99,
@@ -339,6 +351,12 @@ export const SOLS: Record<string, Sprite> = {
     "oy": 12.41
   },
   "herbe2": {
+    "w": 42.85,
+    "h": 23.99,
+    "ox": 21.43,
+    "oy": 12.41
+  },
+  "mer": {
     "w": 42.85,
     "h": 23.99,
     "ox": 21.43,

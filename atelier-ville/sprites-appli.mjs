@@ -5,7 +5,7 @@
 //                                    public/img/ville/mini/<id>-<g|d>.webp (vignettes, rognées)
 //   out/sols/<sol>.png               →  public/img/ville/sol/<sol>.webp (+ hd/) : sols des cases et rues pavées
 //   + src/city/sprites.ts : taille et origine de chaque image, en unités de la carte SVG
-// Échelle unique : une case (3 unités Blender) = TW de large sur la carte ; les rues (0,6 unité) font 0,2 case.
+// Une case (3 unités Blender) = TW de large sur la carte ; un bâtiment de n cases occupe exactement n cases.
 import sharp from 'sharp'
 import fs from 'node:fs'
 import path from 'node:path'
@@ -34,10 +34,10 @@ for (const id of ids) {
     const n = meta.taille
     const cote = 3 * n + ROUTE * (n - 1)
     const losange = cote * Math.SQRT2 * meta.ppu // largeur du losange de l'emprise, en px source
-    const k = ((cote / 3) * TW) / losange // unités SVG par px source (emprise = n cases + rues internes)
+    const k = (n * TW) / losange // unités SVG par px source : l'emprise occupe exactement n cases côte à côte
     if (sens === 'd') table[id] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(meta.ox * k).toFixed(2), oy: +(meta.oy * k).toFixed(2) }
     for (const [dir, px] of [['', PX_CASE], ['hd', PX_CASE_HD]]) {
-      const r = Math.min(1, (px * cote) / 3 / losange)
+      const r = Math.min(1, (px * n) / losange)
       const info = await sharp(fichier).resize(Math.round(width * r)).webp({ quality: 80, alphaQuality: 90, effort: 5 }).toFile(path.join(PUB, dir, `${id}-${sens}.webp`))
       poids += dir === '' ? info.size : 0
     }

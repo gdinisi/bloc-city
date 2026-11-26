@@ -9,15 +9,14 @@ import {
   isFragmented,
   landOf,
   move,
-  paint,
   place,
   removeCase,
   rotate,
   sculpt,
   store,
-  unlockedGrounds,
+
 } from './economy'
-import { BUILDINGS, GROUNDS, RARITIES, buildingById, sizeOf } from './buildings'
+import { BUILDINGS, RARITIES, buildingById, sizeOf } from './buildings'
 import { BuildingThumb } from './iso'
 import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
@@ -37,7 +36,6 @@ type Mode =
   | { type: 'idle' }
   | { type: 'place'; id: string }
   | { type: 'move'; uid: string }
-  | { type: 'paint'; ground: string }
   | { type: 'relief'; delta: 1 | -1 }
   | { type: 'terrain'; action: 'ajouter' | 'enlever' }
 
@@ -83,9 +81,8 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const inventory = Object.entries(city.inventory).filter(([, n]) => n > 0)
   const selectedP = city.placed.find((p) => p.uid === selected)
   const selectedB = selectedP ? buildingById(selectedP.id) : undefined
-  const grounds = unlockedGrounds(city)
   const fragments = BUILDINGS.filter((b) => isFragmented(b) && (city.fragments[b.id] ?? 0) > 0)
-  const editingGround = mode.type === 'paint' || mode.type === 'relief' || mode.type === 'terrain'
+  const editingGround = mode.type === 'relief' || mode.type === 'terrain'
 
   /** Cases où l'on peut poser / déplacer le bâtiment en cours (coin du haut de son emprise) */
   const valid = useMemo(() => {
@@ -101,7 +98,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   }, [mode, city, land])
 
   const onTile = (x: number, y: number) => {
-    if (mode.type === 'paint') return
     if (mode.type === 'relief') return onCity((c) => sculpt(c, x, y, mode.delta))
     if (mode.type === 'terrain') {
       if (mode.action === 'enlever') onCity((c) => removeCase(c, x, y))
@@ -161,9 +157,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
       <section className="card city-card">
         <div className="city-tools">
-          <button type="button" className={`chip ${mode.type === 'paint' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'paint', ground: 'terre' })}>
-            🖌️ Chemins
-          </button>
           <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
             ⛰️ Relief
           </button>
@@ -177,32 +170,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           )}
         </div>
 
-        {mode.type === 'paint' && (
-          <>
-            <div className="ground-palette">
-              {GROUNDS.map((g) => {
-                const ok = grounds.some((u) => u.id === g.id)
-                return (
-                  <button
-                    key={g.id}
-                    type="button"
-                    disabled={!ok}
-                    className={`ground-chip ${mode.ground === g.id ? 'on' : ''}`}
-                    onClick={() => setMode({ type: 'paint', ground: g.id })}
-                    title={ok ? g.name : g.quest ? 'Débloqué par une quête' : `Débloqué au niveau ${g.level}`}
-                  >
-                    <img src={`${import.meta.env.BASE_URL}img/ville/sol/${g.id}.webp`} width={42} height={24} alt="" aria-hidden="true" style={{ objectFit: 'contain' }} />
-                    <span>{ok ? g.name : g.quest ? '🔒 quête' : `🔒 niv. ${g.level}`}</span>
-                  </button>
-                )
-              })}
-            </div>
-            <p className="muted small-text">
-              Touche les chemins entre les cases pour les peindre (pavés par défaut). Les carrefours prennent la texture des chemins qui s'y rejoignent.
-            </p>
-          </>
-        )}
-
         {mode.type === 'terrain' && (
           <>
             <div className="seg wide relief-seg">
@@ -213,11 +180,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
                 ➖ Enlever
               </button>
             </div>
-            <p className="muted small-text">
-              {mode.action === 'ajouter'
-                ? "Touche un « + » au bord de l'île pour y ajouter une case : ton île peut prendre la forme que tu veux."
-                : "Touche une case vide pour l'enlever de l'île (pas sous un bâtiment)."}
-            </p>
           </>
         )}
 
@@ -260,7 +222,6 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           city={city}
           onTile={onTile}
           onBuilding={(uid) => setSelected(selected === uid ? null : uid)}
-          onPath={mode.type === 'paint' ? (k) => onCity((c) => paint(c, k, mode.ground)) : undefined}
           onAddCase={mode.type === 'terrain' && mode.action === 'ajouter' ? (x, y) => onCity((c) => addCase(c, x, y)) : undefined}
           selected={selected}
           valid={mode.type === 'place' || mode.type === 'move' ? valid : undefined}
