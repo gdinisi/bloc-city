@@ -156,9 +156,7 @@ export interface Ground {
 
 export const GROUNDS: Ground[] = [
   { id: 'herbe', name: 'Herbe', level: 1 },
-  { id: 'route', name: 'Route', level: 1 },
   { id: 'eau', name: 'Eau', level: 1 },
-  { id: 'pont', name: 'Pont', level: 2 },
   { id: 'terre', name: 'Terre', level: 2 },
   { id: 'paves', name: 'Pavés', level: 3 },
   { id: 'sable', name: 'Sable', level: 4 },

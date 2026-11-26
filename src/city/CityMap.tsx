@@ -1,16 +1,18 @@
-import { useMemo, useRef, useState } from 'react'
+import { useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CityState } from './economy'
-import { gridOf } from './economy'
+import { gridOf, groundOf } from './economy'
 import { buildingById, sizeOf } from './buildings'
-import { BuildingSprite, GroundTile, TH, TW, shade, spriteUrl } from './iso'
-import { SPRITES } from './sprites'
+import { BuildingSprite, TH, TW, shade, spriteUrl } from './iso'
+import { SOLS, SPRITES } from './sprites'
 
 /*
  * Carte isométrique de la ville.
  * - rotation de la vue par quarts de tour (on « tourne autour » de la ville)
  * - relief : chaque case a une hauteur (0 à 3 marches)
- * - routes, eau et ponts se raccordent automatiquement à leurs voisins
+ * - les cases sont séparées par des rues pavées (tracées automatiquement), de l'eau entre deux cases d'eau
+ * - sols, rues et bâtiments : rendus Blender (public/img/ville), seule la partie visible est dessinée
+ * - au départ, la caméra cadre la partie construite de la ville
  * - caméra : glisser pour se déplacer, pincer avec deux doigts pour zoomer (molette sur ordinateur), sans limite pratique
  * - bâtiments : rendus Blender (public/img/ville), version HD chargée quand on zoome de près
  * - ordre d'affichage par diagonales, puis tri topologique des emprises
@@ -18,17 +20,10 @@ import { SPRITES } from './sprites'
 
 type P = [number, number]
 const STEP = 7 // hauteur d'une marche de relief (px)
-const DIRS: P[] = [
-  [1, 0],
-  [-1, 0],
-  [0, 1],
-  [0, -1],
-]
-
-const CONNECT: Record<string, string[]> = {
-  route: ['route', 'pont'],
-  pont: ['route', 'pont'],
-}
+/** Pas de la grille, en cases : une case + une rue (0,2 case) */
+const F = 1.2
+const RUE = F - 1
+const EAU = '#62adc6'
 
 interface Props {
   city: CityState
@@ -67,16 +62,20 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
         return [x, y]
     }
   }
-  const proj = (vx: number, vy: number): P => [((vx - vy) * TW) / 2, ((vx + vy) * TH) / 2]
-  const elev = (x: number, y: number) => city.elevation[`${x},${y}`] ?? 0
-  const screen = (x: number, y: number): P => proj(...toView(x, y))
-  const groundAt = (x: number, y: number) => (x < 0 || y < 0 || x >= G || y >= G ? null : (city.ground[`${x},${y}`] ?? 'herbe'))
+  /** Projection d'un point exprimé en cases (u, v) — les centres de cases sont à (x·F, y·F) */
+  const projC = (u: number, v: number): P => [((u - v) * TW) / 2, ((u + v) * TH) / 2]
+  const proj = (vx: number, vy: number): P => projC(vx * F, vy * F)
+  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < G && y < G
+  const elev = (x: number, y: number) => (inside(x, y) ? (city.elevation[`${x},${y}`] ?? 0) : 0)
+  const groundAt = (x: number, y: number) => (inside(x, y) ? groundOf(city, `${x},${y}`) : null)
 
   // ---------- cadrage ----------
-  const half = (G * TW) / 2 + 8
-  const bottom = G * TH - TH / 2 + 16
+  const lo = -0.5 - RUE
+  const hi = (G - 1) * F + 0.5 + RUE
+  const half = ((hi - lo) * TW) / 2 + 8
+  const bottom = hi * TH + 16
   const top = useMemo(() => {
-    let t = -60
+    let t = lo * TH - 40
     for (const p of city.placed) {
       const b = buildingById(p.id)
       if (!b) continue
@@ -94,7 +93,6 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
   // ---------- caméra ----------
   // zoom : de la vue d'ensemble jusqu'au très gros plan
   const clampS = (s: number) => Math.min(14, Math.max(0.5, s))
-  const hd = cam.s >= 2.2
   const zoomBy = (k: number, cx = 0, cy = (top + bottom) / 2) =>
     setCam((c) => {
       const s = clampS(c.s * k)
@@ -161,70 +159,47 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
     fn()
   }
 
-  // ---------- sol ----------
+  // ---------- partie visible (on ne dessine que ce qui est à l'écran) ----------
+  const vue = {
+    x0: (-half - cam.x) / cam.s - TW,
+    x1: (half - cam.x) / cam.s + TW,
+    y0: (top - cam.y) / cam.s - TH * 2,
+    y1: (bottom - cam.y) / cam.s + TH * 2,
+  }
+  const visible = (x: number, y: number, marge = 0) => x >= vue.x0 - marge && x <= vue.x1 + marge && y >= vue.y0 - marge && y <= vue.y1 + marge
+  const hd = cam.s >= 2.2
+  const solUrl = (nom: string) => `${import.meta.env.BASE_URL}img/ville/sol/${hd ? 'hd/' : ''}${nom}.webp`
+  const image = (nom: string, cx: number, cy: number, key: string) => {
+    const sp = SOLS[nom]
+    return <image key={key} href={solUrl(nom)} x={cx - sp.ox} y={cy - sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" />
+  }
+
+  // ---------- sol d'une case ----------
   const drawGround = (x: number, y: number): ReactNode => {
     const id = groundAt(x, y)!
-    const [cx, cy0] = screen(x, y)
+    const [vx, vy] = toView(x, y)
+    const [cx, cy0] = proj(vx, vy)
+    if (!visible(cx, cy0, TW)) return null
     const e = elev(x, y)
     const cy = cy0 - e * STEP
-    const alt = (x + y) % 2 === 1
     const out: ReactNode[] = []
-
-    // flancs du relief
-    if (e > 0) {
-      const h = e * STEP
-      out.push(
-        <polygon key="l" points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx},${cy + TH / 2 + h} ${cx - TW / 2},${cy + h}`} fill="#a9744a" stroke="#7d5232" strokeWidth={0.8} />,
-        <polygon key="r" points={`${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx + TW / 2},${cy + h} ${cx},${cy + TH / 2 + h}`} fill="#c08a5b" stroke="#7d5232" strokeWidth={0.8} />,
-      )
-    }
-
-    const base = id === 'route' ? 'herbe' : id === 'pont' ? 'eau' : id
-    out.push(<GroundTile key="g" id={base} cx={cx} cy={cy} alt={alt} />)
-
-    if (id === 'route' || id === 'pont') {
-      // vecteurs vers chaque voisin (dans la vue tournée)
-      const C: P = [cx, cy]
-      const conns = DIRS.filter(([dx, dy]) => CONNECT[id].includes(groundAt(x + dx, y + dy) ?? ''))
-      const dirsToDraw = conns.length ? conns : id === 'pont' ? ([[1, 0], [-1, 0]] as P[]) : []
-      const k = id === 'route' ? 0.3 : 0.34
-      const color = id === 'route' ? '#5c5f6b' : '#c08a50'
-      const vec = (dx: number, dy: number): P => {
-        const [nx, ny] = screen(x + dx, y + dy)
-        const [ox, oy] = screen(x, y)
-        return [(nx - ox) / 2, (ny - oy) / 2]
+    // flancs du relief : jusqu'au niveau de la rue voisine (min des deux cases)
+    const avant = (dx: number, dy: number) => {
+      // voisin devant dans la vue
+      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as P[]) {
+        const [wx, wy] = toView(nx, ny)
+        if (wx - vx === dx && wy - vy === dy) return Math.min(e, elev(nx, ny))
       }
-      // pavé central
-      const a = vec(1, 0)
-      const b = vec(0, 1)
-      const corner = (sa: number, sb: number): string => `${C[0] + (a[0] * sa + b[0] * sb) * k * 2},${C[1] + (a[1] * sa + b[1] * sb) * k * 2}`
-      out.push(<polygon key="c" points={[corner(1, 1), corner(1, -1), corner(-1, -1), corner(-1, 1)].join(' ')} fill={color} />)
-      for (const [dx, dy] of dirsToDraw) {
-        const m = vec(dx, dy)
-        const w = vec(Math.abs(dy), Math.abs(dx))
-        const wx = w[0] * k * 2
-        const wy = w[1] * k * 2
-        const M: P = [C[0] + m[0], C[1] + m[1]]
-        out.push(
-          <polygon
-            key={`b${dx}${dy}`}
-            points={`${C[0] + wx},${C[1] + wy} ${M[0] + wx},${M[1] + wy} ${M[0] - wx},${M[1] - wy} ${C[0] - wx},${C[1] - wy}`}
-            fill={color}
-          />,
-        )
-        if (id === 'route') {
-          out.push(<line key={`d${dx}${dy}`} x1={C[0]} y1={C[1]} x2={M[0]} y2={M[1]} stroke="#f1f3f5" strokeWidth={1.1} strokeDasharray="2.5 2.5" />)
-        } else {
-          // planches et garde-corps du pont
-          out.push(
-            <line key={`p${dx}${dy}`} x1={C[0]} y1={C[1]} x2={M[0]} y2={M[1]} stroke="#9c6b3a" strokeWidth={0.8} />,
-            <line key={`r1${dx}${dy}`} x1={C[0] + wx} y1={C[1] + wy - 2} x2={M[0] + wx} y2={M[1] + wy - 2} stroke="#6b4423" strokeWidth={1.2} />,
-            <line key={`r2${dx}${dy}`} x1={C[0] - wx} y1={C[1] - wy - 2} x2={M[0] - wx} y2={M[1] - wy - 2} stroke="#6b4423" strokeWidth={1.2} />,
-          )
-        }
-      }
+      return 0
     }
-
+    const hG = (e - avant(0, 1)) * STEP // face avant gauche (vers +vy)
+    const hD = (e - avant(1, 0)) * STEP // face avant droite (vers +vx)
+    if (hG > 0)
+      out.push(<polygon key="l" points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx},${cy + TH / 2 + hG} ${cx - TW / 2},${cy + hG}`} fill="#a9744a" stroke="#7d5232" strokeWidth={0.8} />)
+    if (hD > 0)
+      out.push(<polygon key="r" points={`${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx + TW / 2},${cy + hD} ${cx},${cy + TH / 2 + hD}`} fill="#c08a5b" stroke="#7d5232" strokeWidth={0.8} />)
+    const nom = id === 'herbe' ? ((x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe') : SOLS[id] ? id : 'herbe'
+    out.push(image(nom, cx, cy, 'g'))
     if (valid?.has(`${x},${y}`)) {
       out.push(
         <polygon
@@ -238,12 +213,52 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
         />,
       )
     }
-
     return (
       <g key={`t${x},${y}`} onClick={tap(onTile ? () => onTile(x, y) : undefined)} style={{ cursor: onTile ? 'pointer' : undefined }}>
         {out}
       </g>
     )
+  }
+
+  // ---------- rues pavées entre les cases (et eau entre deux cases d'eau) ----------
+  const occupant = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of city.placed) {
+      const b = buildingById(p.id)
+      const s = b ? sizeOf(b) : 1
+      for (let dy = 0; dy < s; dy++) for (let dx = 0; dx < s; dx++) m.set(`${p.x + dx},${p.y + dy}`, p.uid)
+    }
+    return m
+  }, [city.placed])
+  const rues: ReactNode[] = []
+  {
+    const meme = (cases: P[]) => {
+      const u = cases.map(([x, y]) => (inside(x, y) ? occupant.get(`${x},${y}`) : undefined))
+      return u[0] !== undefined && u.every((v) => v === u[0])
+    }
+    const eau = (cases: P[]) => cases.every(([x, y]) => groundAt(x, y) === 'eau')
+    const niveau = (cases: P[]) => Math.min(...cases.map(([x, y]) => elev(x, y)))
+    const poser = (nom: string, u: number, v: number, cases: P[], key: string) => {
+      const [cx, cy] = projC(u, v)
+      if (!visible(cx, cy, TW) || meme(cases)) return
+      const L = niveau(cases) * STEP
+      if (eau(cases)) {
+        // demi-étendues de la bande, en cases
+        const w = nom === 'route-x' ? [0.5, RUE / 2] : nom === 'route-y' ? [RUE / 2, 0.5] : [RUE / 2, RUE / 2]
+        const c = (a: number, b: number) => projC(u + a, v + b).map((q, i) => (i ? q - L : q)).join(',')
+        rues.push(<polygon key={key} points={[c(-w[0], -w[1]), c(w[0], -w[1]), c(w[0], w[1]), c(-w[0], w[1])].join(' ')} fill={EAU} />)
+        return
+      }
+      rues.push(image(nom, cx, cy - L, key))
+    }
+    // vue tournée : on travaille en coordonnées de vue (rot = 0 aujourd'hui)
+    for (let vy = 0; vy < G; vy++)
+      for (let vx = -1; vx < G; vx++) poser('route-y', vx * F + F / 2, vy * F, [[vx, vy], [vx + 1, vy]], `ry${vx},${vy}`)
+    for (let vx = 0; vx < G; vx++)
+      for (let vy = -1; vy < G; vy++) poser('route-x', vx * F, vy * F + F / 2, [[vx, vy], [vx, vy + 1]], `rx${vx},${vy}`)
+    for (let vx = -1; vx < G; vx++)
+      for (let vy = -1; vy < G; vy++)
+        poser('carrefour', vx * F + F / 2, vy * F + F / 2, [[vx, vy], [vx + 1, vy], [vx, vy + 1], [vx + 1, vy + 1]], `rc${vx},${vy}`)
   }
 
   // ---------- bâtiments : position, profondeur, ordre ----------
@@ -283,7 +298,37 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items])
 
+  // ---------- cadrage de départ : la partie construite de la ville (ou toute l'île si elle est vide) ----------
+  const cadrer = () => {
+    if (!items.length) return { s: 1, x: 0, y: 0 }
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
+    for (const it of items) {
+      const [cx, cy0] = proj(it.vx + (it.s - 1) / 2, it.vy + (it.s - 1) / 2)
+      const cy = cy0 - it.e * STEP
+      const sp = SPRITES[it.b.id]
+      const w = sp ? sp.w : TW * it.s, h = sp ? sp.h : 60 * it.s
+      const ox = sp ? sp.ox : w / 2, oy = sp ? sp.oy : h - TH
+      x0 = Math.min(x0, cx - ox); x1 = Math.max(x1, cx - ox + w)
+      y0 = Math.min(y0, cy - oy); y1 = Math.max(y1, cy - oy + h)
+    }
+    // marge d'environ une case autour, et au moins 3 × 3 cases de champ
+    const m = TW * F
+    const bw = Math.max(x1 - x0 + 2 * m, 3 * TW * F), bh = Math.max(y1 - y0 + 2 * m, 3 * TH * F)
+    const sc = clampS(Math.min(vbW / bw, vbH / bh))
+    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2
+    return { s: sc, x: -mx * sc, y: (top + bottom) / 2 - my * sc }
+  }
+  const dejaCadre = useRef(false)
+  useLayoutEffect(() => {
+    if (dejaCadre.current) return
+    dejaCadre.current = true
+    setCam(cadrer())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // ---------- rendu par diagonales : sol puis bâtiments de chaque diagonale ----------
+  /** Demi-largeur (en cases) de l'emprise d'un bâtiment de s cases, rues internes comprises */
+  const emp = (s: number) => ((s - 1) * F + 1) / 2
   const layers: ReactNode[] = []
   const tilesByDepth = new Map<number, P[]>()
   for (let y = 0; y < G; y++)
@@ -328,7 +373,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
               />
               {isSel && (
                 <polygon
-                  points={`${(-TW * it.s) / 2},0 0,${(TH * it.s) / 2} ${(TW * it.s) / 2},0 0,${(-TH * it.s) / 2}`}
+                  points={`${-TW * emp(it.s)},0 0,${TH * emp(it.s)} ${TW * emp(it.s)},0 0,${-TH * emp(it.s)}`}
                   fill="#ffe066"
                   fillOpacity={0.28}
                   stroke="#f2994a"
@@ -341,7 +386,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
             <>
               {isSel && (
                 <polygon
-                  points={`${(-TW * it.s) / 2},0 0,${(TH * it.s) / 2} ${(TW * it.s) / 2},0 0,${(-TH * it.s) / 2}`}
+                  points={`${-TW * emp(it.s)},0 0,${TH * emp(it.s)} ${TW * emp(it.s)},0 0,${-TH * emp(it.s)}`}
                   fill="#ffe066"
                   stroke="#f2994a"
                   strokeWidth={2}
@@ -375,15 +420,16 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
       >
         <rect x={-half} y={top} width={vbW} height={vbH} fill="transparent" />
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
-          {/* socle de terre sous la carte */}
-          <polygon points={`${(-G * TW) / 2},${(G * TH) / 2 - TH / 2} 0,${G * TH - TH / 2} 0,${G * TH - TH / 2 + 10} ${(-G * TW) / 2},${(G * TH) / 2 - TH / 2 + 10}`} fill="#b07a4a" />
-          <polygon points={`0,${G * TH - TH / 2} ${(G * TW) / 2},${(G * TH) / 2 - TH / 2} ${(G * TW) / 2},${(G * TH) / 2 - TH / 2 + 10} 0,${G * TH - TH / 2 + 10}`} fill={shade('#b07a4a', -0.2)} />
+          {/* socle de terre sous l'île */}
+          <polygon points={`${projC(lo, hi).join(',')} ${projC(hi, hi).join(',')} ${projC(hi, hi)[0]},${projC(hi, hi)[1] + 12} ${projC(lo, hi)[0]},${projC(lo, hi)[1] + 12}`} fill="#b07a4a" />
+          <polygon points={`${projC(hi, hi).join(',')} ${projC(hi, lo).join(',')} ${projC(hi, lo)[0]},${projC(hi, lo)[1] + 12} ${projC(hi, hi)[0]},${projC(hi, hi)[1] + 12}`} fill={shade('#b07a4a', -0.2)} />
+          {rues}
           {layers}
         </g>
       </svg>
       {!readOnly && (
         <div className="map-controls">
-          <button type="button" className="round" aria-label="Recentrer" onClick={() => setCam({ s: 1, x: 0, y: 0 })}>
+          <button type="button" className="round" aria-label="Recentrer" onClick={() => setCam(cadrer())}>
             ⌖
           </button>
         </div>

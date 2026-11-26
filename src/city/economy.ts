@@ -42,6 +42,8 @@ export interface CityState {
   textures: string[]
   /** Quêtes déjà récupérées (clés uniques) */
   claimed: string[]
+  /** Rangées ajoutées à l'île par le joueur (bouton « Agrandir l'île ») */
+  extension?: number
 }
 
 export type Card =
@@ -98,7 +100,19 @@ export const ownedCount = (city: CityState, id: string) => (city.inventory[id] ?
 export const population = (city: CityState) => city.placed.reduce((sum, p) => sum + RARITIES[buildingById(p.id)?.rarity ?? 'commun'].pop, 0)
 
 export const levelOf = (city: CityState) => cityLevel(population(city))
-export const gridOf = (city: CityState) => gridSizeFor(levelOf(city))
+/** Taille maximale de l'île (en cases de côté) */
+export const MAX_GRID = 60
+export const gridOf = (city: CityState) => Math.min(MAX_GRID, gridSizeFor(levelOf(city)) + (city.extension ?? 0))
+
+/** Agrandit l'île d'une rangée de cases de chaque côté de la diagonale (une ligne + une colonne) */
+export const growIsland = (city: CityState): CityState => (gridOf(city) >= MAX_GRID ? city : { ...city, extension: (city.extension ?? 0) + 1 })
+
+/** Sol réel d'une case : les anciennes routes peintes redeviennent de l'herbe et les ponts de l'eau
+ * (les rues pavées sont désormais tracées automatiquement entre les cases) */
+export const groundOf = (city: CityState, k: string) => {
+  const g = city.ground[k] ?? 'herbe'
+  return g === 'route' ? 'herbe' : g === 'pont' ? 'eau' : g
+}
 
 export const chestReadyAt = (city: CityState) => (city.lastChestAt ? new Date(city.lastChestAt).getTime() + CHEST_EVERY_MS : 0)
 
@@ -311,17 +325,27 @@ export function canPlace(city: CityState, id: string, x: number, y: number, exce
   const grid = gridOf(city)
   if (x < 0 || y < 0 || x + size > grid || y + size > grid) return false
   const occ = occupiedTiles(city, exceptUid)
-  // ni sur un bâtiment, ni sur l'eau ou un pont
-  return footprint(x, y, size).every((k) => !occ.has(k) && !UNBUILDABLE.includes(city.ground[k] ?? 'herbe'))
+  const cells = footprint(x, y, size)
+  // toutes les cases d'un grand bâtiment doivent être à la même altitude
+  const alt = city.elevation[cells[0]] ?? 0
+  if (cells.some((k) => (city.elevation[k] ?? 0) !== alt)) return false
+  // ni sur un bâtiment, ni sur l'eau
+  return cells.every((k) => !occ.has(k) && !UNBUILDABLE.includes(groundOf(city, k)))
 }
 
-/** Monte (+1) ou creuse (-1) le terrain d'une case */
+/** Monte (+1) ou creuse (-1) le terrain d'une case ; sous un grand bâtiment, tout son terrain bouge d'un bloc */
 export function sculpt(city: CityState, x: number, y: number, delta: 1 | -1): CityState {
-  const k = `${x},${y}`
-  const v = Math.max(0, Math.min(MAX_ELEVATION, (city.elevation[k] ?? 0) + delta))
+  const sous = city.placed.find((p) => {
+    const s = sizeOf(buildingById(p.id)!)
+    return s > 1 && x >= p.x && x < p.x + s && y >= p.y && y < p.y + s
+  })
+  const cells = sous ? footprint(sous.x, sous.y, sizeOf(buildingById(sous.id)!)) : [`${x},${y}`]
   const next = { ...city.elevation }
-  if (v === 0) delete next[k]
-  else next[k] = v
+  for (const k of cells) {
+    const v = Math.max(0, Math.min(MAX_ELEVATION, (city.elevation[k] ?? 0) + delta))
+    if (v === 0) delete next[k]
+    else next[k] = v
+  }
   return { ...city, elevation: next }
 }
 
@@ -358,7 +382,7 @@ export function store(city: CityState, puid: string): CityState {
 
 export function paint(city: CityState, x: number, y: number, ground: string): CityState {
   const k = `${x},${y}`
-  // pas d'eau ni de pont sous un bâtiment
+  // pas d'eau sous un bâtiment
   if (UNBUILDABLE.includes(ground) && occupiedTiles(city).has(k)) return city
   const next = { ...city.ground }
   if (ground === 'herbe') delete next[k]

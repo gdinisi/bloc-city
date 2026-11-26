@@ -6,7 +6,9 @@ import {
   chestReadyAt,
   fragmentsNeeded,
   gridOf,
+  growIsland,
   isFragmented,
+  MAX_GRID,
   move,
   paint,
   place,
@@ -16,7 +18,7 @@ import {
   unlockedGrounds,
 } from './economy'
 import { BUILDINGS, GROUNDS, RARITIES, buildingById, sizeOf } from './buildings'
-import { BuildingThumb, GroundTile } from './iso'
+import { BuildingThumb } from './iso'
 import { CityMap } from './CityMap'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
@@ -106,7 +108,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
   const banner =
     mode.type === 'place'
-      ? `Touche une case en surbrillance pour poser : ${buildingById(mode.id)?.name}${sizeOf(buildingById(mode.id)!) > 1 ? ` (${sizeOf(buildingById(mode.id)!)} × ${sizeOf(buildingById(mode.id)!)} cases, case du haut)` : ''}`
+      ? `Touche une case en surbrillance pour poser : ${buildingById(mode.id)?.name}${sizeOf(buildingById(mode.id)!) > 1 ? ` (${sizeOf(buildingById(mode.id)!)} × ${sizeOf(buildingById(mode.id)!)} cases à la même hauteur, case du haut)` : ''}`
       : mode.type === 'move'
         ? 'Touche une case en surbrillance pour le déplacer'
         : null
@@ -139,12 +141,23 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
       <section className="card city-card">
         <div className="city-tools">
-          <button type="button" className={`chip ${mode.type === 'paint' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'paint', ground: 'route' })}>
+          <button type="button" className={`chip ${mode.type === 'paint' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'paint', ground: 'eau' })}>
             🖌️ Sol
           </button>
           <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
             ⛰️ Relief
           </button>
+          {!editingGround && (
+            <button
+              type="button"
+              className="chip"
+              disabled={grid >= MAX_GRID}
+              onClick={() => onCity((c) => growIsland(c))}
+              title="Ajoute une rangée de cases de chaque côté"
+            >
+              ➕ Agrandir l'île
+            </button>
+          )}
           {editingGround && (
             <button type="button" className="btn small" onClick={() => setMode({ type: 'idle' })}>
               Terminer
@@ -166,16 +179,14 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
                     onClick={() => setMode({ type: 'paint', ground: g.id })}
                     title={ok ? g.name : g.quest ? 'Débloqué par une quête' : `Débloqué au niveau ${g.level}`}
                   >
-                    <svg viewBox="-21 -11 42 22" width={42} height={22} aria-hidden="true">
-                      <GroundTile id={g.id === 'pont' ? 'planches' : g.id} cx={0} cy={0} alt={false} />
-                    </svg>
+                    <img src={`${import.meta.env.BASE_URL}img/ville/sol/${g.id}.webp`} width={42} height={24} alt="" aria-hidden="true" style={{ objectFit: 'contain' }} />
                     <span>{ok ? g.name : g.quest ? '🔒 quête' : `🔒 niv. ${g.level}`}</span>
                   </button>
                 )
               })}
             </div>
             <p className="muted small-text">
-              Touche les cases à peindre. Les routes et les ponts se raccordent tout seuls à leurs voisins ; un pont se pose sur l'eau pour relier deux routes. « Herbe » efface.
+              Touche les cases à peindre. Les rues pavées se tracent toutes seules entre les cases. « Herbe » efface.
             </p>
           </>
         )}
@@ -190,7 +201,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
                 ⬇️ Creuser
               </button>
             </div>
-            <p className="muted small-text">Touche une case pour la monter ou la creuser (3 marches maximum). Les bâtiments suivent le terrain.</p>
+            <p className="muted small-text">Touche une case pour la monter ou la creuser (3 marches maximum). Les bâtiments suivent le terrain ; sous un grand bâtiment, tout son terrain bouge d'un bloc.</p>
           </>
         )}
 
@@ -312,7 +323,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
             })}
           </div>
         )}
-        <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser. Pas de construction sur l'eau ni sur les ponts.</p>
+        <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser. Pas de construction sur l'eau ; un grand bâtiment demande des cases à la même hauteur.</p>
       </section>
 
       {fragments.length > 0 && (
