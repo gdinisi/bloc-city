@@ -1,6 +1,6 @@
 import type { Session, SessionType } from '../types'
 import type { Building, BuildingCat, Rarity } from './buildings'
-import { BUILDINGS, BY_FRAGMENTS, DROPPABLE, GROUNDS, MAX_ELEVATION, RARITIES, UNBUILDABLE, buildingById, cityLevel, gridSizeFor, sizeOf } from './buildings'
+import { BUILDINGS, BY_FRAGMENTS, DROPPABLE, GROUNDS, MAX_ELEVATION, RARITIES, buildingById, cityLevel, gridSizeFor, sizeOf } from './buildings'
 
 export type PackKind = 'seance' | 'bonus' | 'coffre' | 'bienvenue'
 
@@ -34,7 +34,8 @@ export interface CityState {
   rewarded: string[]
   /** Bâtiments déjà obtenus au moins une fois */
   discovered: string[]
-  /** Sol peint, clé "x,y" -> texture */
+  /** Sol peint sur les chemins entre les cases : clé "h:x,y" (entre x,y et x,y+1) ou "v:x,y" (entre x,y et x+1,y) -> texture
+   * (les anciennes clés "x,y", sol des cases, ne sont plus utilisées) */
   ground: Record<string, string>
   /** Relief, clé "x,y" -> hauteur (0 à MAX_ELEVATION) */
   elevation: Record<string, number>
@@ -42,8 +43,10 @@ export interface CityState {
   textures: string[]
   /** Quêtes déjà récupérées (clés uniques) */
   claimed: string[]
-  /** Rangées ajoutées à l'île par le joueur (bouton « Agrandir l'île ») */
+  /** Rangées ajoutées à l'île (ancienne version, remplacé par `land`) */
   extension?: number
+  /** Cases de l'île ("x,y", coordonnées libres, éventuellement négatives) ; absent = île carrée selon le niveau */
+  land?: string[]
 }
 
 export type Card =
@@ -100,18 +103,60 @@ export const ownedCount = (city: CityState, id: string) => (city.inventory[id] ?
 export const population = (city: CityState) => city.placed.reduce((sum, p) => sum + RARITIES[buildingById(p.id)?.rarity ?? 'commun'].pop, 0)
 
 export const levelOf = (city: CityState) => cityLevel(population(city))
-/** Taille maximale de l'île (en cases de côté) */
-export const MAX_GRID = 60
-export const gridOf = (city: CityState) => Math.min(MAX_GRID, gridSizeFor(levelOf(city)) + (city.extension ?? 0))
+/** Nombre maximal de cases de l'île */
+export const MAX_CASES = 2500
+/** Côté de l'île carrée de départ (selon le niveau) */
+export const gridOf = (city: CityState) => Math.min(50, gridSizeFor(levelOf(city)) + (city.extension ?? 0))
 
-/** Agrandit l'île d'une rangée de cases de chaque côté de la diagonale (une ligne + une colonne) */
-export const growIsland = (city: CityState): CityState => (gridOf(city) >= MAX_GRID ? city : { ...city, extension: (city.extension ?? 0) + 1 })
+/** Cases de l'île : la liste choisie par le joueur, sinon le carré de départ (qui grandit avec le niveau) */
+export const landOf = (city: CityState): Set<string> => {
+  if (city.land) return new Set(city.land)
+  const g = gridOf(city)
+  const set = new Set<string>()
+  for (let y = 0; y < g; y++) for (let x = 0; x < g; x++) set.add(`${x},${y}`)
+  return set
+}
 
-/** Sol réel d'une case : les anciennes routes peintes redeviennent de l'herbe et les ponts de l'eau
- * (les rues pavées sont désormais tracées automatiquement entre les cases) */
-export const groundOf = (city: CityState, k: string) => {
-  const g = city.ground[k] ?? 'herbe'
-  return g === 'route' ? 'herbe' : g === 'pont' ? 'eau' : g
+const VOISINS: [number, number][] = [[1, 0], [-1, 0], [0, 1], [0, -1]]
+
+/** Emplacements où l'on peut ajouter une case (à côté de l'île) */
+export function landCandidates(city: CityState): string[] {
+  const land = landOf(city)
+  const out = new Set<string>()
+  for (const k of land) {
+    const [x, y] = k.split(',').map(Number)
+    for (const [dx, dy] of VOISINS) {
+      const n = `${x + dx},${y + dy}`
+      if (!land.has(n)) out.add(n)
+    }
+  }
+  return [...out]
+}
+
+/** Ajoute une case à l'île (collée à une case existante) */
+export function addCase(city: CityState, x: number, y: number): CityState {
+  const land = landOf(city)
+  const k = `${x},${y}`
+  if (land.has(k) || land.size >= MAX_CASES) return city
+  if (!VOISINS.some(([dx, dy]) => land.has(`${x + dx},${y + dy}`))) return city
+  return { ...city, land: [...land, k] }
+}
+
+/** Enlève une case vide de l'île (jamais la dernière, jamais sous un bâtiment) */
+export function removeCase(city: CityState, x: number, y: number): CityState {
+  const land = landOf(city)
+  const k = `${x},${y}`
+  if (!land.has(k) || land.size <= 1 || occupiedTiles(city).has(k)) return city
+  land.delete(k)
+  const elevation = { ...city.elevation }
+  delete elevation[k]
+  return { ...city, land: [...land], elevation }
+}
+
+/** Texture d'un chemin entre deux cases (pavés par défaut) */
+export const cheminOf = (city: CityState, key: string) => {
+  const g = city.ground[key]
+  return g && GROUNDS.some((x) => x.id === g) ? g : 'paves'
 }
 
 export const chestReadyAt = (city: CityState) => (city.lastChestAt ? new Date(city.lastChestAt).getTime() + CHEST_EVERY_MS : 0)
@@ -322,15 +367,14 @@ export function canPlace(city: CityState, id: string, x: number, y: number, exce
   const b = buildingById(id)
   if (!b) return false
   const size = sizeOf(b)
-  const grid = gridOf(city)
-  if (x < 0 || y < 0 || x + size > grid || y + size > grid) return false
+  const land = landOf(city)
   const occ = occupiedTiles(city, exceptUid)
   const cells = footprint(x, y, size)
   // toutes les cases d'un grand bâtiment doivent être à la même altitude
   const alt = city.elevation[cells[0]] ?? 0
   if (cells.some((k) => (city.elevation[k] ?? 0) !== alt)) return false
-  // ni sur un bâtiment, ni sur l'eau
-  return cells.every((k) => !occ.has(k) && !UNBUILDABLE.includes(groundOf(city, k)))
+  // uniquement sur l'île, et pas sur un autre bâtiment
+  return cells.every((k) => land.has(k) && !occ.has(k))
 }
 
 /** Monte (+1) ou creuse (-1) le terrain d'une case ; sous un grand bâtiment, tout son terrain bouge d'un bloc */
@@ -380,13 +424,11 @@ export function store(city: CityState, puid: string): CityState {
   }
 }
 
-export function paint(city: CityState, x: number, y: number, ground: string): CityState {
-  const k = `${x},${y}`
-  // pas d'eau sous un bâtiment
-  if (UNBUILDABLE.includes(ground) && occupiedTiles(city).has(k)) return city
+/** Peint un chemin entre deux cases (clé "h:x,y" ou "v:x,y") */
+export function paint(city: CityState, key: string, ground: string): CityState {
   const next = { ...city.ground }
-  if (ground === 'herbe') delete next[k]
-  else next[k] = ground
+  if (ground === 'paves') delete next[key]
+  else next[key] = ground
   return { ...city, ground: next }
 }
 

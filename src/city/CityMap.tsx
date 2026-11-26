@@ -1,102 +1,117 @@
-import { useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import type { CityState } from './economy'
-import { gridOf, groundOf } from './economy'
+import { cheminOf, landCandidates, landOf } from './economy'
 import { buildingById, sizeOf } from './buildings'
-import { BuildingSprite, TH, TW, shade, spriteUrl } from './iso'
+import { BuildingSprite, TH, TW, spriteUrl } from './iso'
 import { SOLS, SPRITES } from './sprites'
 
 /*
- * Carte isométrique de la ville.
- * - rotation de la vue par quarts de tour (on « tourne autour » de la ville)
- * - relief : chaque case a une hauteur (0 à 3 marches)
- * - les cases sont séparées par des rues pavées (tracées automatiquement), de l'eau entre deux cases d'eau
- * - sols, rues et bâtiments : rendus Blender (public/img/ville), seule la partie visible est dessinée
- * - au départ, la caméra cadre la partie construite de la ville
- * - caméra : glisser pour se déplacer, pincer avec deux doigts pour zoomer (molette sur ordinateur), sans limite pratique
- * - bâtiments : rendus Blender (public/img/ville), version HD chargée quand on zoome de près
- * - ordre d'affichage par diagonales, puis tri topologique des emprises
+ * Carte isométrique de la ville (rendus Blender : sols, chemins, falaises, bâtiments).
+ * - l'île est un ensemble libre de cases (on peut en ajouter / enlever une par une)
+ * - les cases sont séparées par des chemins (pavés par défaut, texture peinte par le joueur),
+ *   avec un carrefour à chaque croisement ; le bord de l'île est un chemin qui fait falaise
+ * - relief : 0 à 3 marches par case ; parois rocheuses jusqu'au niveau du chemin voisin
+ * - caméra : glisser pour se déplacer, pincer pour zoomer (×0,5 à ×14, molette sur ordinateur) ;
+ *   au départ, elle cadre la partie construite. Seule la partie visible est dessinée.
  */
 
 type P = [number, number]
-const STEP = 7 // hauteur d'une marche de relief (px)
-/** Pas de la grille, en cases : une case + une rue (0,2 case) */
-const F = 1.2
+const STEP = 7 // hauteur d'une marche de relief (unités de la carte)
+const F = 1.2 // pas de la grille, en cases : une case + un chemin (0,2 case)
 const RUE = F - 1
-const EAU = '#62adc6'
+const SOCLE = 12 // épaisseur du bord de l'île
+const ROCHE_G = '#7d6a57'
+const ROCHE_D = '#9a8670'
+const ROCHE_TRAIT = '#5a4a3b'
 
 interface Props {
   city: CityState
-  /** Carte figée (aperçu de l'accueil) : pas de caméra ni de contrôles */
+  /** Carte figée : pas de caméra ni de contrôles */
   readOnly?: boolean
   onTile?: (x: number, y: number) => void
   onBuilding?: (uid: string) => void
+  /** Peinture des chemins : clé "h:x,y" / "v:x,y" */
+  onPath?: (key: string) => void
+  /** Ajout de cases : emplacements libres à côté de l'île */
+  onAddCase?: (x: number, y: number) => void
   selected?: string | null
   /** Cases à mettre en surbrillance (pose / déplacement) */
   valid?: Set<string>
-  /** Bâtiments transparents (édition du sol ou du relief) */
+  /** Bâtiments transparents (édition du sol, du relief ou du terrain) */
   ghost?: boolean
   movingUid?: string | null
   className?: string
+  /** Affichage plein écran (la carte remplit son conteneur) */
+  plein?: boolean
+  /** Bouton supplémentaire dans les contrôles (ex. plein écran) */
+  controle?: ReactNode
 }
 
-export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, ghost, movingUid, className }: Props) {
-  const G = gridOf(city)
-  // vue fixe (plus de rotation autour de la ville)
-  const rot = 0 as number
+export function CityMap({ city, readOnly, onTile, onBuilding, onPath, onAddCase, selected, valid, ghost, movingUid, className, plein, controle }: Props) {
+  const land = useMemo(() => landOf(city), [city])
+  const candidats = useMemo(() => (onAddCase ? landCandidates(city) : []), [city, onAddCase])
   const [cam, setCam] = useState({ s: 1, x: 0, y: 0 })
   const svgRef = useRef<SVGSVGElement>(null)
   const pointers = useRef(new Map<number, P>())
   const gesture = useRef<{ dist: number; s: number; moved: boolean }>({ dist: 0, s: 1, moved: false })
 
-  // ---------- géométrie (vue tournée) ----------
-  const toView = (x: number, y: number): P => {
-    switch (rot) {
-      case 1:
-        return [G - 1 - y, x]
-      case 2:
-        return [G - 1 - x, G - 1 - y]
-      case 3:
-        return [y, G - 1 - x]
-      default:
-        return [x, y]
-    }
-  }
-  /** Projection d'un point exprimé en cases (u, v) — les centres de cases sont à (x·F, y·F) */
+  // ---------- géométrie ----------
   const projC = (u: number, v: number): P => [((u - v) * TW) / 2, ((u + v) * TH) / 2]
-  const proj = (vx: number, vy: number): P => projC(vx * F, vy * F)
-  const inside = (x: number, y: number) => x >= 0 && y >= 0 && x < G && y < G
-  const elev = (x: number, y: number) => (inside(x, y) ? (city.elevation[`${x},${y}`] ?? 0) : 0)
-  const groundAt = (x: number, y: number) => (inside(x, y) ? groundOf(city, `${x},${y}`) : null)
+  const isLand = (x: number, y: number) => land.has(`${x},${y}`)
+  const elev = (x: number, y: number) => (isLand(x, y) ? (city.elevation[`${x},${y}`] ?? 0) : 0)
+  const cases = useMemo(() => [...land].map((k) => k.split(',').map(Number) as P), [land])
 
-  // ---------- cadrage ----------
-  const lo = -0.5 - RUE
-  const hi = (G - 1) * F + 0.5 + RUE
-  const half = ((hi - lo) * TW) / 2 + 8
-  const bottom = hi * TH + 16
-  const top = useMemo(() => {
-    let t = lo * TH - 40
+  // ---------- cadrage (boîte englobante de l'île et des bâtiments) ----------
+  const boite = useMemo(() => {
+    const pts = [...cases, ...candidats.map((k) => k.split(',').map(Number) as P)]
+    let a0 = Infinity, a1 = -Infinity, b0 = Infinity, b1 = -Infinity
+    for (const [x, y] of pts) {
+      a0 = Math.min(a0, (x - y) * F); a1 = Math.max(a1, (x - y) * F)
+      b0 = Math.min(b0, (x + y) * F); b1 = Math.max(b1, (x + y) * F)
+    }
+    const m = 0.5 + RUE
+    const x0 = (a0 * TW) / 2 - m * TW - 8
+    const x1 = (a1 * TW) / 2 + m * TW + 8
+    let top = (b0 * TH) / 2 - m * TH - 40
+    const bottom = (b1 * TH) / 2 + m * TH + 3 * STEP + SOCLE + 16
     for (const p of city.placed) {
       const b = buildingById(p.id)
       if (!b) continue
       const s = sizeOf(b)
-      const [, cy] = proj(...toView(p.x + (s - 1) / 2, p.y + (s - 1) / 2))
+      const [, cy] = projC((p.x + (s - 1) / 2) * F, (p.y + (s - 1) / 2) * F)
       const sp = SPRITES[b.id]
-      t = Math.min(t, sp ? cy - sp.oy - 3 * STEP - 4 : cy - (b.h + 36) * s - 3 * STEP)
+      top = Math.min(top, sp ? cy - sp.oy - 3 * STEP - 4 : cy - (b.h + 36) * s - 3 * STEP)
     }
-    return t
+    return { x0, x1, top, bottom }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city.placed, rot, G])
-  const vbW = half * 2
+  }, [cases, candidats, city.placed])
+  const { x0, x1, top, bottom } = boite
+  const vbW = x1 - x0
   const vbH = bottom - top
+  const cxV = (x0 + x1) / 2
+  const cyV = (top + bottom) / 2
+  // taille réelle de la carte à l'écran : la zone visible (en unités) peut dépasser le viewBox (plein écran)
+  const [ecran, setEcran] = useState<{ w: number; h: number } | null>(null)
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el || typeof ResizeObserver === 'undefined') return
+    const ro = new ResizeObserver(() => {
+      const r = el.getBoundingClientRect()
+      if (r.width && r.height) setEcran({ w: r.width, h: r.height })
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+  const kVue = ecran ? Math.min(ecran.w / vbW, ecran.h / vbH) : 1
+  const visW = ecran ? ecran.w / kVue : vbW
+  const visH = ecran ? ecran.h / kVue : vbH
 
   // ---------- caméra ----------
-  // zoom : de la vue d'ensemble jusqu'au très gros plan
   const clampS = (s: number) => Math.min(14, Math.max(0.5, s))
-  const zoomBy = (k: number, cx = 0, cy = (top + bottom) / 2) =>
+  const zoomBy = (k: number, cx = cxV, cy = cyV) =>
     setCam((c) => {
       const s = clampS(c.s * k)
-      // garde le point (cx, cy) fixe à l'écran
       const r = s / c.s
       return { s, x: cx - (cx - c.x) * r, y: cy - (cy - c.y) * r }
     })
@@ -104,13 +119,17 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
     const el = svgRef.current
     if (!el) return [0, 0]
     const r = el.getBoundingClientRect()
-    return [-half + ((clientX - r.left) / r.width) * vbW, top + ((clientY - r.top) / r.height) * vbH]
+    // preserveAspectRatio « meet » : le viewBox est centré dans l'élément
+    const k = Math.min(r.width / vbW, r.height / vbH)
+    const ox = (r.width - vbW * k) / 2, oy = (r.height - vbH * k) / 2
+    return [x0 + (clientX - r.left - ox) / k, top + (clientY - r.top - oy) / k]
   }
   const unitsPerPx = () => {
     const el = svgRef.current
-    return el ? vbW / el.getBoundingClientRect().width : 1
+    if (!el) return 1
+    const r = el.getBoundingClientRect()
+    return 1 / Math.min(r.width / vbW, r.height / vbH)
   }
-
   const onPointerDown = (e: React.PointerEvent) => {
     pointers.current.set(e.pointerId, [e.clientX, e.clientY])
     if (pointers.current.size === 1) gesture.current.moved = false
@@ -159,68 +178,38 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
     fn()
   }
 
-  // ---------- partie visible (on ne dessine que ce qui est à l'écran) ----------
+  // ---------- partie visible ----------
   const vue = {
-    x0: (-half - cam.x) / cam.s - TW,
-    x1: (half - cam.x) / cam.s + TW,
-    y0: (top - cam.y) / cam.s - TH * 2,
-    y1: (bottom - cam.y) / cam.s + TH * 2,
+    a: (cxV - visW / 2 - cam.x) / cam.s - TW,
+    b: (cxV + visW / 2 - cam.x) / cam.s + TW,
+    c: (cyV - visH / 2 - cam.y) / cam.s - TH * 2,
+    d: (cyV + visH / 2 - cam.y) / cam.s + TH * 6,
   }
-  const visible = (x: number, y: number, marge = 0) => x >= vue.x0 - marge && x <= vue.x1 + marge && y >= vue.y0 - marge && y <= vue.y1 + marge
+  const visible = (x: number, y: number) => x >= vue.a && x <= vue.b && y >= vue.c && y <= vue.d
   const hd = cam.s >= 2.2
   const solUrl = (nom: string) => `${import.meta.env.BASE_URL}img/ville/sol/${hd ? 'hd/' : ''}${nom}.webp`
-  const image = (nom: string, cx: number, cy: number, key: string) => {
+  const image = (nom: string, cx: number, cy: number) => {
     const sp = SOLS[nom]
-    return <image key={key} href={solUrl(nom)} x={cx - sp.ox} y={cy - sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" />
+    if (!sp) return null
+    return <image href={solUrl(nom)} x={cx - sp.ox} y={cy - sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" />
   }
-
-  // ---------- sol d'une case ----------
-  const drawGround = (x: number, y: number): ReactNode => {
-    const id = groundAt(x, y)!
-    const [vx, vy] = toView(x, y)
-    const [cx, cy0] = proj(vx, vy)
-    if (!visible(cx, cy0, TW)) return null
-    const e = elev(x, y)
-    const cy = cy0 - e * STEP
+  /** Faces avant (vers +u et +v) d'un élément plat centré en (u, v), de demi-étendues (hu, hv), élevé de L px */
+  const faces = (u: number, v: number, hu: number, hv: number, L: number, hU: number, hV: number, key: string) => {
     const out: ReactNode[] = []
-    // flancs du relief : jusqu'au niveau de la rue voisine (min des deux cases)
-    const avant = (dx: number, dy: number) => {
-      // voisin devant dans la vue
-      for (const [nx, ny] of [[x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]] as P[]) {
-        const [wx, wy] = toView(nx, ny)
-        if (wx - vx === dx && wy - vy === dy) return Math.min(e, elev(nx, ny))
-      }
-      return 0
+    const pt = (a: number, b: number, dz: number) => {
+      const [sx, sy] = projC(a, b)
+      return `${sx},${sy - L + dz}`
     }
-    const hG = (e - avant(0, 1)) * STEP // face avant gauche (vers +vy)
-    const hD = (e - avant(1, 0)) * STEP // face avant droite (vers +vx)
-    if (hG > 0)
-      out.push(<polygon key="l" points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx},${cy + TH / 2 + hG} ${cx - TW / 2},${cy + hG}`} fill="#a9744a" stroke="#7d5232" strokeWidth={0.8} />)
-    if (hD > 0)
-      out.push(<polygon key="r" points={`${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx + TW / 2},${cy + hD} ${cx},${cy + TH / 2 + hD}`} fill="#c08a5b" stroke="#7d5232" strokeWidth={0.8} />)
-    const nom = id === 'herbe' ? ((x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe') : SOLS[id] ? id : 'herbe'
-    out.push(image(nom, cx, cy, 'g'))
-    if (valid?.has(`${x},${y}`)) {
-      out.push(
-        <polygon
-          key="v"
-          points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`}
-          fill="#ffffff"
-          fillOpacity={0.45}
-          stroke="#5b6cff"
-          strokeWidth={1.4}
-          strokeDasharray="3 2"
-        />,
-      )
-    }
-    return (
-      <g key={`t${x},${y}`} onClick={tap(onTile ? () => onTile(x, y) : undefined)} style={{ cursor: onTile ? 'pointer' : undefined }}>
-        {out}
-      </g>
-    )
+    if (hV > 0)
+      out.push(<polygon key={`${key}fv`} points={[pt(u - hu, v + hv, 0), pt(u + hu, v + hv, 0), pt(u + hu, v + hv, hV), pt(u - hu, v + hv, hV)].join(' ')} fill={ROCHE_G} stroke={ROCHE_TRAIT} strokeWidth={0.5} />)
+    if (hU > 0)
+      out.push(<polygon key={`${key}fu`} points={[pt(u + hu, v - hv, 0), pt(u + hu, v + hv, 0), pt(u + hu, v + hv, hU), pt(u + hu, v - hv, hU)].join(' ')} fill={ROCHE_D} stroke={ROCHE_TRAIT} strokeWidth={0.5} />)
+    return out
   }
 
-  // ---------- rues pavées entre les cases (et eau entre deux cases d'eau) ----------
+  // ---------- éléments du sol : cases, chemins, carrefours ----------
+  type Elt = { k: number; node: ReactNode }
+  const sol: Elt[] = []
   const occupant = useMemo(() => {
     const m = new Map<string, string>()
     for (const p of city.placed) {
@@ -230,93 +219,164 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
     }
     return m
   }, [city.placed])
-  const rues: ReactNode[] = []
-  {
-    const meme = (cases: P[]) => {
-      const u = cases.map(([x, y]) => (inside(x, y) ? occupant.get(`${x},${y}`) : undefined))
-      return u[0] !== undefined && u.every((v) => v === u[0])
-    }
-    const eau = (cases: P[]) => cases.every(([x, y]) => groundAt(x, y) === 'eau')
-    const niveau = (cases: P[]) => Math.min(...cases.map(([x, y]) => elev(x, y)))
-    const poser = (nom: string, u: number, v: number, cases: P[], key: string) => {
-      const [cx, cy] = projC(u, v)
-      if (!visible(cx, cy, TW) || meme(cases)) return
-      const L = niveau(cases) * STEP
-      if (eau(cases)) {
-        // demi-étendues de la bande, en cases
-        const w = nom === 'route-x' ? [0.5, RUE / 2] : nom === 'route-y' ? [RUE / 2, 0.5] : [RUE / 2, RUE / 2]
-        const c = (a: number, b: number) => projC(u + a, v + b).map((q, i) => (i ? q - L : q)).join(',')
-        rues.push(<polygon key={key} points={[c(-w[0], -w[1]), c(w[0], -w[1]), c(w[0], w[1]), c(-w[0], w[1])].join(' ')} fill={EAU} />)
-        return
-      }
-      rues.push(image(nom, cx, cy - L, key))
-    }
-    // vue tournée : on travaille en coordonnées de vue (rot = 0 aujourd'hui)
-    for (let vy = 0; vy < G; vy++)
-      for (let vx = -1; vx < G; vx++) poser('route-y', vx * F + F / 2, vy * F, [[vx, vy], [vx + 1, vy]], `ry${vx},${vy}`)
-    for (let vx = 0; vx < G; vx++)
-      for (let vy = -1; vy < G; vy++) poser('route-x', vx * F, vy * F + F / 2, [[vx, vy], [vx, vy + 1]], `rx${vx},${vy}`)
-    for (let vx = -1; vx < G; vx++)
-      for (let vy = -1; vy < G; vy++)
-        poser('carrefour', vx * F + F / 2, vy * F + F / 2, [[vx, vy], [vx + 1, vy], [vx, vy + 1], [vx + 1, vy + 1]], `rc${vx},${vy}`)
+  /** Deux cases du même grand bâtiment : le chemin entre elles est recouvert par son rendu */
+  const memeBatiment = (cells: P[]) => {
+    const u = cells.map(([x, y]) => occupant.get(`${x},${y}`))
+    return u[0] !== undefined && u.every((v) => v === u[0])
+  }
+  const niveau = (cells: P[]) => Math.min(...cells.map(([x, y]) => elev(x, y)))
+  const existeSeg = (cells: P[]) => cells.some(([x, y]) => isLand(x, y))
+
+  // chemins (segments) : "v:x,y" entre (x,y) et (x+1,y) ; "h:x,y" entre (x,y) et (x,y+1)
+  const segInfo = (cle: string): { cells: P[]; existe: boolean; L: number; type: string } => {
+    const [t, rest] = cle.split(':')
+    const [x, y] = rest.split(',').map(Number)
+    const cells: P[] = t === 'v' ? [[x, y], [x + 1, y]] : [[x, y], [x, y + 1]]
+    return { cells, existe: existeSeg(cells), L: niveau(cells), type: cheminOf(city, cle) }
+  }
+  const segs = new Set<string>()
+  const croix = new Set<string>()
+  for (const [x, y] of cases) {
+    for (const k of [`v:${x},${y}`, `v:${x - 1},${y}`, `h:${x},${y}`, `h:${x},${y - 1}`]) segs.add(k)
+    for (const [dx, dy] of [[0, 0], [-1, 0], [0, -1], [-1, -1]] as P[]) croix.add(`${x + dx},${y + dy}`)
+  }
+  for (const cle of segs) {
+    const { cells, L, type } = segInfo(cle)
+    const [t, rest] = cle.split(':')
+    const [x, y] = rest.split(',').map(Number)
+    const u = t === 'v' ? x * F + F / 2 : x * F
+    const v = t === 'v' ? y * F : y * F + F / 2
+    const [cx, cy] = projC(u, v)
+    if (!visible(cx, cy) || memeBatiment(cells)) continue
+    const Lpx = L * STEP
+    // devant : la case suivante (+u pour v, +v pour h) et le carrefour (+v pour v, +u pour h)
+    const caseDevant: P = t === 'v' ? [x + 1, y] : [x, y + 1]
+    const devantCase = isLand(...caseDevant) ? Math.max(0, L - elev(...caseDevant)) * STEP : Lpx + SOCLE
+    const cr: P[] = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]
+    const devantCroix = Math.max(0, L - niveau(cr)) * STEP
+    const [hu, hv] = t === 'v' ? [RUE / 2, 0.5] : [0.5, RUE / 2]
+    const hU = t === 'v' ? devantCase : devantCroix
+    const hV = t === 'v' ? devantCroix : devantCase
+    const nom = `${t === 'v' ? 'route-y' : 'route-x'}-${type}`
+    sol.push({
+      k: u + v,
+      node: (
+        <g key={`s${cle}`} onClick={tap(onPath ? () => onPath(cle) : undefined)} style={{ cursor: onPath ? 'pointer' : undefined }}>
+          {faces(u, v, hu, hv, Lpx, hU, hV, cle)}
+          {image(nom, cx, cy - Lpx)}
+          {onPath && <polygon points={[projC(u - hu, v - hv), projC(u + hu, v - hv), projC(u + hu, v + hv), projC(u - hu, v + hv)].map(([a, b]) => `${a},${b - Lpx}`).join(' ')} fill="#ffffff" fillOpacity={0.18} stroke="#5b6cff" strokeWidth={0.6} strokeDasharray="2 2" />}
+        </g>
+      ),
+    })
+  }
+  for (const k of croix) {
+    const [x, y] = k.split(',').map(Number)
+    const cells: P[] = [[x, y], [x + 1, y], [x, y + 1], [x + 1, y + 1]]
+    const u = x * F + F / 2
+    const v = y * F + F / 2
+    const [cx, cy] = projC(u, v)
+    if (!visible(cx, cy) || memeBatiment(cells)) continue
+    // type : celui des chemins voisins s'ils sont tous pareils, sinon pavés
+    const voisins = [`v:${x},${y}`, `v:${x},${y + 1}`, `h:${x},${y}`, `h:${x + 1},${y}`].map(segInfo).filter((s) => s.existe).map((s) => s.type)
+    const type = voisins.length && voisins.every((t) => t === voisins[0]) ? voisins[0] : 'paves'
+    const L = niveau(cells)
+    const Lpx = L * STEP
+    const segU = segInfo(`h:${x + 1},${y}`)
+    const segV = segInfo(`v:${x},${y + 1}`)
+    const hU = segU.existe ? Math.max(0, L - segU.L) * STEP : Lpx + SOCLE
+    const hV = segV.existe ? Math.max(0, L - segV.L) * STEP : Lpx + SOCLE
+    sol.push({
+      k: u + v,
+      node: (
+        <g key={`c${k}`}>
+          {faces(u, v, RUE / 2, RUE / 2, Lpx, hU, hV, `c${k}`)}
+          {image(`carrefour-${type}`, cx, cy - Lpx)}
+        </g>
+      ),
+    })
+  }
+  // cases de l'île (herbe) + parois rocheuses quand elles dominent le chemin voisin
+  for (const [x, y] of cases) {
+    const u = x * F, v = y * F
+    const [cx, cy0] = projC(u, v)
+    if (!visible(cx, cy0)) continue
+    const e = elev(x, y)
+    const cy = cy0 - e * STEP
+    const hD = e - Math.min(e, elev(x + 1, y)) // face droite (vers +x)
+    const hG = e - Math.min(e, elev(x, y + 1)) // face gauche (vers +y)
+    const herbe = (x * 7 + y * 13) % 3 === 0 ? 'herbe2' : 'herbe'
+    sol.push({
+      k: u + v,
+      node: (
+        <g key={`t${x},${y}`} onClick={tap(onTile ? () => onTile(x, y) : undefined)} style={{ cursor: onTile ? 'pointer' : undefined }}>
+          {hG > 0 && image(`falaise-g-${Math.min(3, hG)}`, cx, cy)}
+          {hD > 0 && image(`falaise-d-${Math.min(3, hD)}`, cx, cy)}
+          {image(herbe, cx, cy)}
+          {valid?.has(`${x},${y}`) && (
+            <polygon
+              points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`}
+              fill="#ffffff"
+              fillOpacity={0.45}
+              stroke="#5b6cff"
+              strokeWidth={1.4}
+              strokeDasharray="3 2"
+            />
+          )}
+        </g>
+      ),
+    })
+  }
+  // emplacements où l'on peut ajouter une case
+  for (const k of candidats) {
+    const [x, y] = k.split(',').map(Number)
+    const [cx, cy] = projC(x * F, y * F)
+    if (!visible(cx, cy)) continue
+    sol.push({
+      k: (x + y) * F + 0.001,
+      node: (
+        <g key={`a${k}`} onClick={tap(onAddCase ? () => onAddCase(x, y) : undefined)} style={{ cursor: 'pointer' }}>
+          <polygon points={`${cx - TW / 2},${cy} ${cx},${cy + TH / 2} ${cx + TW / 2},${cy} ${cx},${cy - TH / 2}`} fill="#7ed957" fillOpacity={0.25} stroke="#ffffff" strokeWidth={1.2} strokeDasharray="3 2" />
+          <text x={cx} y={cy + 4} textAnchor="middle" fontSize={12} fontWeight={800} fill="#ffffff">+</text>
+        </g>
+      ),
+    })
   }
 
-  // ---------- bâtiments : position, profondeur, ordre ----------
+  // ---------- bâtiments ----------
   const items = useMemo(() => {
     return city.placed
       .map((p) => {
         const b = buildingById(p.id)
         if (!b) return null
         const s = sizeOf(b)
-        const corners = [toView(p.x, p.y), toView(p.x + s - 1, p.y + s - 1)]
-        const vx = Math.min(corners[0][0], corners[1][0])
-        const vy = Math.min(corners[0][1], corners[1][1])
         let e = 0
         for (let dy = 0; dy < s; dy++) for (let dx = 0; dx < s; dx++) e = Math.max(e, elev(p.x + dx, p.y + dy))
-        return { p, b, s, vx, vy, e, depth: vx + vy + 2 * (s - 1) }
+        return { p, b, s, vx: p.x, vy: p.y, e, depth: (p.x + p.y + 2 * (s - 1)) * F }
       })
       .filter((v): v is NonNullable<typeof v> => v !== null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [city.placed, city.elevation, rot, G])
+  }, [city.placed, city.elevation, land])
+  /** Demi-largeur (en cases) de l'emprise d'un bâtiment de s cases, chemins internes compris */
+  const emp = (s: number) => ((s - 1) * F + 1) / 2
 
-  /** A doit être dessiné avant B s'il est derrière lui sur un axe où leurs emprises se recouvrent */
-  type Item = (typeof items)[number]
-  const behind = (a: Item, b: Item) => {
-    const overlapX = a.vx < b.vx + b.s && b.vx < a.vx + a.s
-    const overlapY = a.vy < b.vy + b.s && b.vy < a.vy + a.s
-    return (a.vx + a.s <= b.vx && overlapY) || (a.vy + a.s <= b.vy && overlapX)
-  }
-  const ordered = useMemo(() => {
-    // tri topologique simple (peu d'éléments)
-    const rest = [...items].sort((a, b) => a.depth - b.depth)
-    const out: Item[] = []
-    while (rest.length) {
-      const i = rest.findIndex((a) => !rest.some((b) => b !== a && behind(b, a)))
-      out.push(...rest.splice(i === -1 ? 0 : i, 1))
-    }
-    return out
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [items])
-
-  // ---------- cadrage de départ : la partie construite de la ville (ou toute l'île si elle est vide) ----------
+  // cadrage de départ : la partie construite (ou toute l'île si elle est vide)
   const cadrer = () => {
     if (!items.length) return { s: 1, x: 0, y: 0 }
-    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity
+    let a = Infinity, b = -Infinity, c = Infinity, d = -Infinity
     for (const it of items) {
-      const [cx, cy0] = proj(it.vx + (it.s - 1) / 2, it.vy + (it.s - 1) / 2)
+      const [cx, cy0] = projC((it.vx + (it.s - 1) / 2) * F, (it.vy + (it.s - 1) / 2) * F)
       const cy = cy0 - it.e * STEP
       const sp = SPRITES[it.b.id]
       const w = sp ? sp.w : TW * it.s, h = sp ? sp.h : 60 * it.s
       const ox = sp ? sp.ox : w / 2, oy = sp ? sp.oy : h - TH
-      x0 = Math.min(x0, cx - ox); x1 = Math.max(x1, cx - ox + w)
-      y0 = Math.min(y0, cy - oy); y1 = Math.max(y1, cy - oy + h)
+      a = Math.min(a, cx - ox); b = Math.max(b, cx - ox + w)
+      c = Math.min(c, cy - oy); d = Math.max(d, cy - oy + h)
     }
-    // marge d'environ une case autour, et au moins 3 × 3 cases de champ
     const m = TW * F
-    const bw = Math.max(x1 - x0 + 2 * m, 3 * TW * F), bh = Math.max(y1 - y0 + 2 * m, 3 * TH * F)
-    const sc = clampS(Math.min(vbW / bw, vbH / bh))
-    const mx = (x0 + x1) / 2, my = (y0 + y1) / 2
-    return { s: sc, x: -mx * sc, y: (top + bottom) / 2 - my * sc }
+    const bw = Math.max(b - a + 2 * m, 3 * TW * F), bh = Math.max(d - c + 2 * m, 3 * TH * F)
+    const sc = clampS(Math.min(visW / bw, visH / bh))
+    const mx = (a + b) / 2, my = (c + d) / 2
+    return { s: sc, x: cxV - mx * sc, y: cyV - my * sc }
   }
   const dejaCadre = useRef(false)
   useLayoutEffect(() => {
@@ -325,31 +385,29 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
     setCam(cadrer())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
-
-  // ---------- rendu par diagonales : sol puis bâtiments de chaque diagonale ----------
-  /** Demi-largeur (en cases) de l'emprise d'un bâtiment de s cases, rues internes comprises */
-  const emp = (s: number) => ((s - 1) * F + 1) / 2
-  const layers: ReactNode[] = []
-  const tilesByDepth = new Map<number, P[]>()
-  for (let y = 0; y < G; y++)
-    for (let x = 0; x < G; x++) {
-      const [vx, vy] = toView(x, y)
-      const d = vx + vy
-      if (!tilesByDepth.has(d)) tilesByDepth.set(d, [])
-      tilesByDepth.get(d)!.push([x, y])
-    }
-  const buildingsByDepth = new Map<number, Item[]>()
-  for (const it of ordered) {
-    if (!buildingsByDepth.has(it.depth)) buildingsByDepth.set(it.depth, [])
-    buildingsByDepth.get(it.depth)!.push(it)
+  // en passant en plein écran (ou en le quittant), on recadre dès que la nouvelle taille est connue
+  const pleinPrec = useRef(plein)
+  const aRecadrer = useRef(true) // aussi au premier affichage, une fois la taille réelle mesurée
+  if (pleinPrec.current !== plein) {
+    pleinPrec.current = plein
+    aRecadrer.current = true
   }
-  for (let d = 0; d <= 2 * G - 2; d++) {
-    for (const [x, y] of tilesByDepth.get(d) ?? []) layers.push(drawGround(x, y))
-    for (const it of buildingsByDepth.get(d) ?? []) {
-      const [cx, cy] = proj(it.vx + (it.s - 1) / 2, it.vy + (it.s - 1) / 2)
-      const isSel = it.p.uid === selected
-      const moving = it.p.uid === movingUid
-      layers.push(
+  useEffect(() => {
+    if (!ecran || !aRecadrer.current) return
+    aRecadrer.current = false
+    setCam(cadrer())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ecran])
+
+  const bats: Elt[] = items.map((it) => {
+    const [cx, cy] = projC((it.vx + (it.s - 1) / 2) * F, (it.vy + (it.s - 1) / 2) * F)
+    const isSel = it.p.uid === selected
+    const moving = it.p.uid === movingUid
+    const sp = SPRITES[it.b.id]
+    const contour = `${-TW * emp(it.s)},0 0,${TH * emp(it.s)} ${TW * emp(it.s)},0 0,${-TH * emp(it.s)}`
+    return {
+      k: it.depth + 0.0005,
+      node: (
         <g
           key={it.p.uid}
           transform={`translate(${cx} ${cy - it.e * STEP})`}
@@ -361,53 +419,33 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
             transition: 'opacity 0.2s',
           }}
         >
-          {SPRITES[it.b.id] ? (
+          {sp ? (
             <>
-              <image
-                href={spriteUrl(it.b.id, it.p.flip !== (rot % 2 === 1), hd ? 'hd' : 'normal')}
-                x={-SPRITES[it.b.id].ox}
-                y={-SPRITES[it.b.id].oy}
-                width={SPRITES[it.b.id].w}
-                height={SPRITES[it.b.id].h}
-                preserveAspectRatio="none"
-              />
-              {isSel && (
-                <polygon
-                  points={`${-TW * emp(it.s)},0 0,${TH * emp(it.s)} ${TW * emp(it.s)},0 0,${-TH * emp(it.s)}`}
-                  fill="#ffe066"
-                  fillOpacity={0.28}
-                  stroke="#f2994a"
-                  strokeWidth={2 / Math.sqrt(cam.s)}
-                  style={{ pointerEvents: 'none' }}
-                />
-              )}
+              <image href={spriteUrl(it.b.id, it.p.flip, hd ? 'hd' : 'normal')} x={-sp.ox} y={-sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" />
+              {isSel && <polygon points={contour} fill="#ffe066" fillOpacity={0.28} stroke="#f2994a" strokeWidth={2 / Math.sqrt(cam.s)} style={{ pointerEvents: 'none' }} />}
             </>
           ) : (
             <>
-              {isSel && (
-                <polygon
-                  points={`${-TW * emp(it.s)},0 0,${TH * emp(it.s)} ${TW * emp(it.s)},0 0,${-TH * emp(it.s)}`}
-                  fill="#ffe066"
-                  stroke="#f2994a"
-                  strokeWidth={2}
-                />
-              )}
+              {isSel && <polygon points={contour} fill="#ffe066" stroke="#f2994a" strokeWidth={2} />}
               <g transform={it.s > 1 ? `scale(${it.s})` : undefined}>
-                <BuildingSprite b={it.b} flip={it.p.flip !== (rot % 2 === 1)} />
+                <BuildingSprite b={it.b} flip={it.p.flip} />
               </g>
             </>
           )}
-        </g>,
-      )
+        </g>
+      ),
     }
-  }
+  })
+
+  // ordre d'affichage : du fond vers l'avant (sol d'abord à profondeur égale)
+  const tout = [...sol, ...bats].sort((a, b) => a.k - b.k)
 
   return (
-    <div className={`city-map ${className ?? ''}`}>
+    <div className={`city-map ${plein ? 'plein' : ''} ${className ?? ''}`}>
       <svg
         ref={svgRef}
         className="city-svg"
-        viewBox={`${-half} ${top} ${vbW} ${vbH}`}
+        viewBox={`${x0} ${top} ${vbW} ${vbH}`}
         role="img"
         aria-label="Ta ville"
         onPointerDown={readOnly ? undefined : onPointerDown}
@@ -418,20 +456,15 @@ export function CityMap({ city, readOnly, onTile, onBuilding, selected, valid, g
         onWheel={readOnly ? undefined : onWheel}
         style={{ touchAction: readOnly ? 'auto' : 'none' }}
       >
-        <rect x={-half} y={top} width={vbW} height={vbH} fill="transparent" />
-        <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
-          {/* socle de terre sous l'île */}
-          <polygon points={`${projC(lo, hi).join(',')} ${projC(hi, hi).join(',')} ${projC(hi, hi)[0]},${projC(hi, hi)[1] + 12} ${projC(lo, hi)[0]},${projC(lo, hi)[1] + 12}`} fill="#b07a4a" />
-          <polygon points={`${projC(hi, hi).join(',')} ${projC(hi, lo).join(',')} ${projC(hi, lo)[0]},${projC(hi, lo)[1] + 12} ${projC(hi, hi)[0]},${projC(hi, hi)[1] + 12}`} fill={shade('#b07a4a', -0.2)} />
-          {rues}
-          {layers}
-        </g>
+        <rect x={x0} y={top} width={vbW} height={vbH} fill="transparent" />
+        <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>{tout.map((e) => e.node)}</g>
       </svg>
       {!readOnly && (
         <div className="map-controls">
           <button type="button" className="round" aria-label="Recentrer" onClick={() => setCam(cadrer())}>
             ⌖
           </button>
+          {controle}
         </div>
       )}
     </div>

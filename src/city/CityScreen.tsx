@@ -5,13 +5,13 @@ import {
   chestPack,
   chestReadyAt,
   fragmentsNeeded,
-  gridOf,
-  growIsland,
+  addCase,
   isFragmented,
-  MAX_GRID,
+  landOf,
   move,
   paint,
   place,
+  removeCase,
   rotate,
   sculpt,
   store,
@@ -39,6 +39,7 @@ type Mode =
   | { type: 'move'; uid: string }
   | { type: 'paint'; ground: string }
   | { type: 'relief'; delta: 1 | -1 }
+  | { type: 'terrain'; action: 'ajouter' | 'enlever' }
 
 export function useNow(every = 30000) {
   const [now, setNow] = useState(() => Date.now())
@@ -62,9 +63,21 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const [shop, setShop] = useState(false)
   /** Sens du bâtiment en cours de pose (tourné vers la gauche ou la droite) */
   const [placeFlip, setPlaceFlip] = useState(false)
+  /** Ville en plein écran */
+  const [plein, setPlein] = useState(false)
+  useEffect(() => {
+    if (!plein) return
+    const h = (e: KeyboardEvent) => e.key === 'Escape' && setPlein(false)
+    window.addEventListener('keydown', h)
+    document.body.classList.add('sans-defilement')
+    return () => {
+      window.removeEventListener('keydown', h)
+      document.body.classList.remove('sans-defilement')
+    }
+  }, [plein])
   const now = useNow()
 
-  const grid = gridOf(city)
+  const land = useMemo(() => landOf(city), [city])
   const chestAt = chestReadyAt(city)
   const chestReady = now >= chestAt
   const inventory = Object.entries(city.inventory).filter(([, n]) => n > 0)
@@ -72,7 +85,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const selectedB = selectedP ? buildingById(selectedP.id) : undefined
   const grounds = unlockedGrounds(city)
   const fragments = BUILDINGS.filter((b) => isFragmented(b) && (city.fragments[b.id] ?? 0) > 0)
-  const editingGround = mode.type === 'paint' || mode.type === 'relief'
+  const editingGround = mode.type === 'paint' || mode.type === 'relief' || mode.type === 'terrain'
 
   /** Cases où l'on peut poser / déplacer le bâtiment en cours (coin du haut de son emprise) */
   const valid = useMemo(() => {
@@ -80,13 +93,20 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
     const id = mode.type === 'place' ? mode.id : mode.type === 'move' ? city.placed.find((p) => p.uid === mode.uid)?.id : undefined
     if (!id) return set
     const except = mode.type === 'move' ? mode.uid : undefined
-    for (let y = 0; y < grid; y++) for (let x = 0; x < grid; x++) if (canPlace(city, id, x, y, except)) set.add(`${x},${y}`)
+    for (const k of land) {
+      const [x, y] = k.split(',').map(Number)
+      if (canPlace(city, id, x, y, except)) set.add(k)
+    }
     return set
-  }, [mode, city, grid])
+  }, [mode, city, land])
 
   const onTile = (x: number, y: number) => {
-    if (mode.type === 'paint') return onCity((c) => paint(c, x, y, mode.ground))
+    if (mode.type === 'paint') return
     if (mode.type === 'relief') return onCity((c) => sculpt(c, x, y, mode.delta))
+    if (mode.type === 'terrain') {
+      if (mode.action === 'enlever') onCity((c) => removeCase(c, x, y))
+      return
+    }
     if (mode.type === 'place') {
       if (!valid.has(`${x},${y}`)) return
       onCity((c) => place(c, mode.id, x, y, placeFlip) ?? c)
@@ -141,23 +161,15 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
 
       <section className="card city-card">
         <div className="city-tools">
-          <button type="button" className={`chip ${mode.type === 'paint' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'paint', ground: 'eau' })}>
-            🖌️ Sol
+          <button type="button" className={`chip ${mode.type === 'paint' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'paint', ground: 'terre' })}>
+            🖌️ Chemins
           </button>
           <button type="button" className={`chip ${mode.type === 'relief' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'relief', delta: 1 })}>
             ⛰️ Relief
           </button>
-          {!editingGround && (
-            <button
-              type="button"
-              className="chip"
-              disabled={grid >= MAX_GRID}
-              onClick={() => onCity((c) => growIsland(c))}
-              title="Ajoute une rangée de cases de chaque côté"
-            >
-              ➕ Agrandir l'île
-            </button>
-          )}
+          <button type="button" className={`chip ${mode.type === 'terrain' ? 'on' : ''}`} onClick={() => toggleTool({ type: 'terrain', action: 'ajouter' })}>
+            🏝️ Terrain
+          </button>
           {editingGround && (
             <button type="button" className="btn small" onClick={() => setMode({ type: 'idle' })}>
               Terminer
@@ -186,7 +198,25 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
               })}
             </div>
             <p className="muted small-text">
-              Touche les cases à peindre. Les rues pavées se tracent toutes seules entre les cases. « Herbe » efface.
+              Touche les chemins entre les cases pour les peindre (pavés par défaut). Les carrefours prennent la texture des chemins qui s'y rejoignent.
+            </p>
+          </>
+        )}
+
+        {mode.type === 'terrain' && (
+          <>
+            <div className="seg wide relief-seg">
+              <button type="button" className={mode.action === 'ajouter' ? 'on' : ''} onClick={() => setMode({ type: 'terrain', action: 'ajouter' })}>
+                ➕ Ajouter
+              </button>
+              <button type="button" className={mode.action === 'enlever' ? 'on' : ''} onClick={() => setMode({ type: 'terrain', action: 'enlever' })}>
+                ➖ Enlever
+              </button>
+            </div>
+            <p className="muted small-text">
+              {mode.action === 'ajouter'
+                ? "Touche un « + » au bord de l'île pour y ajouter une case : ton île peut prendre la forme que tu veux."
+                : "Touche une case vide pour l'enlever de l'île (pas sous un bâtiment)."}
             </p>
           </>
         )}
@@ -230,10 +260,18 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           city={city}
           onTile={onTile}
           onBuilding={(uid) => setSelected(selected === uid ? null : uid)}
+          onPath={mode.type === 'paint' ? (k) => onCity((c) => paint(c, k, mode.ground)) : undefined}
+          onAddCase={mode.type === 'terrain' && mode.action === 'ajouter' ? (x, y) => onCity((c) => addCase(c, x, y)) : undefined}
           selected={selected}
           valid={mode.type === 'place' || mode.type === 'move' ? valid : undefined}
           ghost={editingGround}
           movingUid={mode.type === 'move' ? mode.uid : null}
+          plein={plein}
+          controle={
+            <button type="button" className="round" aria-label={plein ? 'Quitter le plein écran' : 'Plein écran'} onClick={() => setPlein((v) => !v)}>
+              {plein ? '✕' : '⛶'}
+            </button>
+          }
         />
         {city.placed.length === 0 && mode.type === 'idle' && (
           <p className="muted small-text center">Ta ville est vide : ouvre tes packs puis pose tes bâtiments depuis l'inventaire.</p>
@@ -323,7 +361,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
             })}
           </div>
         )}
-        <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser. Pas de construction sur l'eau ; un grand bâtiment demande des cases à la même hauteur.</p>
+        <p className="muted small-text">Touche un bâtiment puis une case en surbrillance pour le poser. Un grand bâtiment demande des cases à la même hauteur.</p>
       </section>
 
       {fragments.length > 0 && (

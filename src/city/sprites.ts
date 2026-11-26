@@ -230,6 +230,54 @@ export const SPRITES: Record<string, Sprite> = {
 
 /** Sols des cases (herbe, eau…) et rues pavées entre les cases (route-x, route-y, carrefour) */
 export const SOLS: Record<string, Sprite> = {
+  "carrefour-eau": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-fleurs": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-herbe": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-neige": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-paves": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-planches": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-sable": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
+  "carrefour-terre": {
+    "w": 10.84,
+    "h": 8.44,
+    "ox": 5.42,
+    "oy": 3.81
+  },
   "carrefour": {
     "w": 10.84,
     "h": 8.44,
@@ -241,6 +289,42 @@ export const SOLS: Record<string, Sprite> = {
     "h": 23.99,
     "ox": 21.43,
     "oy": 12.41
+  },
+  "falaise-d-1": {
+    "w": 42.85,
+    "h": 31.87,
+    "ox": 21.43,
+    "oy": 11.82
+  },
+  "falaise-d-2": {
+    "w": 42.85,
+    "h": 38.84,
+    "ox": 21.43,
+    "oy": 11.81
+  },
+  "falaise-d-3": {
+    "w": 42.85,
+    "h": 45.87,
+    "ox": 21.43,
+    "oy": 11.82
+  },
+  "falaise-g-1": {
+    "w": 42.85,
+    "h": 31.87,
+    "ox": 21.43,
+    "oy": 11.82
+  },
+  "falaise-g-2": {
+    "w": 42.85,
+    "h": 38.84,
+    "ox": 21.43,
+    "oy": 11.81
+  },
+  "falaise-g-3": {
+    "w": 42.85,
+    "h": 45.87,
+    "ox": 21.43,
+    "oy": 11.82
   },
   "fleurs": {
     "w": 42.85,
@@ -278,7 +362,103 @@ export const SOLS: Record<string, Sprite> = {
     "ox": 21.43,
     "oy": 12.41
   },
+  "route-x-eau": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-fleurs": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-herbe": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-neige": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-paves": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-planches": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-sable": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-x-terre": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
   "route-x": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-eau": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-fleurs": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-herbe": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-neige": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-paves": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-planches": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-sable": {
+    "w": 26.82,
+    "h": 16.45,
+    "ox": 13.41,
+    "oy": 7.82
+  },
+  "route-y-terre": {
     "w": 26.82,
     "h": 16.45,
     "ox": 13.41,
