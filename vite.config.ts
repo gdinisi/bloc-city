@@ -16,7 +16,7 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            urlPattern: /\/img\/ville\//,
+            urlPattern: /\/img\/ville(-nuit)?\//,
             handler: 'CacheFirst',
             options: { cacheName: 'ville-img', expiration: { maxEntries: 1500 } },
           },

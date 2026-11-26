@@ -9,6 +9,13 @@ import sharp from 'sharp'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import crypto from 'node:crypto'
+
+const empreinte = (...fichiers) => {
+  const h = crypto.createHash('md5')
+  for (const f of fichiers) if (fs.existsSync(f)) h.update(fs.readFileSync(f))
+  return h.digest('hex').slice(0, 8)
+}
 
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const SRC = path.join(HERE, 'out-nuit', 'batiments')
@@ -17,7 +24,7 @@ const PUB = path.join(HERE, '..', 'public', 'img', 'ville-nuit')
 for (const d of ['', 'hd', 'sol', 'sol/hd']) fs.mkdirSync(path.join(PUB, d), { recursive: true })
 const TW = 40, ROUTE = 0.6, PX_CASE = 300, PX_CASE_HD = 900
 
-const bats = []
+const bats = {}
 const lum = {}
 for (const f of fs.readdirSync(SRC).filter((f) => /-[gd]\.png$/.test(f))) {
   const nom = f.replace(/\.png$/, '')
@@ -35,12 +42,12 @@ for (const f of fs.readdirSync(SRC).filter((f) => /-[gd]\.png$/.test(f))) {
     }
     if (suffixe === '-lum') {
       const m = JSON.parse(fs.readFileSync(path.join(SRC, `${nom}-lum.json`), 'utf8'))
-      lum[nom] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(m.ox * k).toFixed(2), oy: +(m.oy * k).toFixed(2) }
+      lum[nom] = { w: +(width * k).toFixed(2), h: +(height * k).toFixed(2), ox: +(m.ox * k).toFixed(2), oy: +(m.oy * k).toFixed(2), v: empreinte(src) }
     }
   }
-  bats.push(nom)
+  bats[nom] = empreinte(path.join(SRC, f), path.join(SRC, `${nom}-vol.png`))
 }
-const sols = []
+const sols = {}
 for (const f of fs.readdirSync(SRC_SOLS).filter((f) => f.endsWith('.png'))) {
   const nom = f.replace(/\.png$/, '')
   const meta = JSON.parse(fs.readFileSync(path.join(SRC_SOLS, `${nom}.json`), 'utf8'))
@@ -56,16 +63,17 @@ for (const f of fs.readdirSync(SRC_SOLS).filter((f) => f.endsWith('.png'))) {
       await sharp(path.join(SRC_SOLS, f)).resize(Math.round(width * r)).webp({ quality: 82, alphaQuality: 90 }).toFile(path.join(PUB, dir, `${nom}.webp`))
     }
   }
-  sols.push(nom)
+  sols[nom] = empreinte(path.join(SRC_SOLS, f))
 }
-const ts = `// Généré par atelier-ville/nuit-appli.mjs — ne pas modifier à la main (aperçu du mode nuit, local).
+const ts = `// Généré par atelier-ville/nuit-appli.mjs — ne pas modifier à la main.
 import type { Sprite } from './sprites'
 
-/** Bâtiments (id-sens) et sols disponibles de nuit ; les autres gardent leur image de jour */
-export const NUIT_BATS = new Set<string>(${JSON.stringify(bats.sort())})
-export const NUIT_SOLS = new Set<string>(${JSON.stringify(sols.sort())})
+/** Bâtiments (id-sens) et sols disponibles de nuit, avec la version de leur image ;
+ * les autres gardent leur image de jour */
+export const NUIT_BATS: Record<string, string> = ${JSON.stringify(Object.fromEntries(Object.entries(bats).sort()), null, 2)}
+export const NUIT_SOLS: Record<string, string> = ${JSON.stringify(Object.fromEntries(Object.entries(sols).sort()), null, 2)}
 /** Cadrage des couches de lumière (unités de la carte SVG, origine = centre de l'emprise) */
-export const NUIT_LUM: Record<string, Omit<Sprite, 'v'>> = ${JSON.stringify(lum, null, 2)}
+export const NUIT_LUM: Record<string, Sprite> = ${JSON.stringify(lum, null, 2)}
 `
 fs.writeFileSync(path.join(HERE, '..', 'src', 'city', 'sprites-nuit.ts'), ts)
-console.log(`${bats.length} bâtiments de nuit, ${Object.keys(lum).length} couches de lumière, ${sols.length} sols`)
+console.log(`${Object.keys(bats).length} bâtiments de nuit, ${Object.keys(lum).length} couches de lumière, ${Object.keys(sols).length} sols`)

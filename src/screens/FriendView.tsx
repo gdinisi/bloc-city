@@ -5,6 +5,7 @@ import { gradeRank, typeInfo } from '../types'
 import type { CityState } from '../city/economy'
 import { migrateCity } from '../city/economy'
 import { CityMap } from '../city/CityMap'
+import { useModeNuit } from '../city/nuit'
 import type { Profile } from '../lib/cloud'
 import { getCity, getFriendSessions, removeFriend } from '../lib/cloud'
 import { MONTHS, WEEKDAYS_SHORT, formatLongDate, monthGrid, toKey } from '../lib/dates'
@@ -29,6 +30,7 @@ interface Props {
 
 /** Fiche d'un ami : ses stats comparées aux tiennes, son calendrier et sa ville */
 export function FriendView({ friend, mySessions, myGoal, onClose, onRemoved, demo }: Props) {
+  const ciel = useModeNuit()
   const [tab, setTab] = useState<Tab>('stats')
   const [data, setData] = useState<{ sessions: Session[]; weeklyGoal: number } | null | 'vide'>(null)
   const [city, setCity] = useState<CityState | null | 'vide'>(null)
@@ -102,7 +104,7 @@ export function FriendView({ friend, mySessions, myGoal, onClose, onRemoved, dem
             {city === 'vide' && <p className="muted">{friend.pseudo} n'a pas encore construit sa ville.</p>}
             {city && city !== 'vide' && (
               <>
-                <CityMap city={city} className="visit-map" />
+                <CityMap city={city} className="visit-map" nuit={ciel.nuit} />
                 <p className="muted small-text">
                   {city.placed.length} bâtiment{city.placed.length > 1 ? 's' : ''} · pince pour zoomer
                 </p>

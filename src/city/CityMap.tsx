@@ -5,6 +5,7 @@ import { landCandidates, landOf } from './economy'
 import { buildingById, sizeOf } from './buildings'
 import { BuildingSprite, TH, TW, spriteUrl } from './iso'
 import { SOLS, SPRITES } from './sprites'
+import { NUIT_BATS, NUIT_LUM, NUIT_SOLS } from './sprites-nuit'
 
 /*
  * Carte isométrique de la ville (rendus Blender : sols, falaises, mer, bâtiments).
@@ -23,6 +24,7 @@ const STEP = 7 // hauteur d'une marche de relief (unités de la carte)
 const MER = 0 // niveau de la mer, en marches (= le sol non surélevé)
 /** Couleur de la mer au-delà des cases d'eau dessinées */
 export const COULEUR_MER = '#1d5f8c'
+const COULEUR_MER_NUIT = '#0b2033'
 
 interface Props {
   city: CityState
@@ -43,9 +45,11 @@ interface Props {
   plein?: boolean
   /** Bouton supplémentaire dans les contrôles (ex. plein écran) */
   controle?: ReactNode
+  /** Ville de nuit (aperçu) : rendus de nuit, couche de lumière en mode écran */
+  nuit?: boolean
 }
 
-export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selected, valid, ghost, movingUid, className, plein, controle }: Props) {
+export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selected, valid, ghost, movingUid, className, plein, controle, nuit }: Props) {
   const land = useMemo(() => landOf(city), [city])
   const candidats = useMemo(() => (onAddCase ? landCandidates(city) : []), [city, onAddCase])
   const [cam, setCam] = useState({ s: 1, x: 0, y: 0 })
@@ -187,7 +191,17 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
   }
   const visible = (x: number, y: number) => x >= vue.a && x <= vue.b && y >= vue.c && y <= vue.d
   const hd = cam.s >= 2.2
-  const solUrl = (nom: string) => `${import.meta.env.BASE_URL}img/ville/sol/${hd ? 'hd/' : ''}${nom}.webp?v=${SOLS[nom]?.v ?? ''}`
+  const solUrl = (nom: string) =>
+    nuit && NUIT_SOLS[nom]
+      ? `${import.meta.env.BASE_URL}img/ville-nuit/sol/${hd ? 'hd/' : ''}${nom}.webp?v=${NUIT_SOLS[nom]}`
+      : `${import.meta.env.BASE_URL}img/ville/sol/${hd ? 'hd/' : ''}${nom}.webp?v=${SOLS[nom]?.v ?? ''}`
+  /** Image de nuit d'un bâtiment (ou de sa couche de lumière / de sa silhouette), si elle existe */
+  const nuitUrl = (id: string, flip: boolean, suffixe = '') => {
+    const nom = `${id}-${flip ? 'g' : 'd'}`
+    if (!nuit || !NUIT_BATS[nom]) return null
+    const v = suffixe === '-lum' ? NUIT_LUM[nom]?.v : NUIT_BATS[nom]
+    return `${import.meta.env.BASE_URL}img/ville-nuit/${hd ? 'hd/' : ''}${nom}${suffixe}.webp?v=${v}`
+  }
   const image = (nom: string, cx: number, cy: number, agrandi = 1) => {
     const sp = SOLS[nom]
     if (!sp) return null
@@ -368,7 +382,7 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
         >
           {sp ? (
             <>
-              <image href={spriteUrl(it.b.id, it.p.flip, hd ? 'hd' : 'normal')} x={-sp.ox} y={-sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" style={{ pointerEvents: 'none' }} />
+              <image href={nuitUrl(it.b.id, it.p.flip) ?? spriteUrl(it.b.id, it.p.flip, hd ? 'hd' : 'normal')} x={-sp.ox} y={-sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" style={{ pointerEvents: 'none' }} />
               {/* zone de toucher : l'emprise au sol prolongée vers le haut (pas le rectangle transparent de l'image) */}
               <polygon points={`${-TW * h},0 0,${TH * h} ${TW * h},0 ${TW * h},${-(sp.oy - TH * h) * 0.85} 0,${-(sp.oy - TH * h) * 0.85 - TH * h} ${-TW * h},${-(sp.oy - TH * h) * 0.85}`} fill="transparent" />
               {isSel && <polygon points={contour} fill="#ffe066" fillOpacity={0.28} stroke="#f2994a" strokeWidth={2 / Math.sqrt(cam.s)} style={{ pointerEvents: 'none' }} />}
@@ -389,8 +403,32 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
   // ordre d'affichage : du fond vers l'avant (sol d'abord à profondeur égale)
   const tout = [...sol, ...bats].sort((a, b) => a.k - b.k)
 
+  // ---------- nuit : couche de lumière ----------
+  // Chaque bâtiment a une couche de lumière (halos qui débordent sur les cases voisines, faisceau du phare),
+  // posée en mode « écran » par-dessus la ville. Les silhouettes des volumes (maisons, arbres, lampadaires)
+  // la masquent : la lumière éclaire le sol mais ne passe jamais devant un bâtiment ou un objet.
+  const idMasque = `${idMer}-masque`
+  const lumieres = nuit
+    ? items.flatMap((it) => {
+        const nom = `${it.b.id}-${it.p.flip ? 'g' : 'd'}`
+        const lu = NUIT_LUM[nom]
+        const sp = SPRITES[it.b.id]
+        if (!lu || !sp || !NUIT_BATS[nom]) return []
+        const [cx, cy] = proj(it.p.x + (it.s - 1) / 2, it.p.y + (it.s - 1) / 2)
+        const y = cy - it.e * STEP
+        // seulement ce qui touche la partie visible (le faisceau du phare porte loin)
+        if (cx - lu.ox > vue.b || cx - lu.ox + lu.w < vue.a || y - lu.oy > vue.d || y - lu.oy + lu.h < vue.c - 4 * TW) return []
+        return [
+          {
+            lum: <image key={`l${it.p.uid}`} href={nuitUrl(it.b.id, it.p.flip, '-lum')!} x={cx - lu.ox} y={y - lu.oy} width={lu.w} height={lu.h} preserveAspectRatio="none" style={{ mixBlendMode: 'screen' }} />,
+            vol: <image key={`v${it.p.uid}`} href={nuitUrl(it.b.id, it.p.flip, '-vol')!} x={cx - sp.ox} y={y - sp.oy} width={sp.w} height={sp.h} preserveAspectRatio="none" />,
+          },
+        ]
+      })
+    : []
+
   return (
-    <div className={`city-map ${plein ? 'plein' : ''} ${className ?? ''}`} style={{ background: COULEUR_MER }}>
+    <div className={`city-map ${plein ? 'plein' : ''} ${className ?? ''}`} style={{ background: nuit ? COULEUR_MER_NUIT : COULEUR_MER }}>
       <svg
         ref={svgRef}
         className="city-svg"
@@ -412,9 +450,22 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
           </pattern>
         </defs>
         <rect x={x0} y={top} width={vbW} height={vbH} fill="transparent" />
+        {lumieres.length > 0 && (
+          <defs>
+            <mask id={idMasque} maskUnits="userSpaceOnUse" x={vue.a - TW} y={vue.c - 4 * TW} width={vue.b - vue.a + 2 * TW} height={vue.d - vue.c + 8 * TW}>
+              <rect x={vue.a - TW} y={vue.c - 4 * TW} width={vue.b - vue.a + 2 * TW} height={vue.d - vue.c + 8 * TW} fill="#ffffff" />
+              {lumieres.map((l) => l.vol)}
+            </mask>
+          </defs>
+        )}
         <g transform={`translate(${cam.x} ${cam.y}) scale(${cam.s})`}>
           <rect x={vue.a - TW} y={vue.c - TH} width={vue.b - vue.a + 2 * TW} height={vue.d - vue.c + 2 * TH} fill={`url(#${idMer})`} style={{ pointerEvents: 'none' }} />
           {tout.map((e) => e.node)}
+          {lumieres.length > 0 && (
+            <g mask={`url(#${idMasque})`} style={{ mixBlendMode: 'screen', pointerEvents: 'none' }}>
+              {lumieres.map((l) => l.lum)}
+            </g>
+          )}
         </g>
       </svg>
       {!readOnly && (

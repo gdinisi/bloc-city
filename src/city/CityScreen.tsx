@@ -19,6 +19,7 @@ import {
 import { BUILDINGS, RARITIES, buildingById, sizeOf } from './buildings'
 import { BuildingThumb } from './iso'
 import { CityMap } from './CityMap'
+import { useModeNuit } from './nuit'
 import { PackOpening } from './PackOpening'
 import { Shop } from './Shop'
 import { QuestsMini } from './QuestsPanel'
@@ -76,6 +77,7 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
     }
   }, [plein])
   const now = useNow()
+  const ciel = useModeNuit()
 
   const land = useMemo(() => landOf(city), [city])
   const chestAt = chestReadyAt(city)
@@ -327,13 +329,25 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           ghost={editingGround}
           movingUid={mode.type === 'move' ? mode.uid : null}
           plein={plein}
+          nuit={ciel.nuit}
           controle={
+            <>
+            <button
+              type="button"
+              className="round ciel-btn"
+              aria-label={ciel.mode === 'auto' ? "Jour ou nuit selon l'heure (toucher pour forcer le jour)" : ciel.mode === 'jour' ? 'Toujours le jour (toucher pour forcer la nuit)' : 'Toujours la nuit (toucher pour revenir en automatique)'}
+              title={ciel.mode === 'auto' ? "Auto (selon l'heure)" : ciel.mode === 'jour' ? 'Jour' : 'Nuit'}
+              onClick={ciel.suivant}
+            >
+              {ciel.mode === 'auto' ? '🌗' : ciel.mode === 'jour' ? '☀️' : '🌙'}
+            </button>
             <button type="button" className="round" aria-label={plein ? 'Quitter le plein écran' : 'Plein écran'} onClick={() => {
               setPlein((v) => !v)
               setInvPlein(false)
             }}>
               {plein ? '✕' : '⛶'}
             </button>
+            </>
           }
         />
         {plein && selection}

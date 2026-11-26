@@ -22,6 +22,8 @@ const showCityDemo = import.meta.env.DEV && q.has('villedemo')
 const CityDemo = lazy(() => import('./city/CityDemo'))
 const showSeanceDemo = import.meta.env.DEV && q.has('seancedemo')
 const SeanceDemo = lazy(() => import('./workout/SeanceDemo'))
+const showNuitDemo = import.meta.env.DEV && q.has('nuitdemo')
+const NuitDemo = lazy(() => import('./city/NuitDemo'))
 const showBienvenue = import.meta.env.DEV && q.has('bienvenue')
 const OnboardingDemo = lazy(() => import('./screens/OnboardingDemo'))
 
@@ -38,6 +40,10 @@ createRoot(document.getElementById('root')!).render(
     ) : showBienvenue ? (
       <Suspense fallback={null}>
         <OnboardingDemo />
+      </Suspense>
+    ) : showNuitDemo ? (
+      <Suspense fallback={null}>
+        <NuitDemo />
       </Suspense>
     ) : showSeanceDemo ? (
       <Suspense fallback={null}>
