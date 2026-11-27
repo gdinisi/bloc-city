@@ -344,6 +344,38 @@ export function buy(city: CityState, id: string): CityState | null {
   return c
 }
 
+/** Part du prix d'achat rendue quand on revend un bâtiment */
+export const TAUX_REVENTE = 0.7
+
+/** Prix d'achat d'un bâtiment entier (épique / légendaire : tous ses fragments) ; null s'il ne s'achète pas */
+export const purchaseValue = (b: Building) => {
+  const p = shopPrice(b)
+  return p === null ? null : isFragmented(b) ? p * fragmentsNeeded(b) : p
+}
+
+/** Prix de revente : 70 % du prix d'achat (les merveilles et exclusivités de quêtes ne se revendent pas) */
+export const salePrice = (b: Building) => {
+  const v = purchaseValue(b)
+  return v === null ? null : Math.round(v * TAUX_REVENTE)
+}
+
+/** Revend un bâtiment posé sur la carte */
+export function sellPlaced(city: CityState, puid: string): CityState {
+  const p = city.placed.find((q) => q.uid === puid)
+  const b = p && buildingById(p.id)
+  const prix = b ? salePrice(b) : null
+  if (!p || prix === null) return city
+  return { ...city, coins: city.coins + prix, placed: city.placed.filter((q) => q.uid !== puid) }
+}
+
+/** Revend un exemplaire rangé dans l'inventaire */
+export function sellStored(city: CityState, id: string): CityState {
+  const b = buildingById(id)
+  const prix = b ? salePrice(b) : null
+  if (!b || prix === null || (city.inventory[id] ?? 0) <= 0) return city
+  return { ...city, coins: city.coins + prix, inventory: { ...city.inventory, [id]: city.inventory[id] - 1 } }
+}
+
 /* ---------- Pose sur la carte ---------- */
 
 export const footprint = (x: number, y: number, size: number) => {

@@ -5379,3 +5379,22 @@ body.sans-defilement {
   height: 44px;
   font-size: 1.35rem;
 }
+
+/* Revente des bâtiments (carte du bâtiment sélectionné, boutique) */
+.selected-actions:has(> :nth-child(4)) { grid-template-columns: repeat(2, 1fr); }
+.vente-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--card-2, rgba(255, 255, 255, 0.06));
+  font-size: 0.9rem;
+}
+.vente-confirm > span { flex: 1 1 100%; }
+.vente-confirm > .btn { flex: 1; }
+.shop-vente { display: flex; flex-direction: column; align-self: stretch; gap: 2px; margin-top: 6px; }
+.shop-vente .btn.small { padding: 6px 4px; font-size: 0.8rem; white-space: nowrap; }
+.shop-item .shop-vendre { margin-top: 4px; font-size: 0.78rem; padding: 4px 8px; text-decoration: underline; }

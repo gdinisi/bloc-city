@@ -12,7 +12,9 @@ import {
   place,
   removeCase,
   rotate,
+  salePrice,
   sculpt,
+  sellPlaced,
   store,
 
 } from './economy'
@@ -85,6 +87,9 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
   const inventory = Object.entries(city.inventory).filter(([, n]) => n > 0)
   const selectedP = city.placed.find((p) => p.uid === selected)
   const selectedB = selectedP ? buildingById(selectedP.id) : undefined
+  const prixVente = selectedB ? salePrice(selectedB) : null
+  /** Bâtiment posé dont on demande la confirmation de vente */
+  const [vente, setVente] = useState<string | null>(null)
   const fragments = BUILDINGS.filter((b) => isFragmented(b) && (city.fragments[b.id] ?? 0) > 0)
   const editingGround = mode.type === 'relief' || mode.type === 'terrain'
 
@@ -177,7 +182,34 @@ export function CityScreen({ city, onCity, sessions, weeklyGoal }: Props) {
           >
             📦 Ranger
           </button>
+          {prixVente !== null && (
+            <button type="button" className="btn small" onClick={() => setVente(selectedP.uid)}>
+              🪙 Vendre
+            </button>
+          )}
         </div>
+        {prixVente !== null && vente === selectedP.uid && (
+          <div className="vente-confirm">
+            <span>
+              Vendre {selectedB.name} ? Tu récupères <b>{prixVente} 🪙</b> (70 % de son prix).
+            </span>
+            <button type="button" className="btn small" onClick={() => setVente(null)}>
+              Annuler
+            </button>
+            <button
+              type="button"
+              className="btn small primary"
+              onClick={() => {
+                onCity((c) => sellPlaced(c, selectedP.uid))
+                setVente(null)
+                setSelected(null)
+              }}
+            >
+              Vendre
+            </button>
+          </div>
+        )}
+        {prixVente === null && <p className="muted small-text">Les merveilles et les exclusivités de quêtes ne se revendent pas.</p>}
       </section>
   )
 

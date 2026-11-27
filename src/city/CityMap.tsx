@@ -375,8 +375,10 @@ export function CityMap({ city, readOnly, onTile, onBuilding, onAddCase, selecte
           onClick={tap(onBuilding ? () => onBuilding(it.p.uid) : undefined)}
           style={{
             cursor: onBuilding ? 'pointer' : undefined,
-            opacity: moving ? 0.35 : ghost ? 0.3 : 1,
-            pointerEvents: ghost || moving || !onBuilding ? 'none' : 'auto',
+            // pendant une pose ou un déplacement, les bâtiments deviennent transparents au toucher (et un peu à l'œil)
+            // pour que l'on puisse viser une case cachée derrière eux
+            opacity: moving ? 0.35 : ghost ? 0.3 : valid ? 0.6 : 1,
+            pointerEvents: ghost || moving || valid || !onBuilding ? 'none' : 'auto',
             transition: 'opacity 0.2s',
           }}
         >
